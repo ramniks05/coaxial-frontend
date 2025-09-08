@@ -5,20 +5,44 @@
 }
 
 .dashboard-header {
-  text-align: center;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
   margin-bottom: 40px;
+  flex-wrap: wrap;
+  gap: var(--spacing-4);
 }
 
-.dashboard-header h1 {
+.dashboard-title {
+  text-align: left;
+}
+
+.dashboard-title h1 {
   font-size: 36px;
   font-weight: 700;
   color: white;
   margin-bottom: 10px;
 }
 
-.dashboard-header p {
+.dashboard-title p {
   color: rgba(255, 255, 255, 0.8);
   font-size: 18px;
+}
+
+.dashboard-nav {
+  display: flex;
+  align-items: center;
+}
+
+@media (max-width: 768px) {
+  .dashboard-header {
+    flex-direction: column;
+    text-align: center;
+  }
+  
+  .dashboard-title {
+    text-align: center;
+  }
 }
 
 .welcome-card {
