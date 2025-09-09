@@ -28,6 +28,15 @@ const Header = () => {
     }
   };
 
+  const handleClearAuth = () => {
+    // Clear localStorage manually
+    localStorage.removeItem('user');
+    localStorage.removeItem('token');
+    logout();
+    navigate('/');
+    setIsUserMenuOpen(false);
+  };
+
   const handleNavigation = (path, pageName) => {
     setCurrentPage(pageName);
     navigate(path);
@@ -159,6 +168,23 @@ const Header = () => {
               >
                 Get Started
               </Link>
+              {/* Temporary button to clear auth state for testing */}
+              <button 
+                className="btn-clear-auth"
+                onClick={handleClearAuth}
+                style={{
+                  background: '#ff4444',
+                  color: 'white',
+                  border: 'none',
+                  padding: '8px 12px',
+                  borderRadius: '4px',
+                  cursor: 'pointer',
+                  fontSize: '12px',
+                  marginLeft: '8px'
+                }}
+              >
+                Clear Auth
+              </button>
             </div>
           )}
         </nav>

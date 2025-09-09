@@ -182,20 +182,24 @@ const SubjectManagement = () => {
             onClick={async () => {
               try {
                 console.log('Testing Subject API connection...');
-                const testData = { 
-                  name: 'Test Subject', 
-                  description: 'Test Description', 
-                  courseType: { id: courseTypes[0]?.id || '1' },
-                  displayOrder: 1,
-                  isActive: true 
-                };
-                console.log('Test data:', testData);
+                console.log('Available course types:', courseTypes);
                 console.log('Token:', token);
-                const result = await createSubject(token, testData);
-                console.log('Test result:', result);
+                
+                // Test GET subjects first
+                console.log('Testing GET subjects...');
+                const subjects = await getSubjects(token);
+                console.log('GET subjects result:', subjects);
+                
+                // Test GET subjects with course type filter
+                if (courseTypes.length > 0) {
+                  console.log('Testing GET subjects with course type filter...');
+                  const filteredSubjects = await getSubjects(token, courseTypes[0].id);
+                  console.log('GET filtered subjects result:', filteredSubjects);
+                }
+                
                 addNotification({
                   type: 'success',
-                  message: 'Subject API test successful!',
+                  message: 'Subject API GET test successful!',
                   duration: 3000
                 });
               } catch (error) {
@@ -304,7 +308,7 @@ const SubjectManagement = () => {
             </div>
             
             <div className="form-row">
-              <div className="form-group">
+              <div className="form-group full-width">
                 <label htmlFor="description">Description</label>
                 <textarea
                   id="description"
@@ -313,18 +317,6 @@ const SubjectManagement = () => {
                   placeholder="Brief description of this subject"
                   rows={3}
                 />
-              </div>
-              
-              <div className="form-group">
-                <label htmlFor="isActive">Status</label>
-                <select
-                  id="isActive"
-                  value={formData.isActive}
-                  onChange={(e) => setFormData({ ...formData, isActive: e.target.value === 'true' })}
-                >
-                  <option value={true}>Active</option>
-                  <option value={false}>Inactive</option>
-                </select>
               </div>
             </div>
             

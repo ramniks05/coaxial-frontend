@@ -127,6 +127,15 @@ export const AppProvider = ({ children }) => {
     if (user && token) {
       try {
         const userData = JSON.parse(user);
+        
+        // Check if token is expired
+        if (isTokenExpired(token)) {
+          console.log('Token expired, clearing localStorage');
+          localStorage.removeItem('user');
+          localStorage.removeItem('token');
+          return;
+        }
+        
         dispatch({
           type: ActionTypes.LOGIN_SUCCESS,
           payload: { user: userData, token }
@@ -138,6 +147,19 @@ export const AppProvider = ({ children }) => {
       }
     }
   }, []);
+
+  // Helper function to check if token is expired
+  const isTokenExpired = (token) => {
+    try {
+      // Decode JWT token to check expiration
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      const currentTime = Date.now() / 1000;
+      return payload.exp < currentTime;
+    } catch (error) {
+      console.error('Error checking token expiration:', error);
+      return true; // If we can't parse the token, consider it expired
+    }
+  };
 
   // Save user data to localStorage when it changes
   useEffect(() => {

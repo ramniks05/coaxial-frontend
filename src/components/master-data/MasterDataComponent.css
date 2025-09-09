@@ -111,6 +111,10 @@
   gap: var(--spacing-2);
 }
 
+.form-group.full-width {
+  flex: 1 1 100%;
+}
+
 .form-group label {
   font-size: var(--font-size-sm);
   font-weight: 600;
