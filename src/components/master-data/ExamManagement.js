@@ -1,11 +1,22 @@
 import React, { useEffect, useState } from 'react';
 import { useApp } from '../../context/AppContext';
-import { createClass, deleteClass, getClasses, getCourses, getCourseTypes, updateClass } from '../../services/masterDataService';
+import { createExam, deleteExam, getCourses, getCourseTypes, getExams, updateExam } from '../../services/masterDataService';
 import './MasterDataComponent.css';
 
-const ClassManagement = () => {
+/**
+ * Exam Management Component
+ * 
+ * Features:
+ * - 2-level filtering: Course Type → Course → Exams
+ * - API automatically returns only active exams (isActive = true)
+ * - Results are ordered by displayOrder and then by name
+ * - Full CRUD operations for exams
+ * - Dynamic course dropdown based on selected course type
+ */
+
+const ExamManagement = () => {
   const { token, addNotification } = useApp();
-  const [classes, setClasses] = useState([]);
+  const [exams, setExams] = useState([]);
   const [courses, setCourses] = useState([]);
   const [courseTypes, setCourseTypes] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -17,6 +28,7 @@ const ClassManagement = () => {
     name: '',
     description: '',
     course: { id: '' },
+    displayOrder: '',
     isActive: true
   });
 
@@ -26,23 +38,23 @@ const ClassManagement = () => {
 
   useEffect(() => {
     if (selectedCourse) {
-      fetchClasses(null, selectedCourse);
+      fetchExams(selectedCourseType, selectedCourse);
     } else if (selectedCourseType) {
-      fetchClasses(selectedCourseType);
+      fetchExams(selectedCourseType);
     } else {
-      fetchClasses();
+      fetchExams();
     }
   }, [selectedCourseType, selectedCourse]);
 
   const fetchData = async () => {
     try {
       setLoading(true);
-      const [classesData, coursesData, courseTypesData] = await Promise.all([
-        getClasses(token),
+      const [examsData, coursesData, courseTypesData] = await Promise.all([
+        getExams(token),
         getCourses(token),
         getCourseTypes(token)
       ]);
-      setClasses(classesData);
+      setExams(examsData);
       setCourses(coursesData);
       setCourseTypes(courseTypesData);
     } catch (error) {
@@ -57,27 +69,22 @@ const ClassManagement = () => {
     }
   };
 
-  const fetchClasses = async (courseTypeId = null, courseId = null) => {
+  const fetchExams = async (courseTypeId = null, courseId = null) => {
     try {
       setLoading(true);
-      // For now, we'll use courseTypeId since the API might not support courseId filter yet
-      // This can be updated when the backend supports course-based filtering
-      const data = await getClasses(token, courseTypeId);
+      // Convert string values to numbers for API call
+      const typeId = courseTypeId ? parseInt(courseTypeId) : null;
+      const id = courseId ? parseInt(courseId) : null;
       
-      // Filter classes by course on the frontend if courseId is provided
-      let filteredData = data;
-      if (courseId) {
-        filteredData = data.filter(cls => 
-          cls.course?.id === parseInt(courseId) || cls.courseId === parseInt(courseId)
-        );
-      }
-      
-      setClasses(filteredData);
+      // Use the enhanced API with 2-level filtering
+      // API automatically handles: active exams only, proper ordering by displayOrder and name
+      const data = await getExams(token, typeId, id);
+      setExams(data);
     } catch (error) {
-      console.error('Error fetching classes:', error);
+      console.error('Error fetching exams:', error);
       addNotification({
         type: 'error',
-        message: 'Failed to fetch classes',
+        message: 'Failed to fetch exams',
         duration: 5000
       });
     } finally {
@@ -90,11 +97,30 @@ const ClassManagement = () => {
     try {
       setLoading(true);
       
+      // Validate required fields
+      if (!formData.name || !formData.name.trim()) {
+        addNotification({
+          type: 'error',
+          message: 'Exam name is required',
+          duration: 5000
+        });
+        return;
+      }
+      
+      if (!formData.course.id) {
+        addNotification({
+          type: 'error',
+          message: 'Course is required',
+          duration: 5000
+        });
+        return;
+      }
+      
       // Prepare data in the correct format according to backend requirements
       const selectedCourse = courses.find(c => c.id === parseInt(formData.course.id));
       const submitData = {
-        name: formData.name,
-        description: formData.description,
+        name: formData.name.trim(),
+        description: formData.description ? formData.description.trim() : '', // Ensure description is never null
         course: {
           id: parseInt(formData.course.id),
           name: selectedCourse ? selectedCourse.name : "Unknown Course",
@@ -104,38 +130,44 @@ const ClassManagement = () => {
             name: selectedCourse ? getCourseTypeName(selectedCourse.courseType?.id || selectedCourse.courseTypeId) : "Unknown Course Type"
           }
         },
-        displayOrder: 0,
+        displayOrder: formData.displayOrder ? parseInt(formData.displayOrder) : 0,
         isActive: formData.isActive
       };
       
       console.log('Form data being submitted:', submitData);
-      console.log('Token available:', !!token);
       
       if (editingId) {
-        await updateClass(token, editingId, submitData);
+        await updateExam(token, editingId, submitData);
         addNotification({
           type: 'success',
-          message: 'Class updated successfully',
+          message: 'Exam updated successfully',
           duration: 3000
         });
       } else {
-        await createClass(token, submitData);
+        await createExam(token, submitData);
         addNotification({
           type: 'success',
-          message: 'Class created successfully',
+          message: 'Exam created successfully',
           duration: 3000
         });
       }
       
       setShowForm(false);
       setEditingId(null);
-      setFormData({ name: '', description: '', course: { id: '' }, isActive: true });
-      fetchClasses(selectedCourseType, selectedCourse);
+      setFormData({ name: '', description: '', course: { id: '' }, displayOrder: '', isActive: true });
+      // Refresh the exam list with current filters
+      if (selectedCourse) {
+        fetchExams(selectedCourseType, selectedCourse);
+      } else if (selectedCourseType) {
+        fetchExams(selectedCourseType);
+      } else {
+        fetchExams();
+      }
     } catch (error) {
-      console.error('Error saving class:', error);
+      console.error('Error saving exam:', error);
       addNotification({
         type: 'error',
-        message: `Failed to save class: ${error.message}`,
+        message: `Failed to save exam: ${error.message}`,
         duration: 5000
       });
     } finally {
@@ -143,33 +175,53 @@ const ClassManagement = () => {
     }
   };
 
-  const handleEdit = (classItem) => {
+  const handleEdit = (exam) => {
+    const courseId = exam.course?.id || exam.courseId;
+    const courseTypeId = exam.course?.courseType?.id || exam.courseType?.id || exam.courseTypeId;
+    
     setFormData({
-      name: classItem.name,
-      description: classItem.description || '',
-      course: { id: classItem.course?.id || classItem.courseId || '' },
-      isActive: classItem.isActive
+      name: exam.name,
+      description: exam.description || '',
+      course: { id: courseId || '' },
+      displayOrder: exam.displayOrder || '',
+      isActive: exam.isActive
     });
-    setEditingId(classItem.id);
+    
+    // Set the filters to match the exam being edited
+    if (courseTypeId) {
+      setSelectedCourseType(courseTypeId.toString());
+    }
+    if (courseId) {
+      setSelectedCourse(courseId.toString());
+    }
+    
+    setEditingId(exam.id);
     setShowForm(true);
   };
 
   const handleDelete = async (id) => {
-    if (window.confirm('Are you sure you want to delete this class?')) {
+    if (window.confirm('Are you sure you want to delete this exam?')) {
       try {
         setLoading(true);
-        await deleteClass(token, id);
+        await deleteExam(token, id);
         addNotification({
           type: 'success',
-          message: 'Class deleted successfully',
+          message: 'Exam deleted successfully',
           duration: 3000
         });
-        fetchClasses(selectedCourseType, selectedCourse);
+        // Refresh the exam list with current filters
+        if (selectedCourse) {
+          fetchExams(selectedCourseType, selectedCourse);
+        } else if (selectedCourseType) {
+          fetchExams(selectedCourseType);
+        } else {
+          fetchExams();
+        }
       } catch (error) {
-        console.error('Error deleting class:', error);
+        console.error('Error deleting exam:', error);
         addNotification({
           type: 'error',
-          message: 'Failed to delete class',
+          message: 'Failed to delete exam',
           duration: 5000
         });
       } finally {
@@ -179,7 +231,7 @@ const ClassManagement = () => {
   };
 
   const resetForm = () => {
-    setFormData({ name: '', description: '', course: { id: '' }, isActive: true });
+    setFormData({ name: '', description: '', course: { id: '' }, displayOrder: '', isActive: true });
     setEditingId(null);
     setShowForm(false);
   };
@@ -194,29 +246,25 @@ const ClassManagement = () => {
     return course ? course.name : 'Unknown';
   };
 
-  const isAcademicCourseType = (courseTypeId) => {
+  const getAllCourses = () => {
+    return courses; // Return all courses, not just competitive ones
+  };
+
+  const isCompetitiveCourseType = (courseTypeId) => {
     const courseType = courseTypes.find(ct => ct.id === courseTypeId);
-    return courseType && courseType.name.toLowerCase().includes('academic');
+    return courseType && courseType.name.toLowerCase().includes('competitive');
   };
 
-  const getAcademicCourseTypes = () => {
-    return courseTypes.filter(ct => ct.name.toLowerCase().includes('academic'));
-  };
-
-  const getAcademicCourses = () => {
-    return courses.filter(c => isAcademicCourseType(c.courseType?.id || c.courseTypeId));
-  };
-
-  const getClassesForCourse = (courseId) => {
-    return classes.filter(c => c.course?.id === courseId || c.courseId === courseId);
+  const getCompetitiveCourseTypes = () => {
+    return courseTypes.filter(ct => ct.name.toLowerCase().includes('competitive'));
   };
 
   return (
     <div className="master-data-component">
       <div className="component-header">
         <div className="header-info">
-          <h2>Class Management</h2>
-          <p>Manage classes for Academic course types only (e.g., Grade 1, Grade 2, Class A, Class B)</p>
+          <h2>Exam Management</h2>
+          <p>Manage exams for all course types (e.g., JEE, NEET, UPSC, Mid-term, Final)</p>
         </div>
         <div style={{ display: 'flex', gap: '10px' }}>
           <button 
@@ -224,59 +272,7 @@ const ClassManagement = () => {
             onClick={() => setShowForm(true)}
           >
             <span className="btn-icon">➕</span>
-            Add Class
-          </button>
-          <button 
-            className="btn btn-outline"
-            onClick={async () => {
-              try {
-                console.log('Testing Class API connection...');
-                const academicCourseTypes = getAcademicCourseTypes();
-                const firstCourse = courses[0];
-                if (!firstCourse) {
-                  addNotification({
-                    type: 'error',
-                    message: 'No courses available. Create a course first.',
-                    duration: 5000
-                  });
-                  return;
-                }
-                
-                const testData = { 
-                  name: 'Test Class', 
-                  description: 'Test Description', 
-                  course: {
-                    id: firstCourse.id,
-                    name: firstCourse.name,
-                    description: firstCourse.description,
-                    courseType: { 
-                      id: firstCourse.courseType?.id || firstCourse.courseTypeId,
-                      name: getCourseTypeName(firstCourse.courseType?.id || firstCourse.courseTypeId)
-                    }
-                  },
-                  displayOrder: 0,
-                  isActive: true 
-                };
-                console.log('Test data:', testData);
-                console.log('Token:', token);
-                const result = await createClass(token, testData);
-                console.log('Test result:', result);
-                addNotification({
-                  type: 'success',
-                  message: 'Class API test successful!',
-                  duration: 3000
-                });
-              } catch (error) {
-                console.error('Class API test failed:', error);
-                addNotification({
-                  type: 'error',
-                  message: `Class API test failed: ${error.message}`,
-                  duration: 5000
-                });
-              }
-            }}
-          >
-            Test Class API
+            Add Exam
           </button>
         </div>
       </div>
@@ -295,7 +291,7 @@ const ClassManagement = () => {
             className="filter-select"
           >
             <option value="">All Course Types</option>
-            {getAcademicCourseTypes().map(courseType => (
+            {courseTypes.map(courseType => (
               <option key={courseType.id} value={courseType.id}>
                 {courseType.name}
               </option>
@@ -313,7 +309,10 @@ const ClassManagement = () => {
               className="filter-select"
             >
               <option value="">All Courses</option>
-              {getAcademicCourses().map(course => (
+              {getAllCourses().filter(course => 
+                course.courseType?.id === parseInt(selectedCourseType) || 
+                course.courseTypeId === parseInt(selectedCourseType)
+              ).map(course => (
                 <option key={course.id} value={course.id}>
                   {course.name}
                 </option>
@@ -326,7 +325,7 @@ const ClassManagement = () => {
       {showForm && (
         <div className="form-section">
           <div className="form-header">
-            <h3>{editingId ? 'Edit Class' : 'Add New Class'}</h3>
+            <h3>{editingId ? 'Edit Exam' : 'Add New Exam'}</h3>
             <button className="btn btn-outline btn-sm" onClick={resetForm}>
               Cancel
             </button>
@@ -335,14 +334,14 @@ const ClassManagement = () => {
           <form onSubmit={handleSubmit} className="master-data-form">
             <div className="form-row">
               <div className="form-group">
-                <label htmlFor="name">Class Name *</label>
+                <label htmlFor="name">Exam Name *</label>
                 <input
                   type="text"
                   id="name"
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   required
-                  placeholder="e.g., Grade 1, Class A, Batch 2024"
+                  placeholder="e.g., JEE Main, NEET, UPSC Prelims"
                 />
               </div>
               
@@ -358,10 +357,10 @@ const ClassManagement = () => {
                   required
                 >
                   <option value="">Select Course</option>
-                  {getAcademicCourses().length === 0 ? (
-                    <option value="" disabled>No Academic Courses Available - Create a course first</option>
+                  {getAllCourses().length === 0 ? (
+                    <option value="" disabled>No Courses Available - Create a course first</option>
                   ) : (
-                    getAcademicCourses().map(course => (
+                    getAllCourses().map(course => (
                       <option key={course.id} value={course.id}>
                         {course.name} ({getCourseTypeName(course.courseType?.id || course.courseTypeId)})
                       </option>
@@ -378,11 +377,25 @@ const ClassManagement = () => {
                   id="description"
                   value={formData.description}
                   onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  placeholder="Brief description of this class"
+                  placeholder="Brief description of this exam"
                   rows={3}
                 />
               </div>
               
+              <div className="form-group">
+                <label htmlFor="displayOrder">Display Order</label>
+                <input
+                  type="number"
+                  id="displayOrder"
+                  value={formData.displayOrder}
+                  onChange={(e) => setFormData({ ...formData, displayOrder: e.target.value })}
+                  placeholder="e.g., 1, 2, 3"
+                  min="1"
+                />
+              </div>
+            </div>
+            
+            <div className="form-row">
               <div className="form-group">
                 <label htmlFor="isActive">Status</label>
                 <select
@@ -410,11 +423,19 @@ const ClassManagement = () => {
 
       <div className="data-section">
         <div className="data-header">
-          <h3>Classes ({classes.length})</h3>
+          <h3>Exams ({exams.length})</h3>
           <div className="data-actions">
             <button 
               className="btn btn-outline btn-sm"
-              onClick={() => fetchClasses(selectedCourseType, selectedCourse)}
+              onClick={() => {
+                if (selectedCourse) {
+                  fetchExams(selectedCourseType, selectedCourse);
+                } else if (selectedCourseType) {
+                  fetchExams(selectedCourseType);
+                } else {
+                  fetchExams();
+                }
+              }}
               disabled={loading}
             >
               <span className="btn-icon">🔄</span>
@@ -426,55 +447,58 @@ const ClassManagement = () => {
         {loading ? (
           <div className="loading-state">
             <div className="loading-spinner"></div>
-            <p>Loading classes...</p>
+            <p>Loading exams...</p>
           </div>
-        ) : getAcademicCourses().length === 0 ? (
+        ) : getAllCourses().length === 0 ? (
           <div className="empty-state">
             <div className="empty-icon">🎓</div>
-            <h4>No Academic Courses Found</h4>
-            <p>You need to create Academic courses first before you can create classes.</p>
-            <p>Go to the "Courses" tab to create your first Academic course.</p>
+            <h4>No Courses Found</h4>
+            <p>You need to create courses first before you can create exams.</p>
+            <p>Go to the "Courses" tab to create your first course.</p>
           </div>
-        ) : classes.length === 0 ? (
+        ) : exams.length === 0 ? (
           <div className="empty-state">
-            <div className="empty-icon">🏫</div>
-            <h4>No Classes Found</h4>
+            <div className="empty-icon">📝</div>
+            <h4>No Exams Found</h4>
             <p>
               {selectedCourse 
-                ? `No classes found for the selected course. Create your first class for this course.`
+                ? `No active exams found for the selected course.`
                 : selectedCourseType 
-                  ? `No classes found for the selected course type. Create your first class.`
-                  : `No classes found. Create your first class.`
+                ? `No active exams found for the selected course type.`
+                : 'No active exams have been created yet.'
               }
+            </p>
+            <p className="text-muted">
+              <small>Note: Only active exams are displayed. Results are ordered by display order and name.</small>
             </p>
             <button 
               className="btn btn-primary"
               onClick={() => setShowForm(true)}
             >
-              Add Class
+              Create First Exam
             </button>
           </div>
         ) : (
           <div className="data-grid">
-            {classes.map((classItem) => (
-              <div key={classItem.id} className="data-card">
+            {exams.map((exam) => (
+              <div key={exam.id} className="data-card">
                 <div className="card-header">
                   <div className="card-title">
-                    <h4>{classItem.name}</h4>
-                    <span className={`status-badge ${classItem.isActive ? 'active' : 'inactive'}`}>
-                      {classItem.isActive ? 'Active' : 'Inactive'}
+                    <h4>{exam.name}</h4>
+                    <span className={`status-badge ${exam.isActive ? 'active' : 'inactive'}`}>
+                      {exam.isActive ? 'Active' : 'Inactive'}
                     </span>
                   </div>
                   <div className="card-actions">
                     <button 
                       className="btn btn-outline btn-xs"
-                      onClick={() => handleEdit(classItem)}
+                      onClick={() => handleEdit(exam)}
                     >
                       Edit
                     </button>
                     <button 
                       className="btn btn-danger btn-xs"
-                      onClick={() => handleDelete(classItem.id)}
+                      onClick={() => handleDelete(exam.id)}
                     >
                       Delete
                     </button>
@@ -482,16 +506,16 @@ const ClassManagement = () => {
                 </div>
                 
                 <div className="card-content">
-                  <p><strong>Course:</strong> {getCourseName(classItem.course?.id || classItem.courseId)}</p>
-                  <p><strong>Course Type:</strong> {getCourseTypeName(classItem.course?.courseType?.id || classItem.courseType?.id || classItem.courseTypeId)}</p>
-                  {classItem.description && (
-                    <p>{classItem.description}</p>
+                  <p><strong>Course:</strong> {getCourseName(exam.course?.id || exam.courseId)}</p>
+                  <p><strong>Course Type:</strong> {getCourseTypeName(exam.course?.courseType?.id || exam.courseType?.id || exam.courseTypeId)}</p>
+                  {exam.description && (
+                    <p>{exam.description}</p>
                   )}
                 </div>
                 
                 <div className="card-footer">
                   <small className="text-muted">
-                    Created: {new Date(classItem.createdAt).toLocaleDateString()}
+                    Created: {new Date(exam.createdAt).toLocaleDateString()}
                   </small>
                 </div>
               </div>
@@ -503,4 +527,4 @@ const ClassManagement = () => {
   );
 };
 
-export default ClassManagement;
+export default ExamManagement;

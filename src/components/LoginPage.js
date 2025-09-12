@@ -1,8 +1,10 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import { extractErrorInfo, getErrorSeverity } from '../utils/errorHandler';
+import { safeNavigate } from '../utils/safeNavigation';
 import './AuthPage.css';
+import SafeRedirect from './SafeRedirect';
 
 const LoginPage = () => {
   const [formData, setFormData] = useState({
@@ -14,13 +16,11 @@ const LoginPage = () => {
   const navigate = useNavigate();
 
   // Redirect if already authenticated
-  useEffect(() => {
-    if (isAuthenticated && user?.role) {
-      const dashboardPath = `/dashboard/${user.role.toLowerCase()}`;
-      console.log('User already authenticated, redirecting to:', dashboardPath);
-      navigate(dashboardPath);
-    }
-  }, [isAuthenticated, user, navigate]);
+  if (isAuthenticated && user?.role) {
+    const dashboardPath = `/dashboard/${user.role.toLowerCase()}`;
+    console.log('User already authenticated, redirecting to:', dashboardPath);
+    return <SafeRedirect to={dashboardPath} />;
+  }
 
   const handleChange = (e) => {
     setFormData({
@@ -61,19 +61,47 @@ const LoginPage = () => {
         password: formData.password
       };
 
-      // Call backend API
-      const response = await fetch('http://localhost:8080/api/auth/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'accept': '*/*'
+      // Mock authentication for development (remove when backend is available)
+      const mockUsers = {
+        'instructor': {
+          user: {
+            id: 1,
+            username: 'instructor',
+            firstName: 'John',
+            lastName: 'Doe',
+            email: 'instructor@example.com',
+            role: 'INSTRUCTOR'
+          },
+          token: 'mock-jwt-token-instructor'
         },
-        body: JSON.stringify(loginData)
-      });
+        'admin': {
+          user: {
+            id: 2,
+            username: 'admin',
+            firstName: 'Admin',
+            lastName: 'User',
+            email: 'admin@example.com',
+            role: 'ADMIN'
+          },
+          token: 'mock-jwt-token-admin'
+        },
+        'student': {
+          user: {
+            id: 3,
+            username: 'student',
+            firstName: 'Jane',
+            lastName: 'Smith',
+            email: 'student@example.com',
+            role: 'STUDENT'
+          },
+          token: 'mock-jwt-token-student'
+        }
+      };
 
-      if (response.ok) {
-        const responseData = await response.json();
-        console.log('Login response:', responseData);
+      // Check if it's a mock user login
+      if (mockUsers[formData.username] && formData.password === 'password') {
+        const responseData = mockUsers[formData.username];
+        console.log('Mock login response:', responseData);
 
         const userData = responseData.user;
         const token = responseData.token;
@@ -95,37 +123,84 @@ const LoginPage = () => {
         console.log('User data:', userData);
         console.log('User role:', role);
 
-        // Use setTimeout to ensure state is updated before navigation
-        setTimeout(() => {
-          navigate(dashboardPath);
-        }, 100);
-      } else {
-        // Handle error response
-        let errorData;
-        try {
-          errorData = await response.json();
-        } catch (parseError) {
-          errorData = { message: 'Invalid response from server' };
-        }
+        // Use safe navigation to prevent insecure operation errors
+        safeNavigate(navigate, dashboardPath);
+        return;
+      }
 
-        const errorInfo = extractErrorInfo(response, errorData);
-        console.log('Login error:', errorInfo);
-
-        // Set appropriate error message
-        setError(errorInfo.message);
-
-        // Add notification with appropriate severity and duration
-        const errorDuration = errorInfo.code === 'VALIDATION_ERROR' ? 4000 : 6000;
-        addNotification({
-          type: getErrorSeverity(errorInfo.code),
-          message: errorInfo.message,
-          duration: errorDuration
+      // Call backend API (when available)
+      try {
+        const response = await fetch('http://localhost:8080/api/auth/login', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'accept': '*/*'
+          },
+          body: JSON.stringify(loginData)
         });
 
-        // Handle specific field errors for validation errors
-        if (errorInfo.code === 'VALIDATION_ERROR' && errorData.fieldErrors) {
-          setFieldErrors(errorData.fieldErrors);
+        if (response.ok) {
+          const responseData = await response.json();
+          console.log('Login response:', responseData);
+
+          const userData = responseData.user;
+          const token = responseData.token;
+
+          // Use context to store user data and token
+          loginSuccess(userData, token);
+
+          // Add success notification with shorter duration
+          addNotification({
+            type: 'success',
+            message: `Welcome back, ${userData.firstName || userData.username}!`,
+            duration: 3000 // 3 seconds
+          });
+
+          // Navigate based on user role
+          const role = userData.role || 'STUDENT';
+          const dashboardPath = `/dashboard/${role.toLowerCase()}`;
+          console.log('Login successful, navigating to:', dashboardPath);
+          console.log('User data:', userData);
+          console.log('User role:', role);
+
+          // Use safe navigation to prevent insecure operation errors
+          safeNavigate(navigate, dashboardPath);
+        } else {
+          // Handle error response
+          let errorData;
+          try {
+            errorData = await response.json();
+          } catch (parseError) {
+            errorData = { message: 'Invalid response from server' };
+          }
+
+          const errorInfo = extractErrorInfo(response, errorData);
+          console.log('Login error:', errorInfo);
+
+          // Set appropriate error message
+          setError(errorInfo.message);
+
+          // Add notification with appropriate severity and duration
+          const errorDuration = errorInfo.code === 'VALIDATION_ERROR' ? 4000 : 6000;
+          addNotification({
+            type: getErrorSeverity(errorInfo.code),
+            message: errorInfo.message,
+            duration: errorDuration
+          });
+
+          // Handle specific field errors for validation errors
+          if (errorInfo.code === 'VALIDATION_ERROR' && errorData.fieldErrors) {
+            setFieldErrors(errorData.fieldErrors);
+          }
         }
+      } catch (fetchError) {
+        // Backend not available, show helpful message
+        setError('Backend server not available. Using mock authentication for development.');
+        addNotification({
+          type: 'warning',
+          message: 'Backend server not available. Try: instructor/password, admin/password, or student/password',
+          duration: 8000
+        });
       }
     } catch (err) {
       console.error('Login error:', err);
@@ -235,6 +310,12 @@ const LoginPage = () => {
                   Sign up here
                 </Link>
               </p>
+              <div style={{ marginTop: '20px', padding: '15px', backgroundColor: '#f8f9fa', borderRadius: '8px', fontSize: '14px', color: '#6c757d' }}>
+                <strong>Development Mode:</strong> Use these credentials to test different roles:<br/>
+                • <strong>instructor/password</strong> - Instructor Dashboard<br/>
+                • <strong>admin/password</strong> - Admin Dashboard<br/>
+                • <strong>student/password</strong> - Student Dashboard
+              </div>
             </div>
           </div>
         </div>

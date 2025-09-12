@@ -83,6 +83,18 @@ const AdminDashboard = () => {
                 <p>Generate and view detailed system reports.</p>
                 <button className="btn btn-primary">Generate Reports</button>
               </div>
+              
+              <div className="feature-card">
+                <div className="feature-icon">🔍</div>
+                <h3>Subject Filter Chat</h3>
+                <p>Real-time subject filtering by course type with chat interface.</p>
+                <button 
+                  className="btn btn-primary"
+                  onClick={() => window.open('/subject-filter-chat', '_blank')}
+                >
+                  Open Filter Chat
+                </button>
+              </div>
             </div>
           </>
         );

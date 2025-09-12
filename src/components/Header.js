@@ -4,13 +4,19 @@ import { useApp } from '../context/AppContext';
 import './Header.css';
 
 const Header = () => {
-  const { user, isAuthenticated, logout, toggleSidebar, setCurrentPage } = useApp();
+  const { user, isAuthenticated, logout, toggleSidebar, setCurrentPage, backendConnected } = useApp();
   const navigate = useNavigate();
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const userMenuRef = useRef(null);
 
   const handleLogout = async () => {
+    // Show confirmation dialog
+    const confirmed = window.confirm('Are you sure you want to logout?');
+    if (!confirmed) {
+      return;
+    }
+
     try {
       // Call backend logout API
       await fetch('http://localhost:8080/api/auth/logout', {
@@ -29,6 +35,12 @@ const Header = () => {
   };
 
   const handleClearAuth = () => {
+    // Show confirmation dialog
+    const confirmed = window.confirm('This will clear your login session and redirect you to the home page. Continue?');
+    if (!confirmed) {
+      return;
+    }
+
     // Clear localStorage manually
     localStorage.removeItem('user');
     localStorage.removeItem('token');
@@ -61,7 +73,7 @@ const Header = () => {
     return 'U';
   };
 
-  // Close dropdown when clicking outside
+  // Close dropdown when clicking outside and handle keyboard shortcuts
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (userMenuRef.current && !userMenuRef.current.contains(event.target)) {
@@ -69,11 +81,24 @@ const Header = () => {
       }
     };
 
+    const handleKeyDown = (event) => {
+      // Ctrl+Shift+L for quick logout
+      if (event.ctrlKey && event.shiftKey && event.key === 'L') {
+        event.preventDefault();
+        if (isAuthenticated) {
+          handleLogout();
+        }
+      }
+    };
+
     document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleKeyDown);
+    
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleKeyDown);
     };
-  }, []);
+  }, [isAuthenticated]);
 
   return (
     <header className="header">
@@ -92,6 +117,25 @@ const Header = () => {
         </Link>
 
         <nav className="header-nav">
+          {/* Backend Status Indicator */}
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            marginRight: '16px',
+            fontSize: '12px',
+            color: backendConnected ? '#10b981' : '#f59e0b'
+          }}>
+            <div style={{
+              width: '8px',
+              height: '8px',
+              background: backendConnected ? '#10b981' : '#f59e0b',
+              borderRadius: '50%',
+              animation: backendConnected ? 'none' : 'pulse 2s infinite'
+            }}></div>
+            {backendConnected ? 'Online' : 'Offline'}
+          </div>
+
           {isAuthenticated ? (
             <div className="header-actions">
               <div className={`user-menu ${isUserMenuOpen ? 'open' : ''}`} ref={userMenuRef}>
@@ -147,6 +191,16 @@ const Header = () => {
                         <path fillRule="evenodd" d="M3 3a1 1 0 00-1 1v12a1 1 0 102 0V4a1 1 0 00-1-1zm10.293 9.293a1 1 0 001.414 1.414l3-3a1 1 0 000-1.414l-3-3a1 1 0 10-1.414 1.414L14.586 9H7a1 1 0 100 2h7.586l-1.293 1.293z" clipRule="evenodd" />
                       </svg>
                       Logout
+                    </button>
+                    <button 
+                      className="dropdown-item warning"
+                      onClick={handleClearAuth}
+                      style={{ color: '#f59e0b' }}
+                    >
+                      <svg className="dropdown-icon" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                      </svg>
+                      Clear Session
                     </button>
                   </div>
                 )}
@@ -242,9 +296,18 @@ const Header = () => {
                 Contact
               </Link>
             </li>
+            <li>
+              <Link 
+                to="/subject-filter" 
+                className="mobile-nav-link"
+                onClick={() => handleNavigation('/subject-filter', 'subject-filter')}
+              >
+                Subject Filter
+              </Link>
+            </li>
           </ul>
           
-          {!isAuthenticated && (
+          {!isAuthenticated ? (
             <div className="mobile-auth-buttons">
               <Link 
                 to="/login" 
@@ -261,9 +324,55 @@ const Header = () => {
                 Get Started
               </Link>
             </div>
+          ) : (
+            <div className="mobile-user-actions">
+              <div className="mobile-user-info">
+                <div className="mobile-user-avatar">
+                  {getUserInitials()}
+                </div>
+                <div className="mobile-user-details">
+                  <div className="mobile-user-name">
+                    {user?.firstName || user?.username || 'User'}
+                  </div>
+                  <div className="mobile-user-role">
+                    {user?.role || 'Student'}
+                  </div>
+                </div>
+              </div>
+              <div className="mobile-user-buttons">
+                <button 
+                  className="btn btn-outline btn-full"
+                  onClick={() => {
+                    handleLogout();
+                    setIsMobileMenuOpen(false);
+                  }}
+                >
+                  Logout
+                </button>
+                <button 
+                  className="btn btn-warning btn-full"
+                  onClick={() => {
+                    handleClearAuth();
+                    setIsMobileMenuOpen(false);
+                  }}
+                  style={{ backgroundColor: '#f59e0b', color: 'white' }}
+                >
+                  Clear Session
+                </button>
+              </div>
+            </div>
           )}
         </div>
       )}
+      
+      <style>
+        {`
+          @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+          }
+        `}
+      </style>
     </header>
   );
 };

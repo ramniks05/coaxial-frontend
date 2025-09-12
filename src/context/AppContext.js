@@ -10,7 +10,9 @@ const initialState = {
   theme: 'light', // light or dark
   notifications: [],
   sidebarOpen: false,
-  currentPage: 'home'
+  currentPage: 'home',
+  backendConnected: true, // Track backend connectivity
+  lastBackendCheck: null
 };
 
 // Action types
@@ -25,7 +27,8 @@ export const ActionTypes = {
   ADD_NOTIFICATION: 'ADD_NOTIFICATION',
   REMOVE_NOTIFICATION: 'REMOVE_NOTIFICATION',
   TOGGLE_SIDEBAR: 'TOGGLE_SIDEBAR',
-  SET_CURRENT_PAGE: 'SET_CURRENT_PAGE'
+  SET_CURRENT_PAGE: 'SET_CURRENT_PAGE',
+  SET_BACKEND_STATUS: 'SET_BACKEND_STATUS'
 };
 
 // Reducer function
@@ -107,6 +110,13 @@ const appReducer = (state, action) => {
         currentPage: action.payload
       };
     
+    case ActionTypes.SET_BACKEND_STATUS:
+      return {
+        ...state,
+        backendConnected: action.payload.connected,
+        lastBackendCheck: action.payload.timestamp
+      };
+    
     default:
       return state;
   }
@@ -119,10 +129,13 @@ const AppContext = createContext();
 export const AppProvider = ({ children }) => {
   const [state, dispatch] = useReducer(appReducer, initialState);
 
-  // Load user data from localStorage on app start
+  // Load user data from localStorage on app start and check backend connectivity
   useEffect(() => {
     const user = localStorage.getItem('user');
     const token = localStorage.getItem('token');
+    
+    // Check backend connectivity first
+    checkBackendConnectivity();
     
     if (user && token) {
       try {
@@ -148,6 +161,15 @@ export const AppProvider = ({ children }) => {
     }
   }, []);
 
+  // Periodic backend connectivity check
+  useEffect(() => {
+    const interval = setInterval(() => {
+      checkBackendConnectivity();
+    }, 30000); // Check every 30 seconds
+
+    return () => clearInterval(interval);
+  }, []);
+
   // Helper function to check if token is expired
   const isTokenExpired = (token) => {
     try {
@@ -171,6 +193,40 @@ export const AppProvider = ({ children }) => {
       localStorage.removeItem('token');
     }
   }, [state.user, state.token]);
+
+  // Backend connectivity check function
+  const checkBackendConnectivity = async () => {
+    try {
+      const response = await fetch('http://localhost:8080/api/health', {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        timeout: 5000 // 5 second timeout
+      });
+      
+      const isConnected = response.ok;
+      dispatch({
+        type: ActionTypes.SET_BACKEND_STATUS,
+        payload: {
+          connected: isConnected,
+          timestamp: new Date().toISOString()
+        }
+      });
+      
+      return isConnected;
+    } catch (error) {
+      console.log('Backend connectivity check failed:', error.message);
+      dispatch({
+        type: ActionTypes.SET_BACKEND_STATUS,
+        payload: {
+          connected: false,
+          timestamp: new Date().toISOString()
+        }
+      });
+      return false;
+    }
+  };
 
   // Action creators
   const actions = {
@@ -218,7 +274,9 @@ export const AppProvider = ({ children }) => {
     setCurrentPage: (page) => dispatch({ 
       type: ActionTypes.SET_CURRENT_PAGE, 
       payload: page 
-    })
+    }),
+    
+    checkBackendConnectivity
   };
 
   const value = {
@@ -240,6 +298,12 @@ export const useApp = () => {
     throw new Error('useApp must be used within an AppProvider');
   }
   return context;
+};
+
+// Custom hook for authentication
+export const useAuth = () => {
+  const { user, token, isAuthenticated } = useApp();
+  return { user, token, isAuthenticated };
 };
 
 export default AppContext;

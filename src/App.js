@@ -2,6 +2,7 @@ import React from 'react';
 import { Route, BrowserRouter as Router, Routes } from 'react-router-dom';
 import './App.css';
 import AdminDashboard from './components/AdminDashboard';
+import BackendStatusHandler from './components/BackendStatusHandler';
 import HomePage from './components/HomePage';
 import InstructorDashboard from './components/InstructorDashboard';
 import Layout from './components/Layout';
@@ -9,14 +10,17 @@ import LoginPage from './components/LoginPage';
 import ProtectedRoute from './components/ProtectedRoute';
 import RegisterPage from './components/RegisterPage';
 import StudentDashboard from './components/StudentDashboard';
+import SubjectFilter from './components/SubjectFilter';
+import SubjectFilterChat from './components/SubjectFilterChat';
 import { AppProvider } from './context/AppContext';
 
 function App() {
   return (
     <AppProvider>
-      <Router>
-        <div className="App">
-          <Routes>
+        <Router>
+          <BackendStatusHandler>
+            <div className="App">
+            <Routes>
             <Route 
               path="/" 
               element={
@@ -71,8 +75,25 @@ function App() {
                 </ProtectedRoute>
               } 
             />
-          </Routes>
-        </div>
+            <Route 
+              path="/subject-filter"
+              element={
+                <Layout showHeader={true} showFooter={true}>
+                  <SubjectFilter />
+                </Layout>
+              } 
+            />
+            <Route 
+              path="/subject-filter-chat"
+              element={
+                <ProtectedRoute requiredRole="ADMIN">
+                  <SubjectFilterChat />
+                </ProtectedRoute>
+              } 
+            />
+            </Routes>
+          </div>
+        </BackendStatusHandler>
       </Router>
     </AppProvider>
   );

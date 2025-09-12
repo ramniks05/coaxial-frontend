@@ -41,18 +41,44 @@ const CourseTypeManagement = () => {
     try {
       setLoading(true);
       
-      console.log('Form data being submitted:', formData);
+      // Validate required fields
+      if (!formData.name || !formData.name.trim()) {
+        addNotification({
+          type: 'error',
+          message: 'Course type name is required',
+          duration: 5000
+        });
+        return;
+      }
+      
+      // Prepare data in the correct format - only include fields that should be updated
+      const submitData = {
+        name: formData.name.trim(),
+        description: formData.description ? formData.description.trim() : '',
+        isActive: formData.isActive
+      };
+      
+      // For updates, include the ID but exclude any relationship collections
+      if (editingId) {
+        submitData.id = editingId;
+      }
+      
+      // Ensure we don't include any relationship fields that might cause cascade issues
+      delete submitData.courses;
+      delete submitData.subjects;
+      
+      console.log('Form data being submitted:', submitData);
       console.log('Token available:', !!token);
       
       if (editingId) {
-        await updateCourseType(token, editingId, formData);
+        await updateCourseType(token, editingId, submitData);
         addNotification({
           type: 'success',
           message: 'Course type updated successfully',
           duration: 3000
         });
       } else {
-        await createCourseType(token, formData);
+        await createCourseType(token, submitData);
         addNotification({
           type: 'success',
           message: 'Course type created successfully',
@@ -66,9 +92,22 @@ const CourseTypeManagement = () => {
       fetchCourseTypes();
     } catch (error) {
       console.error('Error saving course type:', error);
+      
+      // Provide more specific error messages based on the error type
+      let errorMessage = 'Failed to save course type';
+      if (error.message.includes('cascade')) {
+        errorMessage = 'Course type update failed due to relationship constraints. Please try again or contact support.';
+      } else if (error.message.includes('500')) {
+        errorMessage = 'Server error occurred while saving course type. Please try again.';
+      } else if (error.message.includes('400')) {
+        errorMessage = 'Invalid data provided. Please check your input and try again.';
+      } else {
+        errorMessage = `Failed to save course type: ${error.message}`;
+      }
+      
       addNotification({
         type: 'error',
-        message: `Failed to save course type: ${error.message}`,
+        message: errorMessage,
         duration: 5000
       });
     } finally {

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import { extractErrorInfo, getErrorSeverity } from '../utils/errorHandler';
+import { safeNavigate } from '../utils/safeNavigation';
 import './AuthPage.css';
 
 const RegisterPage = () => {
@@ -99,7 +100,10 @@ const RegisterPage = () => {
 
         // Navigate based on user role
         const role = formData.role || 'STUDENT';
-        navigate(`/dashboard/${role.toLowerCase()}`);
+        const dashboardPath = `/dashboard/${role.toLowerCase()}`;
+        
+        // Use safe navigation to prevent insecure operation errors
+        safeNavigate(navigate, dashboardPath);
       } else {
         // Handle error response
         let errorData;

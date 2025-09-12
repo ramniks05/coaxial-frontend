@@ -2,7 +2,9 @@ import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import ChapterManagement from './master-data/ChapterManagement';
 import ClassManagement from './master-data/ClassManagement';
+import CourseManagement from './master-data/CourseManagement';
 import CourseTypeManagement from './master-data/CourseTypeManagement';
+import ExamManagement from './master-data/ExamManagement';
 import SubjectManagement from './master-data/SubjectManagement';
 import TopicManagement from './master-data/TopicManagement';
 import './MasterDataManagement.css';
@@ -14,7 +16,9 @@ const MasterDataManagement = ({ onBackToDashboard }) => {
 
   const tabs = [
     { id: 'course-types', label: 'Course Types', icon: '📚' },
+    { id: 'courses', label: 'Courses', icon: '🎓' },
     { id: 'classes', label: 'Classes', icon: '🏫' },
+    { id: 'exams', label: 'Exams', icon: '📝' },
     { id: 'subjects', label: 'Subjects', icon: '📖' },
     { id: 'chapters', label: 'Chapters', icon: '📑' },
     { id: 'topics', label: 'Topics', icon: '📝' }
@@ -24,8 +28,12 @@ const MasterDataManagement = ({ onBackToDashboard }) => {
     switch (activeTab) {
       case 'course-types':
         return <CourseTypeManagement />;
+      case 'courses':
+        return <CourseManagement />;
       case 'classes':
         return <ClassManagement />;
+      case 'exams':
+        return <ExamManagement />;
       case 'subjects':
         return <SubjectManagement />;
       case 'chapters':
