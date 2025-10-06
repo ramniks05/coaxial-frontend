@@ -1,16 +1,12 @@
 import React, { useState } from 'react';
-import FilterActions from './controls/FilterActions';
 import FilterPresets from './controls/FilterPresets';
 import './FilterPanel.css';
 import AcademicLevelFilters from './sections/AcademicLevelFilters';
 import BasicFilters from './sections/BasicFilters';
 import ExamSuitabilityFilters from './sections/ExamSuitabilityFilters';
 import PreviouslyAskedFilters from './sections/PreviouslyAskedFilters';
-import SearchDateFilters from './sections/SearchDateFilters';
 
 const FilterPanel = ({
-  isOpen,
-  onClose,
   filters,
   onFilterChange,
   onResetFilters,
@@ -25,8 +21,7 @@ const FilterPanel = ({
     basic: true,
     academic: false,
     examSuitability: false,
-    previouslyAsked: false,
-    searchDate: true
+    previouslyAsked: false
   });
 
   const toggleSection = (section) => {
@@ -41,8 +36,7 @@ const FilterPanel = ({
       basic: true,
       academic: true,
       examSuitability: true,
-      previouslyAsked: true,
-      searchDate: true
+      previouslyAsked: true
     });
   };
 
@@ -51,53 +45,10 @@ const FilterPanel = ({
       basic: false,
       academic: false,
       examSuitability: false,
-      previouslyAsked: false,
-      searchDate: false
+      previouslyAsked: false
     });
   };
 
-  const getActiveFiltersCount = () => {
-    let count = 0;
-    
-    // Basic filters
-    if (filters.basic.isActive !== null) count++;
-    if (filters.basic.questionType) count++;
-    if (filters.basic.difficultyLevels.length > 0) count++;
-    if (filters.basic.minMarks !== 1 || filters.basic.maxMarks !== 10) count++;
-    
-    // Academic filters
-    if (filters.academic.courseTypeId) count++;
-    if (filters.academic.relationshipId) count++;
-    if (filters.academic.subjectId) count++;
-    if (filters.academic.topicId) count++;
-    if (filters.academic.moduleId) count++;
-    if (filters.academic.chapterId) count++;
-    
-    // Exam suitability
-    if (filters.examSuitability.examIds.length > 0) count++;
-    if (filters.examSuitability.suitabilityLevels.length > 0) count++;
-    if (filters.examSuitability.examTypes.length > 0) count++;
-    if (filters.examSuitability.conductingBodies.length > 0) count++;
-    
-    // Previously asked
-    if (filters.previouslyAsked.examIds.length > 0) count++;
-    if (filters.previouslyAsked.appearedYears.length > 0) count++;
-    if (filters.previouslyAsked.sessions.length > 0) count++;
-    if (filters.previouslyAsked.minMarksInExam !== null) count++;
-    if (filters.previouslyAsked.maxMarksInExam !== null) count++;
-    if (filters.previouslyAsked.questionNumbers.length > 0) count++;
-    
-    // Search & date
-    if (filters.searchDate.questionTextSearch) count++;
-    if (filters.searchDate.explanationSearch) count++;
-    if (filters.searchDate.dateFrom || filters.searchDate.dateTo) count++;
-    
-    return count;
-  };
-
-  const activeFiltersCount = getActiveFiltersCount();
-
-  if (!isOpen) return null;
 
   return (
     <div className={`filter-panel ${isMobile ? 'mobile' : ''} ${isTablet ? 'tablet' : ''}`}>
@@ -105,11 +56,6 @@ const FilterPanel = ({
       <div className="filter-panel-header">
         <div className="header-content">
           <h3>Question Filters</h3>
-          {activeFiltersCount > 0 && (
-            <span className="active-filters-badge">
-              {activeFiltersCount} active
-            </span>
-          )}
         </div>
         <div className="header-actions">
           <button
@@ -128,16 +74,6 @@ const FilterPanel = ({
           >
             Collapse All
           </button>
-          {isMobile && (
-            <button
-              type="button"
-              className="btn btn-outline btn-xs"
-              onClick={onClose}
-              title="Close filters"
-            >
-              ✕
-            </button>
-          )}
         </div>
       </div>
 
@@ -158,10 +94,7 @@ const FilterPanel = ({
             className="filter-section-header"
             onClick={() => toggleSection('basic')}
           >
-            <h4>
-              <span className="section-icon">⚙️</span>
-              Basic Filters
-            </h4>
+            <h4>Basic Filters</h4>
             <span className={`expand-icon ${expandedSections.basic ? 'expanded' : ''}`}>
               ▼
             </span>
@@ -183,10 +116,7 @@ const FilterPanel = ({
             className="filter-section-header"
             onClick={() => toggleSection('academic')}
           >
-            <h4>
-              <span className="section-icon">🎓</span>
-              Academic Level
-            </h4>
+            <h4>Academic Level</h4>
             <span className={`expand-icon ${expandedSections.academic ? 'expanded' : ''}`}>
               ▼
             </span>
@@ -208,10 +138,7 @@ const FilterPanel = ({
             className="filter-section-header"
             onClick={() => toggleSection('examSuitability')}
           >
-            <h4>
-              <span className="section-icon">📋</span>
-              Exam Suitability
-            </h4>
+            <h4>Exam Suitability</h4>
             <span className={`expand-icon ${expandedSections.examSuitability ? 'expanded' : ''}`}>
               ▼
             </span>
@@ -233,10 +160,7 @@ const FilterPanel = ({
             className="filter-section-header"
             onClick={() => toggleSection('previouslyAsked')}
           >
-            <h4>
-              <span className="section-icon">📚</span>
-              Previously Asked
-            </h4>
+            <h4>Previously Asked</h4>
             <span className={`expand-icon ${expandedSections.previouslyAsked ? 'expanded' : ''}`}>
               ▼
             </span>
@@ -252,37 +176,7 @@ const FilterPanel = ({
           )}
         </div>
 
-        {/* Search & Date Section */}
-        <div className="filter-section">
-          <div 
-            className="filter-section-header"
-            onClick={() => toggleSection('searchDate')}
-          >
-            <h4>
-              <span className="section-icon">🔍</span>
-              Search & Date
-            </h4>
-            <span className={`expand-icon ${expandedSections.searchDate ? 'expanded' : ''}`}>
-              ▼
-            </span>
-          </div>
-          {expandedSections.searchDate && (
-            <div className="filter-section-content">
-              <SearchDateFilters
-                filters={filters.searchDate}
-                onFilterChange={(updates) => onFilterChange('searchDate', updates)}
-                isLoading={isLoading}
-              />
-            </div>
-          )}
-        </div>
 
-        {/* Filter Actions */}
-        <FilterActions
-          onResetFilters={onResetFilters}
-          activeFiltersCount={activeFiltersCount}
-          isLoading={isLoading}
-        />
       </div>
     </div>
   );

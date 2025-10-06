@@ -42,9 +42,22 @@ const AcademicLevelFilters = ({ filters, onFilterChange, isLoading }) => {
         setCourseTypes(data);
       } else if (data.content) {
         setCourseTypes(data.content);
+      } else {
+        // Fallback course types if API fails
+        setCourseTypes([
+          { id: 1, name: 'Academic' },
+          { id: 2, name: 'Competitive' },
+          { id: 3, name: 'Professional' }
+        ]);
       }
     } catch (error) {
       console.error('Error fetching course types:', error);
+      // Fallback course types if API fails
+      setCourseTypes([
+        { id: 1, name: 'Academic' },
+        { id: 2, name: 'Competitive' },
+        { id: 3, name: 'Professional' }
+      ]);
     } finally {
       setLoadingStates(prev => ({ ...prev, courseTypes: false }));
     }
@@ -220,6 +233,13 @@ const AcademicLevelFilters = ({ filters, onFilterChange, isLoading }) => {
     fetchCourseTypes();
   }, [fetchCourseTypes]);
 
+  // Debug logging
+  useEffect(() => {
+    console.log('AcademicLevelFilters - courseTypes:', courseTypes);
+    console.log('AcademicLevelFilters - loadingStates:', loadingStates);
+    console.log('AcademicLevelFilters - filters:', filters);
+  }, [courseTypes, loadingStates, filters]);
+
   // Clear dependent dropdowns when parent changes
   const clearDependentDropdowns = (level) => {
     const updates = {};
@@ -380,34 +400,34 @@ const AcademicLevelFilters = ({ filters, onFilterChange, isLoading }) => {
     <div className="academic-level-filters">
       {/* Course Type */}
       <div className="filter-group">
-        <label className="filter-label">
-          <span className="label-icon">🎯</span>
-          Course Type
-        </label>
+        <label className="filter-label">Course Type</label>
         <div className="radio-group">
-          {courseTypes.map(courseType => (
-            <label key={courseType.id} className="radio-option">
-              <input
-                type="radio"
-                name="courseType"
-                value={courseType.id}
-                checked={filters.courseTypeId === courseType.id}
-                onChange={(e) => handleCourseTypeChange(e.target.value)}
-                disabled={isLoading || loadingStates.courseTypes}
-              />
-              <span className="radio-label">{courseType.name}</span>
-            </label>
-          ))}
+          {loadingStates.courseTypes ? (
+            <div className="loading-indicator">Loading course types...</div>
+          ) : courseTypes.length > 0 ? (
+            courseTypes.map(courseType => (
+              <label key={courseType.id} className="radio-option">
+                <input
+                  type="radio"
+                  name="courseType"
+                  value={courseType.id}
+                  checked={filters.courseTypeId === courseType.id}
+                  onChange={(e) => handleCourseTypeChange(e.target.value)}
+                  disabled={isLoading || loadingStates.courseTypes}
+                />
+                <span className="radio-label">{courseType.name}</span>
+              </label>
+            ))
+          ) : (
+            <div className="no-data">No course types available</div>
+          )}
         </div>
       </div>
 
       {/* Course */}
       {filters.courseTypeId && (
         <div className="filter-group">
-          <label className="filter-label">
-            <span className="label-icon">📚</span>
-            Course
-          </label>
+          <label className="filter-label">Course</label>
           <select
             className="filter-select"
             value={filters.courseId || ''}
@@ -428,10 +448,7 @@ const AcademicLevelFilters = ({ filters, onFilterChange, isLoading }) => {
       {/* Class (for Academic) */}
       {isAcademic && filters.courseId && (
         <div className="filter-group">
-          <label className="filter-label">
-            <span className="label-icon">🏫</span>
-            Class
-          </label>
+          <label className="filter-label">Class</label>
           <select
             className="filter-select"
             value={filters.relationshipId || ''}
@@ -452,10 +469,7 @@ const AcademicLevelFilters = ({ filters, onFilterChange, isLoading }) => {
       {/* Exam (for Competitive) */}
       {isCompetitive && filters.courseId && (
         <div className="filter-group">
-          <label className="filter-label">
-            <span className="label-icon">📋</span>
-            Exam
-          </label>
+          <label className="filter-label">Exam</label>
           <select
             className="filter-select"
             value={filters.relationshipId || ''}
@@ -476,10 +490,7 @@ const AcademicLevelFilters = ({ filters, onFilterChange, isLoading }) => {
       {/* Subject */}
       {filters.courseId && (
         <div className="filter-group">
-          <label className="filter-label">
-            <span className="label-icon">📖</span>
-            Subject
-          </label>
+          <label className="filter-label">Subject</label>
           <select
             className="filter-select"
             value={filters.subjectId || ''}
@@ -500,10 +511,7 @@ const AcademicLevelFilters = ({ filters, onFilterChange, isLoading }) => {
       {/* Topic */}
       {filters.subjectId && (
         <div className="filter-group">
-          <label className="filter-label">
-            <span className="label-icon">🎯</span>
-            Topic
-          </label>
+          <label className="filter-label">Topic</label>
           <select
             className="filter-select"
             value={filters.topicId || ''}
@@ -524,10 +532,7 @@ const AcademicLevelFilters = ({ filters, onFilterChange, isLoading }) => {
       {/* Module */}
       {filters.topicId && (
         <div className="filter-group">
-          <label className="filter-label">
-            <span className="label-icon">📦</span>
-            Module
-          </label>
+          <label className="filter-label">Module</label>
           <select
             className="filter-select"
             value={filters.moduleId || ''}
@@ -548,10 +553,7 @@ const AcademicLevelFilters = ({ filters, onFilterChange, isLoading }) => {
       {/* Chapter */}
       {filters.moduleId && (
         <div className="filter-group">
-          <label className="filter-label">
-            <span className="label-icon">📄</span>
-            Chapter
-          </label>
+          <label className="filter-label">Chapter</label>
           <select
             className="filter-select"
             value={filters.chapterId || ''}

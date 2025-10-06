@@ -68,10 +68,7 @@ const BasicFilters = ({ filters, onFilterChange, isLoading }) => {
     <div className="basic-filters">
       {/* Active Status */}
       <div className="filter-group">
-        <label className="filter-label">
-          <span className="label-icon">🔄</span>
-          Status
-        </label>
+        <label className="filter-label">Status</label>
         <div className="radio-group">
           <label className="radio-option">
             <input
@@ -111,10 +108,7 @@ const BasicFilters = ({ filters, onFilterChange, isLoading }) => {
 
       {/* Question Type */}
       <div className="filter-group">
-        <label className="filter-label">
-          <span className="label-icon">📝</span>
-          Question Type
-        </label>
+        <label className="filter-label">Question Type</label>
         <select
           className="filter-select"
           value={filters.questionType || ''}
@@ -132,10 +126,7 @@ const BasicFilters = ({ filters, onFilterChange, isLoading }) => {
 
       {/* Difficulty Level */}
       <div className="filter-group">
-        <label className="filter-label">
-          <span className="label-icon">📊</span>
-          Difficulty Level
-        </label>
+        <label className="filter-label">Difficulty Level</label>
         <div className="checkbox-group">
           {['EASY', 'MEDIUM', 'HARD'].map(level => (
             <label key={level} className="checkbox-option">
@@ -159,69 +150,10 @@ const BasicFilters = ({ filters, onFilterChange, isLoading }) => {
         </div>
       </div>
 
-      {/* Marks Range */}
-      <div className="filter-group">
-        <label className="filter-label">
-          <span className="label-icon">⭐</span>
-          Marks Range
-        </label>
-        <div className="range-inputs">
-          <div className="range-input">
-            <label>Min</label>
-            <input
-              type="number"
-              min="0"
-              max="10"
-              value={filters.minMarks || 1}
-              onChange={(e) => handleMarksChange('minMarks', e.target.value)}
-              disabled={isLoading}
-              className="range-number"
-            />
-          </div>
-          <div className="range-separator">to</div>
-          <div className="range-input">
-            <label>Max</label>
-            <input
-              type="number"
-              min="0"
-              max="10"
-              value={filters.maxMarks || 10}
-              onChange={(e) => handleMarksChange('maxMarks', e.target.value)}
-              disabled={isLoading}
-              className="range-number"
-            />
-          </div>
-        </div>
-        
-        {/* Marks Range Slider */}
-        <div className="range-slider-container">
-          <input
-            type="range"
-            min="0"
-            max="10"
-            value={filters.minMarks || 1}
-            onChange={(e) => handleMarksChange('minMarks', e.target.value)}
-            disabled={isLoading}
-            className="range-slider min"
-          />
-          <input
-            type="range"
-            min="0"
-            max="10"
-            value={filters.maxMarks || 10}
-            onChange={(e) => handleMarksChange('maxMarks', e.target.value)}
-            disabled={isLoading}
-            className="range-slider max"
-          />
-        </div>
-      </div>
 
       {/* Quick Search */}
       <div className="filter-group">
-        <label className="filter-label">
-          <span className="label-icon">🔍</span>
-          Quick Search
-        </label>
+        <label className="filter-label">Quick Search</label>
         <div className="search-input-container">
           <input
             type="text"
@@ -252,41 +184,40 @@ const BasicFilters = ({ filters, onFilterChange, isLoading }) => {
         (filters.difficultyLevels && filters.difficultyLevels.length > 0) ||
         filters.minMarks !== 1 || filters.maxMarks !== 10) && (
         <div className="applied-filters">
-          <h5>Applied Basic Filters:</h5>
           <div className="filter-tags">
             {filters.questionType && (
               <span className="filter-tag">
-                Type: {filters.questionType.replace('_', ' ')}
+                {filters.questionType.replace('_', ' ')}
                 <button
                   type="button"
                   onClick={() => onFilterChange({ questionType: '' })}
                   className="remove-tag"
                 >
-                  ✕
+                  ×
                 </button>
               </span>
             )}
             {filters.difficultyLevels && filters.difficultyLevels.length > 0 && (
               <span className="filter-tag">
-                Difficulty: {filters.difficultyLevels.join(', ')}
+                {filters.difficultyLevels.join(', ')}
                 <button
                   type="button"
                   onClick={() => onFilterChange({ difficultyLevels: [] })}
                   className="remove-tag"
                 >
-                  ✕
+                  ×
                 </button>
               </span>
             )}
             {(filters.minMarks !== 1 || filters.maxMarks !== 10) && (
               <span className="filter-tag">
-                Marks: {filters.minMarks}-{filters.maxMarks}
+                {filters.minMarks}-{filters.maxMarks} marks
                 <button
                   type="button"
                   onClick={() => onFilterChange({ minMarks: 1, maxMarks: 10 })}
                   className="remove-tag"
                 >
-                  ✕
+                  ×
                 </button>
               </span>
             )}
