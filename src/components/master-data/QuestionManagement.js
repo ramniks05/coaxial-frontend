@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState, Fragment } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import { useApiManager } from '../../hooks/useApiManager';
 import { useFormManager } from '../../hooks/useFormManager';
@@ -11,6 +11,7 @@ import {
 } from '../../services/masterDataService';
 import { getMasterExamsKV, getYearsKV } from '../../services/questionTaggingService';
 import '../../styles/design-system.css';
+import AdminPageHeader from '../common/AdminPageHeader';
 import QuestionListCard from './QuestionListCard';
 import QuestionFilters from './filters/QuestionFilters';
 
@@ -1078,23 +1079,42 @@ const QuestionManagement = ({ onBackToDashboard }) => {
 
   return (
     <div className="master-data-component">
-      {/* Header */}
-      <div className="component-header">
-        <div className="header-info">
-          <h2>Question Management</h2>
-          <p>Create and manage questions with exam tagging and hierarchical organization</p>
-        </div>
-        <div className="header-actions">
+      <AdminPageHeader
+        title="Question Management"
+        subtitle="Create and manage questions with exam tagging and hierarchical organization"
+        onBackToDashboard={onBackToDashboard}
+        showAdminBadge={false}
+      />
+
+      {/* Removed header action bar */}
+
+      {/* Enhanced Filters or Standard Filters */}
+      <div style={{ borderTop: 'none', paddingTop: 8 }}>
+        {useEnhancedFilters ? (
+          <div>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 8 }}>
           <button 
-            className="btn btn-secondary"
-            onClick={onBackToDashboard}
+                className="btn btn-primary"
+                onClick={() => {
+                  setUseEnhancedFilters(false);
+                  resetForm();
+                  setShowForm(true);
+                }}
             disabled={loading}
+                title="Add a new question"
           >
-            ← Back to Dashboard
+                Add Question
           </button>
+            </div>
+            <QuestionFilters onBackToDashboard={onBackToDashboard} onViewDetails={handleViewDetails} />
+          </div>
+        ) : (
+          <div className="standard-filters-wrapper">
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 8, gap: 8 }}>
           {!useEnhancedFilters && (
             <button 
-              className="btn btn-secondary"
+                  className="btn btn-outline"
+                  style={{ backgroundColor: 'var(--secondary-100)', borderColor: 'var(--secondary-400)', color: 'var(--secondary-700)' }}
               onClick={() => setUseEnhancedFilters(true)}
               disabled={loading}
               title="Switch to Advanced Filter"
@@ -1105,7 +1125,6 @@ const QuestionManagement = ({ onBackToDashboard }) => {
           <button 
             className="btn btn-primary"
             onClick={() => {
-              // Ensure we are on standard view before opening the form
               setUseEnhancedFilters(false);
               resetForm();
               setShowForm(true);
@@ -1115,13 +1134,6 @@ const QuestionManagement = ({ onBackToDashboard }) => {
             Add Question
           </button>
         </div>
-      </div>
-
-      {/* Enhanced Filters or Standard Filters */}
-      {useEnhancedFilters ? (
-        <QuestionFilters onBackToDashboard={onBackToDashboard} onViewDetails={handleViewDetails} />
-      ) : (
-        <div className="standard-filters-wrapper">
         <div className="filter-section">
         <div className="filter-header">
           <h4>Filter Questions</h4>
@@ -2170,7 +2182,6 @@ const QuestionManagement = ({ onBackToDashboard }) => {
         )}
         
         {/* Data Section - Card-based layout */}
-        {!useEnhancedFilters && (
         <div className="data-section">
         <div className="data-header">
           <h3>Questions ({questions.length})</h3>
@@ -2212,9 +2223,9 @@ const QuestionManagement = ({ onBackToDashboard }) => {
           </div>
         )}
         </div>
-      )}
       </div>
       )}
+      </div>
       
       {/* Question Details Modal */}
       {showModal && selectedQuestion && (

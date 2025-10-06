@@ -1,7 +1,8 @@
-import React, { useEffect, useState, useCallback, useRef } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { activateUser, deactivateUser, deleteUser, getUserCounts, getUsers } from '../services/userService';
 import './UserManagementPage.css';
+import AdminPageHeader from './common/AdminPageHeader';
 
 // Custom debounce hook
 const useDebounce = (value, delay) => {
@@ -344,33 +345,20 @@ const UserManagementPage = ({ onBackToDashboard }) => {
 
   return (
     <div className="user-management-page">
-      {/* Header */}
-      <div className="page-header">
-        <div className="header-content">
-          <div className="header-text">
-            <h1>User Management</h1>
-            <p>Manage all users and view system statistics</p>
-          </div>
-          <div className="header-actions">
-            {onBackToDashboard && (
-              <button 
-                className="btn btn-primary btn-sm"
-                onClick={onBackToDashboard}
-                style={{ backgroundColor: '#10b981', borderColor: '#10b981' }}
-              >
-                ← Back to Dashboard
-              </button>
-            )}
-            <button
-              onClick={fetchAllData}
-              className="btn btn-primary btn-sm"
-              disabled={loading}
-            >
-              {loading ? 'Loading...' : 'Refresh All'}
-            </button>
-          </div>
-        </div>
-      </div>
+      <AdminPageHeader
+        title="User Management"
+        subtitle="Manage all users and view system statistics"
+        onBackToDashboard={onBackToDashboard}
+        actions={(
+          <button
+            onClick={fetchAllData}
+            className="btn btn-primary btn-sm"
+            disabled={loading}
+          >
+            {loading ? 'Loading...' : 'Refresh All'}
+          </button>
+        )}
+      />
 
       {/* User Statistics */}
       <div className="stats-section">

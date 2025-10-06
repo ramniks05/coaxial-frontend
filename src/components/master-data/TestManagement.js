@@ -3,21 +3,22 @@ import { useApp } from '../../context/AppContext';
 import { useApiManager } from '../../hooks/useApiManager';
 import { useFormManager } from '../../hooks/useFormManager';
 import {
+    addQuestionToTest,
     createTest,
     deleteTest,
-    updateTest,
     getTests,
     publishTest,
     unpublishTest,
-    addQuestionToTest
+    updateTest
 } from '../../services/masterDataService';
 import { getMasterExamsKV } from '../../services/questionTaggingService';
-import TestListCard from './TestListCard';
-import QuestionSelectionModal from './QuestionSelectionModal';
-import TestQuestionManager from './TestQuestionManager';
-import TestAnalytics from './TestAnalytics';
-import TestTemplates from './TestTemplates';
+import AdminPageHeader from '../common/AdminPageHeader';
 import './MasterDataComponent.css';
+import QuestionSelectionModal from './QuestionSelectionModal';
+import TestAnalytics from './TestAnalytics';
+import TestListCard from './TestListCard';
+import TestQuestionManager from './TestQuestionManager';
+import TestTemplates from './TestTemplates';
 
 const TestManagement = ({ onBackToDashboard }) => {
   console.log('=== TestManagement component rendering ===');
@@ -519,42 +520,11 @@ const TestManagement = ({ onBackToDashboard }) => {
 
   return (
     <div className="master-data-management advanced-test-management">
-      {/* Header */}
-      <div className="management-header">
-        <div className="header-content">
-          <button 
-            className="btn btn-link btn-sm"
-            onClick={onBackToDashboard}
-          >
-            ← Back to Dashboard
-          </button>
-          <div className="header-title">
-            <h2>🚀 Advanced Test Management</h2>
-            <p>Enterprise-grade test creation and management system</p>
-          </div>
-        </div>
-        <div className="header-actions">
-          <button 
-            className="btn btn-outline"
-            onClick={() => setShowTestTemplates(true)}
-          >
-            📋 Templates
-          </button>
-          <button 
-            className="btn btn-outline"
-            onClick={() => setShowTestAnalytics(true)}
-          >
-            📊 Analytics
-          </button>
-          <button 
-            className="btn btn-primary"
-            onClick={handleAddNew}
-            disabled={loading}
-          >
-            ➕ Create Test
-          </button>
-        </div>
-      </div>
+      <AdminPageHeader
+        title="🚀 Advanced Test Management"
+        subtitle="Enterprise-grade test creation and management system"
+        onBackToDashboard={onBackToDashboard}
+      />
 
       {/* Enhanced Tabs */}
       <div className="tab-navigation">
@@ -581,6 +551,15 @@ const TestManagement = ({ onBackToDashboard }) => {
       {/* Enhanced Filters */}
       {activeTab === 'tests' && (
       <div className="filters-section">
+        <div style={{ display: 'flex', justifyContent: 'flex-end', margin: '8px 0' }}>
+          <button 
+            className="btn btn-primary"
+            onClick={handleAddNew}
+            disabled={loading}
+          >
+            ➕ Create Test
+          </button>
+        </div>
         <div className="section-title">
           <span className="icon">🔍</span>
           <span>Filter Tests</span>
@@ -759,6 +738,18 @@ const TestManagement = ({ onBackToDashboard }) => {
           </button>
         </div>
       </div>
+      )}
+
+      {activeTab === 'analytics' && (
+        <div className="analytics-section">
+          <TestAnalytics onClose={() => setActiveTab('tests')} />
+        </div>
+      )}
+
+      {activeTab === 'templates' && (
+        <div className="templates-section">
+          <TestTemplates onClose={() => setActiveTab('tests')} />
+        </div>
       )}
 
       {/* Test Form */}
