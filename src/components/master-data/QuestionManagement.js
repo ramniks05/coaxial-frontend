@@ -1092,16 +1092,21 @@ const QuestionManagement = ({ onBackToDashboard }) => {
           >
             ← Back to Dashboard
           </button>
-          <button 
-            className="btn btn-outline"
-            onClick={() => setUseEnhancedFilters(!useEnhancedFilters)}
-            disabled={loading}
-          >
-            {useEnhancedFilters ? 'Standard Filters' : 'Enhanced Filters'}
-          </button>
+          {!useEnhancedFilters && (
+            <button 
+              className="btn btn-secondary"
+              onClick={() => setUseEnhancedFilters(true)}
+              disabled={loading}
+              title="Switch to Advanced Filter"
+            >
+              Advanced Filter
+            </button>
+          )}
           <button 
             className="btn btn-primary"
             onClick={() => {
+              // Ensure we are on standard view before opening the form
+              setUseEnhancedFilters(false);
               resetForm();
               setShowForm(true);
             }}
@@ -1114,7 +1119,7 @@ const QuestionManagement = ({ onBackToDashboard }) => {
 
       {/* Enhanced Filters or Standard Filters */}
       {useEnhancedFilters ? (
-        <QuestionFilters onBackToDashboard={onBackToDashboard} />
+        <QuestionFilters onBackToDashboard={onBackToDashboard} onViewDetails={handleViewDetails} />
       ) : (
         <div className="standard-filters-wrapper">
         <div className="filter-section">
@@ -2208,6 +2213,8 @@ const QuestionManagement = ({ onBackToDashboard }) => {
         )}
         </div>
       )}
+      </div>
+      )}
       
       {/* Question Details Modal */}
       {showModal && selectedQuestion && (
@@ -2442,7 +2449,6 @@ const QuestionManagement = ({ onBackToDashboard }) => {
           </div>
         </div>
       )}
-    </div>
     </div>
   );
 };

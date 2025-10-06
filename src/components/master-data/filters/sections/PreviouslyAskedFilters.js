@@ -8,20 +8,17 @@ const PreviouslyAskedFilters = ({ filters, onFilterChange, isLoading }) => {
   // State for dropdown options
   const [masterExams, setMasterExams] = useState([]);
   const [years, setYears] = useState([]);
-  const [sessions, setSessions] = useState([]);
   
   // Loading states
   const [loadingStates, setLoadingStates] = useState({
     masterExams: false,
-    years: false,
-    sessions: false
+    years: false
   });
 
   // Multi-select dropdown state
   const [dropdownStates, setDropdownStates] = useState({
     examDropdown: false,
-    yearDropdown: false,
-    sessionDropdown: false
+    yearDropdown: false
   });
 
   // Fetch master exams
@@ -88,39 +85,12 @@ const PreviouslyAskedFilters = ({ filters, onFilterChange, isLoading }) => {
     }
   }, [token]);
 
-  // Generate sessions based on selected exams and years
-  const generateSessions = useCallback(() => {
-    const sessionsList = [];
-    
-    if (filters.examIds?.length > 0 && filters.appearedYears?.length > 0) {
-      filters.examIds.forEach(examId => {
-        const exam = masterExams.find(e => e.id === examId);
-        if (exam) {
-          filters.appearedYears.forEach(year => {
-            sessionsList.push({
-              id: `${examId}-${year}`,
-              name: `${exam.name} ${year}`,
-              examId,
-              year
-            });
-          });
-        }
-      });
-    }
-    
-    setSessions(sessionsList);
-  }, [filters.examIds, filters.appearedYears, masterExams]);
 
   // Load data on mount
   useEffect(() => {
     fetchMasterExams();
     fetchYears();
   }, [fetchMasterExams, fetchYears]);
-
-  // Generate sessions when exams or years change
-  useEffect(() => {
-    generateSessions();
-  }, [generateSessions]);
 
   // Handle exam selection
   const handleExamSelection = (examId) => {
@@ -150,31 +120,6 @@ const PreviouslyAskedFilters = ({ filters, onFilterChange, isLoading }) => {
     onFilterChange({ appearedYears: newYears });
   };
 
-  // Handle session selection
-  const handleSessionSelection = (sessionId) => {
-    const currentSessions = filters.sessions || [];
-    let newSessions;
-    
-    if (currentSessions.includes(sessionId)) {
-      newSessions = currentSessions.filter(id => id !== sessionId);
-    } else {
-      newSessions = [...currentSessions, sessionId];
-    }
-    
-    onFilterChange({ sessions: newSessions });
-  };
-
-  // Handle marks in exam range
-  const handleMarksInExamChange = (field, value) => {
-    const numValue = parseInt(value) || null;
-    onFilterChange({ [field]: numValue });
-  };
-
-  // Handle question number filter
-  const handleQuestionNumberChange = (value) => {
-    const questionNumbers = value.split(',').map(q => q.trim()).filter(q => q);
-    onFilterChange({ questionNumbers });
-  };
 
   // Toggle dropdown
   const toggleDropdown = (dropdown) => {
@@ -190,8 +135,7 @@ const PreviouslyAskedFilters = ({ filters, onFilterChange, isLoading }) => {
       if (!event.target.closest('.multi-select-dropdown')) {
         setDropdownStates({
           examDropdown: false,
-          yearDropdown: false,
-          sessionDropdown: false
+          yearDropdown: false
         });
       }
     };
@@ -214,21 +158,12 @@ const PreviouslyAskedFilters = ({ filters, onFilterChange, isLoading }) => {
       .join(', ');
   };
 
-  const getSelectedSessionNames = () => {
-    return sessions
-      .filter(session => filters.sessions?.includes(session.id))
-      .map(session => session.name)
-      .join(', ');
-  };
 
   return (
     <div className="previously-asked-filters">
       {/* Exams Multi-Select */}
       <div className="filter-group">
-        <label className="filter-label">
-          <span className="label-icon">📋</span>
-          Exams
-        </label>
+        <label className="filter-label">Exams</label>
         <div className="multi-select-dropdown">
           <div 
             className="multi-select-trigger"
@@ -292,10 +227,7 @@ const PreviouslyAskedFilters = ({ filters, onFilterChange, isLoading }) => {
 
       {/* Years Multi-Select */}
       <div className="filter-group">
-        <label className="filter-label">
-          <span className="label-icon">📅</span>
-          Years
-        </label>
+        <label className="filter-label">Years</label>
         <div className="multi-select-dropdown">
           <div 
             className="multi-select-trigger"
@@ -356,135 +288,9 @@ const PreviouslyAskedFilters = ({ filters, onFilterChange, isLoading }) => {
         )}
       </div>
 
-      {/* Sessions Multi-Select */}
-      {sessions.length > 0 && (
-        <div className="filter-group">
-          <label className="filter-label">
-            <span className="label-icon">🎯</span>
-            Sessions
-          </label>
-          <div className="multi-select-dropdown">
-            <div 
-              className="multi-select-trigger"
-              onClick={() => toggleDropdown('sessionDropdown')}
-            >
-              <span className="selected-text">
-                {filters.sessions?.length > 0 
-                  ? `${filters.sessions.length} sessions selected`
-                  : 'Select sessions...'
-                }
-              </span>
-              <span className={`dropdown-arrow ${dropdownStates.sessionDropdown ? 'open' : ''}`}>
-                ▼
-              </span>
-            </div>
-            
-            {dropdownStates.sessionDropdown && (
-              <div className="multi-select-options">
-                {sessions.map(session => (
-                  <label key={session.id} className="multi-select-option">
-                    <input
-                      type="checkbox"
-                      checked={filters.sessions?.includes(session.id) || false}
-                      onChange={() => handleSessionSelection(session.id)}
-                      disabled={isLoading}
-                    />
-                    <span className="option-text">{session.name}</span>
-                  </label>
-                ))}
-              </div>
-            )}
-          </div>
-          
-          {/* Selected Sessions Display */}
-          {filters.sessions?.length > 0 && (
-            <div className="selected-items">
-              {filters.sessions.map(sessionId => {
-                const session = sessions.find(s => s.id === sessionId);
-                return session ? (
-                  <span key={sessionId} className="selected-tag">
-                    {session.name}
-                    <button
-                      type="button"
-                      onClick={() => handleSessionSelection(sessionId)}
-                      className="remove-tag"
-                      disabled={isLoading}
-                    >
-                      ✕
-                    </button>
-                  </span>
-                ) : null;
-              })}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Marks in Exam Range */}
-      <div className="filter-group">
-        <label className="filter-label">
-          <span className="label-icon">⭐</span>
-          Marks in Exam Range
-        </label>
-        <div className="range-inputs">
-          <div className="range-input">
-            <label>Min Marks</label>
-            <input
-              type="number"
-              min="0"
-              max="100"
-              value={filters.minMarksInExam || ''}
-              onChange={(e) => handleMarksInExamChange('minMarksInExam', e.target.value)}
-              disabled={isLoading}
-              className="range-number"
-              placeholder="Min"
-            />
-          </div>
-          <div className="range-separator">to</div>
-          <div className="range-input">
-            <label>Max Marks</label>
-            <input
-              type="number"
-              min="0"
-              max="100"
-              value={filters.maxMarksInExam || ''}
-              onChange={(e) => handleMarksInExamChange('maxMarksInExam', e.target.value)}
-              disabled={isLoading}
-              className="range-number"
-              placeholder="Max"
-            />
-          </div>
-        </div>
-      </div>
-
-      {/* Question Numbers */}
-      <div className="filter-group">
-        <label className="filter-label">
-          <span className="label-icon">🔢</span>
-          Question Numbers
-        </label>
-        <div className="input-group">
-          <input
-            type="text"
-            placeholder="e.g., Q1, Q25, Q30 (comma separated)"
-            value={filters.questionNumbers?.join(', ') || ''}
-            onChange={(e) => handleQuestionNumberChange(e.target.value)}
-            disabled={isLoading}
-            className="filter-input"
-          />
-          <div className="input-help">
-            Enter question numbers as they appeared in the exam (e.g., Q1, Q25, Q30)
-          </div>
-        </div>
-      </div>
 
       {/* Applied Filters Summary */}
-      {(filters.examIds?.length > 0 || 
-        filters.appearedYears?.length > 0 || 
-        filters.sessions?.length > 0 ||
-        filters.minMarksInExam !== null || 
-        filters.maxMarksInExam !== null ||
-        filters.questionNumbers?.length > 0) && (
+      {(filters.examIds?.length > 0 || filters.appearedYears?.length > 0) && (
         <div className="applied-filters">
           <h5>Applied Previously Asked Filters:</h5>
           <div className="filter-tags">
@@ -506,42 +312,6 @@ const PreviouslyAskedFilters = ({ filters, onFilterChange, isLoading }) => {
                 <button
                   type="button"
                   onClick={() => onFilterChange({ appearedYears: [] })}
-                  className="remove-tag"
-                >
-                  ✕
-                </button>
-              </span>
-            )}
-            {filters.sessions?.length > 0 && (
-              <span className="filter-tag">
-                Sessions: {getSelectedSessionNames()}
-                <button
-                  type="button"
-                  onClick={() => onFilterChange({ sessions: [] })}
-                  className="remove-tag"
-                >
-                  ✕
-                </button>
-              </span>
-            )}
-            {(filters.minMarksInExam !== null || filters.maxMarksInExam !== null) && (
-              <span className="filter-tag">
-                Marks: {filters.minMarksInExam || 0}-{filters.maxMarksInExam || 100}
-                <button
-                  type="button"
-                  onClick={() => onFilterChange({ minMarksInExam: null, maxMarksInExam: null })}
-                  className="remove-tag"
-                >
-                  ✕
-                </button>
-              </span>
-            )}
-            {filters.questionNumbers?.length > 0 && (
-              <span className="filter-tag">
-                Q.Nos: {filters.questionNumbers.join(', ')}
-                <button
-                  type="button"
-                  onClick={() => onFilterChange({ questionNumbers: [] })}
                   className="remove-tag"
                 >
                   ✕

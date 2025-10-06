@@ -3,6 +3,7 @@ import { useApp } from '../../../context/AppContext';
 import { useFilterPresets } from '../../../hooks/useFilterPresets';
 import { useFilterURLSync } from '../../../hooks/useFilterURLSync';
 import FilterPanel from './FilterPanel';
+import { apiPost, apiGet } from '../../../utils/apiUtils';
 import './QuestionFilters.css';
 import QuestionResults from './QuestionResults';
 
@@ -99,10 +100,9 @@ const filterReducer = (state, action) => {
   }
 };
 
-const QuestionFilters = ({ onBackToDashboard }) => {
+const QuestionFilters = ({ onBackToDashboard, onViewDetails }) => {
   const { addNotification, token } = useApp();
   const [filters, dispatch] = useReducer(filterReducer, initialFilterState);
-  const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [questions, setQuestions] = useState([]);
   const [totalCount, setTotalCount] = useState(0);
@@ -190,13 +190,38 @@ const QuestionFilters = ({ onBackToDashboard }) => {
 
     setIsLoading(true);
     try {
-      // Prepare API request payload
+      // Prepare API request payload mapped to backend spec
+      // Normalize enum-like fields to backend format (UPPERCASE)
+      const normalizeUpper = (val) => (typeof val === 'string' ? val.toUpperCase() : val);
+
       const requestPayload = {
-        ...filters.basic,
-        ...filters.academic,
-        ...filters.examSuitability,
-        ...filters.previouslyAsked,
-        ...filters.searchDate
+        // Basic
+        isActive: filters.basic?.isActive,
+        questionType: normalizeUpper(filters.basic?.questionType || null),
+        difficultyLevel: Array.isArray(filters.basic?.difficultyLevels) && filters.basic.difficultyLevels.length > 0
+          ? normalizeUpper(filters.basic.difficultyLevels[0])
+          : null,
+        minMarks: typeof filters.basic?.minMarks === 'number' ? filters.basic.minMarks : null,
+        maxMarks: typeof filters.basic?.maxMarks === 'number' ? filters.basic.maxMarks : null,
+        questionTextSearch: filters.basic?.questionTextSearch || null,
+        explanationSearch: null,
+
+        // Academic hierarchy
+        courseTypeId: filters.academic?.courseTypeId || null,
+        relationshipId: filters.academic?.relationshipId || null,
+        subjectId: filters.academic?.subjectId || null,
+        topicId: filters.academic?.topicId || null,
+        moduleId: filters.academic?.moduleId || null,
+        chapterId: filters.academic?.chapterId || null,
+
+        // Exam suitability and previously asked
+        examIds: filters.examSuitability?.examIds || filters.previouslyAsked?.examIds || [],
+        suitabilityLevels: (filters.examSuitability?.suitabilityLevels || []).map(normalizeUpper),
+        appearedYears: filters.previouslyAsked?.appearedYears || [],
+
+        // Pagination
+        page: typeof filters.searchDate?.page === 'number' ? filters.searchDate.page : 0,
+        size: typeof filters.searchDate?.size === 'number' ? filters.searchDate.size : 20
       };
 
       // Remove null/empty values
@@ -210,15 +235,8 @@ const QuestionFilters = ({ onBackToDashboard }) => {
 
       console.log('Applying filters:', requestPayload);
 
-      // Make API call (using existing getQuestions for now, will enhance later)
-      const response = await fetch('/api/admin/master-data/questions/filter', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(requestPayload)
-      });
+      // Make API call to advanced filter endpoint via API utils (hits 8080)
+      const response = await apiPost('/api/admin/master-data/questions/filter', requestPayload, token);
 
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
@@ -249,13 +267,9 @@ const QuestionFilters = ({ onBackToDashboard }) => {
         duration: 5000
       });
       
-      // Fallback to existing method
+      // Fallback to basic list
       try {
-        const response = await fetch('/api/admin/master-data/questions', {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        });
+        const response = await apiGet('/api/admin/master-data/questions', token);
         const data = await response.json();
         setQuestions(Array.isArray(data) ? data : (data.content || data.data || []));
         setTotalCount(Array.isArray(data) ? data.length : (data.totalElements || data.total || 0));
@@ -287,38 +301,16 @@ const QuestionFilters = ({ onBackToDashboard }) => {
       {/* Header */}
       <div className="filters-header">
         <div className="header-info">
-          <h2>Enhanced Question Management</h2>
+          <h2>Advanced Question Filter</h2>
           <p>Advanced filtering and search capabilities</p>
         </div>
-        <div className="header-actions">
-          <button 
-            className="btn btn-secondary"
-            onClick={onBackToDashboard}
-            disabled={isLoading}
-          >
-            ← Back to Dashboard
-          </button>
-          <button 
-            className="btn btn-outline"
-            onClick={handleResetFilters}
-            disabled={isLoading}
-          >
-            Reset Filters
-          </button>
-          <button 
-            className="btn btn-primary"
-            onClick={() => setIsFilterPanelOpen(!isFilterPanelOpen)}
-          >
-            {isFilterPanelOpen ? 'Hide Filters' : 'Show Filters'}
-          </button>
-        </div>
+        <div className="header-actions"></div>
       </div>
 
       <div className="filters-layout">
         {/* Filter Panel */}
         <FilterPanel
-          isOpen={isFilterPanelOpen}
-          onClose={() => setIsFilterPanelOpen(false)}
+          isOpen={true}
           filters={filters}
           onFilterChange={handleFilterChange}
           onResetFilters={handleResetFilters}
@@ -343,6 +335,8 @@ const QuestionFilters = ({ onBackToDashboard }) => {
             onPageSizeChange={(size) => {
               handleFilterChange('searchDate', { size, page: 0 });
             }}
+            onViewDetails={onViewDetails || ((q) => console.log('View details clicked:', q))}
+            displayMode="table"
           />
         </div>
       </div>

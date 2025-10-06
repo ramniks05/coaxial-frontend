@@ -9,10 +9,12 @@ const QuestionResults = ({
   isLoading, 
   filters, 
   onPageChange, 
-  onPageSizeChange 
+  onPageSizeChange,
+  onViewDetails,
+  displayMode = 'grid' // 'grid' | 'list' | 'table'
 }) => {
   const [selectedQuestions, setSelectedQuestions] = useState([]);
-  const [viewMode, setViewMode] = useState('grid'); // 'grid' or 'list'
+  const [viewMode, setViewMode] = useState(displayMode === 'table' ? 'table' : 'grid'); // 'grid' | 'list' | 'table'
   const [sortBy, setSortBy] = useState('createdAt'); // 'createdAt', 'name', 'marks'
   const [sortOrder, setSortOrder] = useState('desc'); // 'asc' or 'desc'
 
@@ -133,6 +135,14 @@ const QuestionResults = ({
             >
               ☰
             </button>
+            <button
+              type="button"
+              className={`view-btn ${viewMode === 'table' ? 'active' : ''}`}
+              onClick={() => setViewMode('table')}
+              title="Table view"
+            >
+              ≡
+            </button>
           </div>
 
           {/* Sort Controls */}
@@ -173,7 +183,6 @@ const QuestionResults = ({
       <div className="results-content">
         {questions.length === 0 ? (
           <div className="empty-state">
-            <div className="empty-icon">🔍</div>
             <h4>No questions found</h4>
             <p>Try adjusting your filters or search criteria to find more questions.</p>
             <div className="empty-actions">
@@ -190,27 +199,70 @@ const QuestionResults = ({
             </div>
           </div>
         ) : (
-          <div className={`questions-container ${viewMode}`}>
-            {sortedQuestions.map(question => (
-              <div key={question.id} className="question-item">
-                {selectedQuestions.length > 0 && (
-                  <div className="selection-checkbox">
-                    <input
-                      type="checkbox"
-                      checked={selectedQuestions.includes(question.id)}
-                      onChange={(e) => handleQuestionSelect(question.id, e.target.checked)}
-                    />
-                  </div>
-                )}
-                <QuestionListCard
-                  question={question}
-                  onSelect={handleQuestionSelect}
-                  isSelected={selectedQuestions.includes(question.id)}
-                  viewMode={viewMode}
-                />
-              </div>
-            ))}
-          </div>
+          viewMode === 'table' ? (
+            <div className="questions-table-wrapper">
+              <table className="questions-table">
+                <thead>
+                  <tr>
+                    <th>ID</th>
+                    <th>Question</th>
+                    <th>Type</th>
+                    <th>Difficulty</th>
+                    <th>Marks</th>
+                    <th>Subject</th>
+                    <th>Created</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {sortedQuestions.map(q => (
+                    <tr key={q.id}>
+                      <td>{q.id}</td>
+                      <td title={q.questionText}>{(q.questionText || '').slice(0, 80)}{(q.questionText || '').length > 80 ? '…' : ''}</td>
+                      <td>{q.questionType}</td>
+                      <td>{q.difficultyLevel}</td>
+                      <td>{q.marks}</td>
+                      <td>{q.subjectName || '-'}</td>
+                      <td>{q.createdAt ? new Date(q.createdAt).toLocaleDateString() : '-'}</td>
+                      <td>
+                        <button
+                          type="button"
+                          className="btn btn-primary btn-xs"
+                          onClick={() => onViewDetails && onViewDetails(q)}
+                          title="View Details"
+                        >
+                          View
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className={`questions-container ${viewMode}`}>
+              {sortedQuestions.map(question => (
+                <div key={question.id} className="question-item">
+                  {selectedQuestions.length > 0 && (
+                    <div className="selection-checkbox">
+                      <input
+                        type="checkbox"
+                        checked={selectedQuestions.includes(question.id)}
+                        onChange={(e) => handleQuestionSelect(question.id, e.target.checked)}
+                      />
+                    </div>
+                  )}
+                  <QuestionListCard
+                    question={question}
+                    onSelect={handleQuestionSelect}
+                    isSelected={selectedQuestions.includes(question.id)}
+                    viewMode={viewMode}
+                    onViewDetails={onViewDetails}
+                  />
+                </div>
+              ))}
+            </div>
+          )
         )}
       </div>
 
