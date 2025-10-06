@@ -3,7 +3,7 @@
 .pricing-tabs { display: flex; gap: 0.5rem; }
 .tab-button { padding: 0.5rem 0.75rem; border: 1px solid #e5e7eb; border-radius: 6px; background: #fff; cursor: pointer; }
 .tab-button.active { background: #f3f4f6; border-color: #cbd5e1; }
-.pricing-content { background: #fff; border: 1px solid #e5e7eb; border-radius: 8px; padding: 1rem; }
+.pricing-content { background: transparent; border: none; padding: 0; }
 .filters { display: flex; gap: 0.5rem; margin-bottom: 0.75rem; }
 .plans-grid { display: grid; grid-template-columns: 1fr; gap: 0.5rem; }
 .plan-row { display: grid; grid-template-columns: 120px repeat(5, minmax(0,1fr)) 100px 120px 80px; gap: 0.5rem; align-items: center; border: 1px solid #e5e7eb; padding: 0.5rem; border-radius: 6px; }

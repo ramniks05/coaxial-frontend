@@ -2,8 +2,9 @@ import React, { useCallback, useEffect, useReducer, useState } from 'react';
 import { useApp } from '../../../context/AppContext';
 import { useFilterPresets } from '../../../hooks/useFilterPresets';
 import { useFilterURLSync } from '../../../hooks/useFilterURLSync';
+import { apiGet, apiPost } from '../../../utils/apiUtils';
+// Shared header is provided by the parent page
 import FilterPanel from './FilterPanel';
-import { apiPost, apiGet } from '../../../utils/apiUtils';
 import './QuestionFilters.css';
 import QuestionResults from './QuestionResults';
 
@@ -298,16 +299,37 @@ const QuestionFilters = ({ onBackToDashboard, onViewDetails }) => {
 
   return (
     <div className="question-filters-container">
-      {/* Header */}
-      <div className="filters-header">
-        <div className="header-info">
-          <h2>Advanced Question Filter</h2>
-          <p>Advanced filtering and search capabilities</p>
+      <div
+        className="section-header"
+        style={{ display: 'flex', justifyContent: 'flex-end', borderBottom: 'none', marginBottom: 0, paddingBottom: 8 }}
+      >
+        <div
+          className="section-actions"
+          style={{
+            display: 'flex',
+            gap: 8
+          }}
+        >
+          <button
+            className="btn btn-outline btn-sm"
+            onClick={handleResetFilters}
+            disabled={isLoading}
+            title="Reset all filters"
+          >
+            Reset
+          </button>
+          <button
+            className="btn btn-primary btn-sm"
+            onClick={handleApplyFilters}
+            disabled={isLoading}
+            title="Apply filters"
+          >
+            Apply
+          </button>
         </div>
-        <div className="header-actions"></div>
       </div>
 
-      <div className="filters-layout">
+      <div className="filters-layout" style={{ paddingTop: 8 }}>
         {/* Filter Panel */}
         <FilterPanel
           isOpen={true}

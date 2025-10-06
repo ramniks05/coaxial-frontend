@@ -1,52 +1,30 @@
-import React, { useState, useMemo } from 'react';
-import CoursePlansTab from './CoursePlansTab';
-import ClassExamPlansTab from './ClassExamPlansTab';
-import PlansIndex from './PlansIndex';
+import React, { useState } from 'react';
+import AdminPageHeader from '../common/AdminPageHeader';
+import GlobalOfferForm from './GlobalOfferForm';
 import './pricing.css';
+import UnifiedPricingForm from './UnifiedPricingForm';
 
 const PricingDashboard = ({ onBackToDashboard }) => {
-  const [activeTab, setActiveTab] = useState('course'); // course | class-exam | index
-
-  const tabs = useMemo(() => ([
-    { id: 'course', label: 'Course Plans', icon: '🎓' },
-    { id: 'class-exam', label: 'Class/Exam Overrides', icon: '🏷️' },
-    { id: 'index', label: 'All Plans', icon: '📋' },
-  ]), []);
-
+  const [activeTab, setActiveTab] = useState('pricing'); // pricing | offers
   return (
     <div className="pricing-dashboard">
-      <div className="pricing-header">
-        <div className="header-left">
-          <h2>Pricing Management</h2>
-          <p>Set base plans at course level and override at class/exam level</p>
-        </div>
-        <div className="header-actions">
-          <button className="btn btn-secondary" onClick={onBackToDashboard}>← Back to Dashboard</button>
-        </div>
-      </div>
+      <AdminPageHeader
+        title="Pricing Management"
+        subtitle="Configure subscription plans and global offers"
+        onBackToDashboard={onBackToDashboard}
+      />
 
       <div className="pricing-tabs">
-        {tabs.map(t => (
-          <button
-            key={t.id}
-            className={`tab-button ${activeTab === t.id ? 'active' : ''}`}
-            onClick={() => setActiveTab(t.id)}
-          >
-            <span className="tab-icon">{t.icon}</span>
-            <span className="tab-label">{t.label}</span>
-          </button>
-        ))}
+        <button className={`tab-button ${activeTab === 'pricing' ? 'active' : ''}`} onClick={() => setActiveTab('pricing')}>Pricing</button>
+        <button className={`tab-button ${activeTab === 'offers' ? 'active' : ''}`} onClick={() => setActiveTab('offers')}>Global Offers</button>
       </div>
 
       <div className="pricing-content">
-        {activeTab === 'course' && <CoursePlansTab />}
-        {activeTab === 'class-exam' && <ClassExamPlansTab />}
-        {activeTab === 'index' && <PlansIndex />}
+        {activeTab === 'pricing' && <UnifiedPricingForm />}
+        {activeTab === 'offers' && <GlobalOfferForm />}
       </div>
     </div>
   );
 };
 
 export default PricingDashboard;
-
-
