@@ -5,6 +5,7 @@ import MasterDataManagement from './MasterDataManagement';
 import UserManagementPage from './UserManagementPage';
 import QuestionManagement from './master-data/QuestionManagement';
 import TestManagement from './master-data/TestManagement';
+import PricingDashboard from './pricing/PricingDashboard';
 
 const AdminDashboard = () => {
   const { user } = useApp();
@@ -20,6 +21,8 @@ const AdminDashboard = () => {
         return <QuestionManagement onBackToDashboard={() => setActiveModule('overview')} />;
       case 'test-management':
         return <TestManagement onBackToDashboard={() => setActiveModule('overview')} />;
+      case 'pricing':
+        return <PricingDashboard onBackToDashboard={() => setActiveModule('overview')} />;
       case 'overview':
       default:
         return (
@@ -80,6 +83,18 @@ const AdminDashboard = () => {
                   onClick={() => setActiveModule('test-management')}
                 >
                   Manage Tests
+                </button>
+              </div>
+
+              <div className="feature-card">
+                <div className="feature-icon">💳</div>
+                <h3>Pricing Management</h3>
+                <p>Set course base plans and class/exam overrides with discounts.</p>
+                <button 
+                  className="btn btn-primary"
+                  onClick={() => setActiveModule('pricing')}
+                >
+                  Manage Pricing
                 </button>
               </div>
               
