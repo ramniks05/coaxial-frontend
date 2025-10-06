@@ -1,0 +1,302 @@
+import React, { useEffect, useRef, useState } from 'react';
+import { getFileIcon, getFileTypeDisplay, formatFileSize } from '../../utils/documentUtils';
+import './DocumentPreviewModal.css';
+
+// Import PDF and Doc viewer components with error handling
+let Document, Page, pdfjs;
+let DocViewer;
+
+// For now, disable the problematic PDF.js setup and use iframe fallback
+// This prevents the CDN worker loading error
+const USE_PDF_LIBRARY = false; // Set to true when PDF.js worker issues are resolved
+
+if (USE_PDF_LIBRARY) {
+  try {
+    const reactPdf = require('react-pdf');
+    Document = reactPdf.Document;
+    Page = reactPdf.Page;
+    pdfjs = reactPdf.pdfjs;
+    
+    // Set up PDF.js worker - use local worker or skip if not available
+    try {
+      pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.js`;
+    } catch (workerError) {
+      console.warn('PDF.js worker not available, using fallback:', workerError);
+      pdfjs.GlobalWorkerOptions.workerSrc = null;
+    }
+  } catch (error) {
+    console.warn('react-pdf not available:', error);
+  }
+}
+
+try {
+  DocViewer = require('react-doc-viewer').default;
+} catch (error) {
+  console.warn('react-doc-viewer not available:', error);
+}
+
+const DocumentPreviewModal = ({ 
+  isOpen, 
+  onClose, 
+  fileName, 
+  filePath,
+  fileSize = null,
+  fileType = 'Document Preview' 
+}) => {
+  const modalRef = useRef(null);
+  const [numPages, setNumPages] = useState(null);
+  const [pageNumber, setPageNumber] = useState(1);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    const handleEscape = (e) => {
+      if (e.key === 'Escape') {
+        onClose();
+      }
+    };
+
+    const handleClickOutside = (e) => {
+      if (modalRef.current && !modalRef.current.contains(e.target)) {
+        onClose();
+      }
+    };
+
+    if (isOpen) {
+      document.addEventListener('keydown', handleEscape);
+      document.addEventListener('mousedown', handleClickOutside);
+      document.body.style.overflow = 'hidden';
+      setError(null);
+      
+      // Set loading to true for PDF files when modal opens
+      const extension = fileName?.split('.').pop()?.toLowerCase();
+      if (extension === 'pdf') {
+        setLoading(true);
+      } else {
+        setLoading(false);
+      }
+    }
+
+    return () => {
+      document.removeEventListener('keydown', handleEscape);
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.body.style.overflow = 'unset';
+    };
+  }, [isOpen, onClose, fileName]);
+
+  const onDocumentLoadSuccess = ({ numPages }) => {
+    setNumPages(numPages);
+    setLoading(false);
+    setError(null);
+  };
+
+  const onDocumentLoadError = (error) => {
+    console.error('PDF load error:', error);
+    setError('Failed to load PDF document');
+    setLoading(false);
+  };
+
+  if (!isOpen) return null;
+
+  const renderPreview = () => {
+    if (!fileName) return null;
+
+    const extension = fileName.split('.').pop()?.toLowerCase();
+
+    // Create a mock file URL for demonstration
+    // In production, this would be the actual file URL from your server
+    const mockFileUrl = filePath || `https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf`;
+
+    switch (extension) {
+      case 'pdf':
+        if (!Document || !Page) {
+          // Fallback: Use iframe for PDF preview
+          return (
+            <div className="pdf-preview-container">
+              <div className="pdf-fallback">
+                <div className="pdf-info">
+                  <div className="pdf-icon">📕</div>
+                  <h3>PDF Document Preview</h3>
+                  <p>File: <strong>{fileName}</strong></p>
+                  <p>File Type: <strong>PDF Document</strong></p>
+                  {fileSize && <p>File Size: <strong>{formatFileSize(fileSize)}</strong></p>}
+                </div>
+                <div className="pdf-iframe-container">
+                  <iframe
+                    src={`${mockFileUrl}#toolbar=1&navpanes=1&scrollbar=1`}
+                    title={fileName}
+                    className="document-iframe"
+                    style={{ width: '100%', height: '500px', border: 'none' }}
+                  />
+                </div>
+                <div className="pdf-fallback-info">
+                  <p>📝 <strong>Note:</strong> PDF is displayed using browser's built-in viewer.</p>
+                  <p>🔧 For enhanced features, the PDF preview library will be available soon.</p>
+                </div>
+              </div>
+            </div>
+          );
+        }
+        
+        return (
+          <div className="pdf-preview-container">
+            {loading && (
+              <div className="loading-overlay">
+                <div className="loading-spinner">Loading PDF...</div>
+              </div>
+            )}
+            {error && (
+              <div className="error-message">
+                <div className="error-icon">⚠️</div>
+                <h3>Error Loading PDF</h3>
+                <p>{error}</p>
+                <p>File: <strong>{fileName}</strong></p>
+                <p>Falling back to browser PDF viewer...</p>
+                <div className="pdf-iframe-container" style={{ marginTop: '20px' }}>
+                  <iframe
+                    src={`${mockFileUrl}#toolbar=1&navpanes=1&scrollbar=1`}
+                    title={fileName}
+                    className="document-iframe"
+                    style={{ width: '100%', height: '400px', border: '1px solid #ddd' }}
+                  />
+                </div>
+              </div>
+            )}
+            {!error && !loading && (
+              <>
+                <Document
+                  file={mockFileUrl}
+                  onLoadSuccess={onDocumentLoadSuccess}
+                  onLoadError={onDocumentLoadError}
+                  loading={<div className="loading-spinner">Loading PDF...</div>}
+                >
+                  <Page 
+                    pageNumber={pageNumber} 
+                    width={600}
+                    renderTextLayer={false}
+                    renderAnnotationLayer={false}
+                  />
+                </Document>
+                {numPages && numPages > 1 && (
+                  <div className="pdf-controls">
+                    <button 
+                      onClick={() => setPageNumber(Math.max(1, pageNumber - 1))}
+                      disabled={pageNumber <= 1}
+                      className="btn btn-outline btn-sm"
+                    >
+                      Previous
+                    </button>
+                    <span className="page-info">
+                      Page {pageNumber} of {numPages}
+                    </span>
+                    <button 
+                      onClick={() => setPageNumber(Math.min(numPages, pageNumber + 1))}
+                      disabled={pageNumber >= numPages}
+                      className="btn btn-outline btn-sm"
+                    >
+                      Next
+                    </button>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        );
+      
+      case 'doc':
+      case 'docx':
+        if (!DocViewer) {
+          return (
+            <div className="unsupported-preview">
+              <div className="unsupported-icon">📘</div>
+              <h3>Word Document Preview Not Available</h3>
+              <p>Word document preview library is not loaded.</p>
+              <p>File: <strong>{fileName}</strong></p>
+              <p>You can still download the file using the download button below.</p>
+            </div>
+          );
+        }
+        
+        const wordMockUrl = filePath || `https://file-examples.com/storage/fe68c4c7c8b4e4e4b4b4b4b/sample.docx`;
+        const docs = [
+          { 
+            uri: wordMockUrl, 
+            fileType: extension,
+            fileName: fileName
+          }
+        ];
+        
+        return (
+          <div className="doc-preview-container">
+            <DocViewer
+              documents={docs}
+              style={{ height: '100%', width: '100%' }}
+              config={{
+                header: {
+                  disableHeader: false,
+                  disableFileName: false,
+                  retainURLParams: false
+                }
+              }}
+            />
+          </div>
+        );
+      
+      default:
+        return (
+          <div className="unsupported-preview">
+            <div className="unsupported-icon">{getFileIcon(fileName)}</div>
+            <h3>Preview Not Available</h3>
+            <p>Only PDF and Word documents are supported for preview.</p>
+            <p>File: <strong>{fileName}</strong></p>
+            <p>File Type: <strong>{getFileTypeDisplay(fileName)}</strong></p>
+            {fileSize && <p>File Size: <strong>{formatFileSize(fileSize)}</strong></p>}
+            <p>You can still download the file using the download button below.</p>
+          </div>
+        );
+    }
+  };
+
+  return (
+    <div className="document-preview-modal-overlay">
+      <div className="document-preview-modal" ref={modalRef}>
+        <div className="modal-header">
+          <h3 className="modal-title">{fileName || 'Document Preview'}</h3>
+          <button 
+            className="modal-close-btn"
+            onClick={onClose}
+            aria-label="Close document preview"
+          >
+            <span>✕</span>
+          </button>
+        </div>
+        
+        <div className="modal-content">
+          <div className="document-container">
+            {renderPreview()}
+          </div>
+          
+          <div className="modal-actions">
+            <a 
+              href={filePath || `/api/files/download/${encodeURIComponent(fileName)}`}
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="btn btn-outline"
+            >
+              <span className="btn-icon">⬇️</span>
+              Download
+            </a>
+            <button 
+              className="btn btn-primary"
+              onClick={onClose}
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default DocumentPreviewModal;

@@ -1,0 +1,316 @@
+/* Bulk Actions Styles */
+
+.bulk-actions-bar {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: var(--filter-primary);
+  color: white;
+  box-shadow: var(--filter-shadow-md);
+  border-bottom: 1px solid var(--filter-border);
+}
+
+.bulk-actions-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 1.5rem;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+/* Selection Info */
+.selection-info {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex: 1;
+  min-width: 200px;
+}
+
+.selection-count {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: white;
+}
+
+.select-all-btn {
+  padding: 0.375rem 0.75rem;
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: var(--filter-radius-sm);
+  font-size: 0.75rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: var(--filter-transition);
+}
+
+.select-all-btn:hover {
+  background: rgba(255, 255, 255, 0.3);
+  border-color: rgba(255, 255, 255, 0.5);
+}
+
+.select-all-btn:focus {
+  outline: 2px solid white;
+  outline-offset: 2px;
+}
+
+/* Bulk Actions Buttons */
+.bulk-actions-buttons {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.action-group {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.action-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.8);
+  margin-right: 0.25rem;
+}
+
+.bulk-action-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.375rem 0.75rem;
+  background: rgba(255, 255, 255, 0.15);
+  color: white;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: var(--filter-radius-sm);
+  font-size: 0.75rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: var(--filter-transition);
+  white-space: nowrap;
+}
+
+.bulk-action-btn:hover {
+  background: rgba(255, 255, 255, 0.25);
+  border-color: rgba(255, 255, 255, 0.4);
+}
+
+.bulk-action-btn:focus {
+  outline: 2px solid white;
+  outline-offset: 2px;
+}
+
+.bulk-action-btn:disabled {
+  background: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.5);
+  cursor: not-allowed;
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+/* Button Type Variations */
+.bulk-action-btn.status-btn {
+  background: rgba(16, 185, 129, 0.8);
+  border-color: rgba(16, 185, 129, 0.9);
+}
+
+.bulk-action-btn.status-btn:hover {
+  background: rgba(16, 185, 129, 0.9);
+  border-color: rgba(16, 185, 129, 1);
+}
+
+.bulk-action-btn.organization-btn {
+  background: rgba(59, 130, 246, 0.8);
+  border-color: rgba(59, 130, 246, 0.9);
+}
+
+.bulk-action-btn.organization-btn:hover {
+  background: rgba(59, 130, 246, 0.9);
+  border-color: rgba(59, 130, 246, 1);
+}
+
+.bulk-action-btn.export-btn {
+  background: rgba(245, 158, 11, 0.8);
+  border-color: rgba(245, 158, 11, 0.9);
+}
+
+.bulk-action-btn.export-btn:hover {
+  background: rgba(245, 158, 11, 0.9);
+  border-color: rgba(245, 158, 11, 1);
+}
+
+.bulk-action-btn.action-btn {
+  background: rgba(107, 114, 128, 0.8);
+  border-color: rgba(107, 114, 128, 0.9);
+}
+
+.bulk-action-btn.action-btn:hover {
+  background: rgba(107, 114, 128, 0.9);
+  border-color: rgba(107, 114, 128, 1);
+}
+
+.bulk-action-btn.danger-btn {
+  background: rgba(239, 68, 68, 0.8);
+  border-color: rgba(239, 68, 68, 0.9);
+}
+
+.bulk-action-btn.danger-btn:hover {
+  background: rgba(239, 68, 68, 0.9);
+  border-color: rgba(239, 68, 68, 1);
+}
+
+/* Close Button */
+.bulk-actions-close {
+  display: flex;
+  align-items: center;
+}
+
+.close-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 50%;
+  cursor: pointer;
+  transition: var(--filter-transition);
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.close-btn:hover {
+  background: rgba(255, 255, 255, 0.3);
+  border-color: rgba(255, 255, 255, 0.5);
+}
+
+.close-btn:focus {
+  outline: 2px solid white;
+  outline-offset: 2px;
+}
+
+/* Responsive Design */
+@media (max-width: 1024px) {
+  .bulk-actions-content {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 1rem;
+  }
+  
+  .selection-info {
+    min-width: auto;
+  }
+  
+  .bulk-actions-buttons {
+    justify-content: center;
+  }
+}
+
+@media (max-width: 768px) {
+  .bulk-actions-content {
+    padding: 1rem;
+  }
+  
+  .bulk-actions-buttons {
+    flex-direction: column;
+    gap: 1rem;
+  }
+  
+  .action-group {
+    justify-content: center;
+    width: 100%;
+  }
+  
+  .action-group .bulk-action-btn {
+    flex: 1;
+    min-width: 0;
+    justify-content: center;
+  }
+  
+  .selection-info {
+    flex-direction: column;
+    align-items: center;
+    gap: 0.75rem;
+    text-align: center;
+  }
+}
+
+/* Animation for bulk actions bar */
+.bulk-actions-bar {
+  animation: slideDown 0.3s ease-out;
+}
+
+@keyframes slideDown {
+  from {
+    transform: translateY(-100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+/* High contrast mode */
+@media (prefers-contrast: high) {
+  .bulk-actions-bar {
+    border-bottom-width: 2px;
+  }
+  
+  .select-all-btn,
+  .bulk-action-btn,
+  .close-btn {
+    border-width: 2px;
+  }
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .bulk-actions-bar {
+    animation: none;
+  }
+  
+  .select-all-btn,
+  .bulk-action-btn,
+  .close-btn {
+    transition: none;
+  }
+}
+
+/* Focus management */
+.select-all-btn:focus,
+.bulk-action-btn:focus,
+.close-btn:focus {
+  outline: 2px solid white;
+  outline-offset: 2px;
+}
+
+/* Loading state for bulk actions */
+.bulk-action-btn.loading {
+  position: relative;
+  color: transparent;
+}
+
+.bulk-action-btn.loading::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 12px;
+  height: 12px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top: 2px solid white;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: translate(-50%, -50%) rotate(0deg); }
+  100% { transform: translate(-50%, -50%) rotate(360deg); }
+}

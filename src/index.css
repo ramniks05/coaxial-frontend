@@ -1,0 +1,15 @@
+/* Import the unified design system */
+@import './styles/design-system.css';
+@import './styles/form-design-system.css';
+
+/* Base styles - these will be overridden by design-system.css */
+body {
+  margin: 0;
+  font-family: var(--font-family-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+code {
+  font-family: var(--font-family-mono);
+}
