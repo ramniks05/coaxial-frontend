@@ -160,7 +160,7 @@ export const getCoursesByCourseType = async (token, courseTypeId, abortSignal = 
     throw new Error('Course type ID is required');
   }
   
-  const endpoint = `${API_BASE}/api/admin/master-data/courses/course-type/${courseTypeId}`;
+  const endpoint = `${API_BASE}/api/admin/master-data/courses/by-course-type?courseTypeId=${courseTypeId}`;
   
   console.log('Fetching courses by course type from:', endpoint);
   

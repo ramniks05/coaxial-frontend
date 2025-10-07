@@ -1,7 +1,6 @@
-﻿import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useApp } from '../../context/AppContext';
 import { loadRazorpayScript } from '../../utils/razorpay';
-import { getCourseCatalog } from '../../services/studentService';
 import './StudentDashboard.css';
 
 const StudentCourseCatalog = () => {
@@ -225,20 +224,8 @@ const StudentCourseCatalog = () => {
       // const data = await response.json();
       
       // Simulate API delay
-      const data = await getCourseCatalog();
-      
-      if (data.success) {
-        const allItems = [];
-        if (data.classes) data.classes.forEach(cls => allItems.push({ ...cls, name: cls.className, type: 'class', classes: [cls] }));
-        if (data.exams) data.exams.forEach(exam => {
-          const totalModules = exam.subjects?.reduce((sum, s) => sum + (s.moduleCount || 0), 0) || 0;
-          const totalChapters = exam.subjects?.reduce((sum, s) => sum + (s.chapterCount || 0), 0) || 0;
-          allItems.push({ ...exam, name: exam.examName, type: 'exam', moduleCount: totalModules, chapterCount: totalChapters, exams: [{ ...exam, moduleCount: totalModules, chapterCount: totalChapters }] });
-        });
-        if (data.courses) data.courses.forEach(course => allItems.push({ ...course, name: course.courseName, type: 'course', courses: [course] }));
-        setCourseTypes([{ id: 1, name: data.courseType || 'All Courses', description: data.description, icon: '📚', courses: allItems }]);
-        addNotification({ type: 'success', message: 'Course catalog loaded!', duration: 3000 });
-      }
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      setCourseTypes(mockCourseData);
     } catch (error) {
       console.error('Error loading course data:', error);
       addNotification('Failed to load course catalog', 'error');
@@ -420,7 +407,7 @@ const StudentCourseCatalog = () => {
                       <p>{course.description}</p>
                     </div>
 
-                    <>
+                    {/* Classes */}
                     {course.classes && course.classes.map(cls => (
                       <div key={cls.id} className="class-card">
                         <div className="class-header">
@@ -472,17 +459,17 @@ const StudentCourseCatalog = () => {
                           <div className="pricing-options">
                             <div className="pricing-option">
                               <span className="pricing-period">Monthly</span>
-                              <span className="pricing-amount">{formatPrice(cls.pricing.monthlyFinalPrice || cls.pricing.monthlyPrice || 0)}</span>
-                              {cls.pricing?.monthlyDiscountPercent > 0 && <span className="discount">{cls.pricing.monthlyDiscountPercent}% OFF</span>}
+                              <span className="pricing-amount">{formatPrice(cls.pricing.monthly)}</span>
                             </div>
                             <div className="pricing-option recommended">
-                              <span className="pricing-amount">{formatPrice((cls.pricing.quarterlyFinalPrice || cls.pricing.quarterlyPrice || 0))}</span>
-                              {cls.pricing?.quarterlyDiscountPercent > 0 && <span className="discount">{cls.pricing.quarterlyDiscountPercent}% OFF</span>}
+                              <span className="pricing-period">Quarterly</span>
+                              <span className="pricing-amount">{formatPrice(getDiscountedPrice(cls.pricing.monthly, 'quarterly'))}</span>
+                              <span className="discount">10% OFF</span>
                             </div>
                             <div className="pricing-option best-value">
                               <span className="pricing-period">Yearly</span>
-                              <span className="pricing-amount">{formatPrice((cls.pricing.yearlyFinalPrice || cls.pricing.yearlyPrice || 0))}</span>
-                              {cls.pricing?.yearlyDiscountPercent > 0 && <span className="discount">{cls.pricing.yearlyDiscountPercent}% OFF</span>}
+                              <span className="pricing-amount">{formatPrice(getDiscountedPrice(cls.pricing.monthly, 'yearly'))}</span>
+                              <span className="discount">20% OFF</span>
                             </div>
                           </div>
                         </div>
@@ -545,24 +532,23 @@ const StudentCourseCatalog = () => {
                         </div>
 
                         <div className="pricing-section">
-  <div className="pricing-options">
-    <div className="pricing-option">
-      <span className="pricing-period">Monthly</span>
-      <span className="pricing-amount">{formatPrice(exam.pricing.monthlyFinalPrice || 0)}</span>
-      {exam.pricing?.monthlyDiscountPercent > 0 && <span className="discount">{exam.pricing.monthlyDiscountPercent}% OFF</span>}
-    </div>
-    <div className="pricing-option recommended">
-      <span className="pricing-period">Quarterly</span>
-      <span className="pricing-amount">{formatPrice(exam.pricing.quarterlyFinalPrice || 0)}</span>
-      {exam.pricing?.quarterlyDiscountPercent > 0 && <span className="discount">{exam.pricing.quarterlyDiscountPercent}% OFF</span>}
-    </div>
-    <div className="pricing-option best-value">
-      <span className="pricing-period">Yearly</span>
-      <span className="pricing-amount">{formatPrice(exam.pricing.yearlyFinalPrice || 0)}</span>
-      {exam.pricing?.yearlyDiscountPercent > 0 && <span className="discount">{exam.pricing.yearlyDiscountPercent}% OFF</span>}
-    </div>
-  </div>
-</div>
+                          <div className="pricing-options">
+                            <div className="pricing-option">
+                              <span className="pricing-period">Monthly</span>
+                              <span className="pricing-amount">{formatPrice(exam.pricing.monthly)}</span>
+                            </div>
+                            <div className="pricing-option recommended">
+                              <span className="pricing-period">Quarterly</span>
+                              <span className="pricing-amount">{formatPrice(getDiscountedPrice(exam.pricing.monthly, 'quarterly'))}</span>
+                              <span className="discount">10% OFF</span>
+                            </div>
+                            <div className="pricing-option best-value">
+                              <span className="pricing-period">Yearly</span>
+                              <span className="pricing-amount">{formatPrice(getDiscountedPrice(exam.pricing.monthly, 'yearly'))}</span>
+                              <span className="discount">20% OFF</span>
+                            </div>
+                          </div>
+                        </div>
 
                         <button 
                           className="btn btn-primary subscribe-btn"
@@ -572,82 +558,8 @@ const StudentCourseCatalog = () => {
                         </button>
                       </div>
                     ))}
-                    {/* Professional Courses */}
-                    {course.courses && course.courses.map(profCourse => (
-                      <div key={profCourse.id} className="class-card">
-                        <div className="class-header">
-                          <h5>{profCourse.name}</h5>
-                          <div className="class-meta">
-                            <span className="difficulty">{profCourse.level}</span>
-                            <span className="duration">{profCourse.duration}</span>
-                          </div>
-                        </div>
-
-                        <div className="content-stats">
-                          {profCourse.topicCount > 0 && (
-                          <div className="stat">
-                            <span className="stat-number">{profCourse.topicCount}</span>
-                            <span className="stat-label">Topics</span>
-                          </div>
-                          )}
-                          {profCourse.moduleCount > 0 && (
-                          <div className="stat">
-                            <span className="stat-number">{profCourse.moduleCount}</span>
-                            <span className="stat-label">Modules</span>
-                          </div>
-                          )}
-                          {profCourse.chapterCount > 0 && (
-                          <div className="stat">
-                            <span className="stat-number">{profCourse.chapterCount}</span>
-                            <span className="stat-label">Chapters</span>
-                          </div>
-                          )}
-                        </div>
-
-                        {profCourse.skillsCovered && profCourse.skillsCovered.length > 0 && (
-                        <div className="subjects-preview">
-                          <h6>Skills Covered:</h6>
-                          <div className="subjects-list">
-                            {profCourse.skillsCovered.map((skill, index) => (
-                              <div key={index} className="subject-item">
-                                <span className="subject-name">{skill}</span>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                        )}
-
-                        <div className="pricing-section">
-                          <div className="pricing-options">
-                            <div className="pricing-option">
-                              <span className="pricing-period">Monthly</span>
-                              <span className="pricing-amount">{formatPrice(profCourse.pricing.monthlyFinalPrice || 0)}</span>
-                              {profCourse.pricing?.monthlyDiscountPercent > 0 && <span className="discount">{profCourse.pricing.monthlyDiscountPercent}% OFF</span>}
-                            </div>
-                            <div className="pricing-option recommended">
-                              <span className="pricing-period">Quarterly</span>
-                              <span className="pricing-amount">{formatPrice(profCourse.pricing.quarterlyFinalPrice || 0)}</span>
-                              {profCourse.pricing?.quarterlyDiscountPercent > 0 && <span className="discount">{profCourse.pricing.quarterlyDiscountPercent}% OFF</span>}
-                            </div>
-                            <div className="pricing-option best-value">
-                              <span className="pricing-period">Yearly</span>
-                              <span className="pricing-amount">{formatPrice(profCourse.pricing.yearlyFinalPrice || 0)}</span>
-                              {profCourse.pricing?.yearlyDiscountPercent > 0 && <span className="discount">{profCourse.pricing.yearlyDiscountPercent}% OFF</span>}
-                            </div>
-                          </div>
-                        </div>
-
-                        <button 
-                          className="btn btn-primary subscribe-btn"
-                          onClick={() => handleSubscribe(profCourse)}
-                        >
-                          Subscribe Now
-                        </button>
-                      </div>
-                                       ))}
-                                       </>
-                                     </div>
-                                   ))}
+                  </div>
+                ))}
               </div>
             </div>
           ))}
@@ -788,6 +700,3 @@ const StudentCourseCatalog = () => {
 };
 
 export default StudentCourseCatalog;
-
-
-
