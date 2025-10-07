@@ -6,6 +6,11 @@ import {
     getCoursesByCourseType,
     getExamsByCourse
 } from '../../services/masterDataService';
+import {
+    setCoursePricing,
+    setClassPricing,
+    setExamPricing
+} from '../../services/pricingService';
 
 const PlanRow = ({ label, values, onChange }) => {
   const { basePrice, discountPercent, effectiveFrom, effectiveTo, active } = values || {};
@@ -75,7 +80,19 @@ const UnifiedPricingForm = () => {
         setLoadingCT(true);
         const data = await getCourseTypes(token);
         const arr = Array.isArray(data) ? data : (data?.content || data?.data || []);
-        if (!cancelled) setCourseTypes(arr);
+        
+        // Filter course types based on level
+        let filteredArr = arr;
+        if (level === 'CLASS') {
+          // Only show Academic Course type for classes
+          filteredArr = arr.filter(ct => ct.name === 'Academic Course');
+        } else if (level === 'EXAM') {
+          // Only show Competitive Course type for exams
+          filteredArr = arr.filter(ct => ct.name === 'Competitive Course');
+        }
+        // For COURSE level, show all course types
+        
+        if (!cancelled) setCourseTypes(filteredArr);
       } catch (e) {
         addNotification({ type: 'error', message: `Failed to load course types: ${e.message}`, duration: 6000 });
       } finally {
@@ -83,7 +100,7 @@ const UnifiedPricingForm = () => {
       }
     })();
     return () => { cancelled = true; };
-  }, [token, addNotification]);
+  }, [token, addNotification, level]);
 
   // When courseType changes, load courses
   useEffect(() => {
@@ -150,6 +167,8 @@ const UnifiedPricingForm = () => {
   const onLevelChange = (e) => {
     const next = e.target.value;
     setLevel(next);
+    setCourseTypeId(''); // Reset course type selection
+    setCourseId(''); // Reset course selection
     setChildren([]);
     setChildId('');
     resetPlans();
@@ -161,20 +180,94 @@ const UnifiedPricingForm = () => {
     return true;
   }, [courseTypeId, courseId, childId, level]);
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!canSave) {
       addNotification({ type: 'error', message: 'Select required fields before saving', duration: 4000 });
       return;
     }
-    // Wire actual API once backend endpoints for pricing exist
-    console.log('Saving pricing', {
-      level,
-      courseTypeId,
-      courseId,
-      childId,
-      plans: { monthly, quarterly, yearly }
-    });
-    addNotification({ type: 'success', message: 'Pricing saved (demo)', duration: 3000 });
+
+    // Validate that at least one plan has a base price
+    if (!monthly.basePrice && !quarterly.basePrice && !yearly.basePrice) {
+      addNotification({ type: 'error', message: 'At least one plan must have a base price', duration: 4000 });
+      return;
+    }
+
+    try {
+      // Get selected course and child (class/exam) names
+      const selectedCourse = courses.find(c => c.id === parseInt(courseId));
+      const selectedChild = level !== 'COURSE' ? children.find(ch => ch.id === parseInt(childId)) : null;
+      
+      // Helper function to format date to ISO string with time
+      const formatDateTime = (dateStr) => {
+        if (!dateStr) return null;
+        return `${dateStr}T00:00:00`;
+      };
+      
+      // Prepare base pricing data common to all levels
+      const basePricingData = {
+        courseTypeId: parseInt(courseTypeId),
+        monthlyPrice: monthly.basePrice || 0,
+        quarterlyPrice: quarterly.basePrice || 0,
+        yearlyPrice: yearly.basePrice || 0,
+        monthlyDiscountPercent: monthly.discountPercent || 0,
+        monthlyOfferValidFrom: formatDateTime(monthly.effectiveFrom),
+        monthlyOfferValidTo: formatDateTime(monthly.effectiveTo),
+        quarterlyDiscountPercent: quarterly.discountPercent || 0,
+        quarterlyOfferValidFrom: formatDateTime(quarterly.effectiveFrom),
+        quarterlyOfferValidTo: formatDateTime(quarterly.effectiveTo),
+        yearlyDiscountPercent: yearly.discountPercent || 0,
+        yearlyOfferValidFrom: formatDateTime(yearly.effectiveFrom),
+        yearlyOfferValidTo: formatDateTime(yearly.effectiveTo),
+        isActive: monthly.active || quarterly.active || yearly.active
+      };
+
+      // Add the appropriate ID and name based on level
+      if (level === 'CLASS') {
+        const classPricingData = {
+          classId: parseInt(childId),
+          className: selectedChild?.name || '',
+          courseId: parseInt(courseId),
+          courseName: selectedCourse?.name || '',
+          ...basePricingData
+        };
+        await setClassPricing(token, classPricingData);
+      } else if (level === 'EXAM') {
+        const examPricingData = {
+          examId: parseInt(childId),
+          examName: selectedChild?.name || '',
+          ...basePricingData
+        };
+        await setExamPricing(token, examPricingData);
+      } else {
+        // COURSE level
+        const coursePricingData = {
+          courseId: parseInt(courseId),
+          courseName: selectedCourse?.name || '',
+          monthlyDurationDays: 30,
+          quarterlyDurationDays: 90,
+          yearlyDurationDays: 365,
+          ...basePricingData
+        };
+        await setCoursePricing(token, coursePricingData);
+      }
+      
+      addNotification({ 
+        type: 'success', 
+        message: `Successfully saved pricing for ${level.toLowerCase()} level`, 
+        duration: 4000 
+      });
+      
+      // Reset form after successful save
+      resetPlans();
+      
+    } catch (error) {
+      console.error('Error saving pricing:', error);
+      addNotification({ 
+        type: 'error', 
+        message: `Failed to save pricing: ${error.message}`, 
+        duration: 6000 
+      });
+    }
   };
 
   return (
