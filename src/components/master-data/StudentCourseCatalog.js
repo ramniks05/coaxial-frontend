@@ -1,11 +1,11 @@
 ﻿import React, { useEffect, useState } from 'react';
 import { useApp } from '../../context/AppContext';
-import { loadRazorpayScript } from '../../utils/razorpay';
+import { createSubscription, verifyPayment } from '../../services/subscriptionService';
 import { getCourseCatalog } from '../../services/studentService';
-import './StudentDashboard.css';
+import { loadRazorpayScript } from '../../utils/razorpay';
 
 // Shared Catalogue Card Component
-const CatalogueCard = ({ item, onSubscribe, formatPrice }) => {
+const CatalogueCard = ({ item, onSubscribe, formatPrice, isSubscribed }) => {
   const itemName = item.name || item.className || item.examName || item.courseName;
   const difficulty = item.difficulty || item.level;
   
@@ -108,17 +108,18 @@ const CatalogueCard = ({ item, onSubscribe, formatPrice }) => {
       </div>
 
       <button 
-        className="btn btn-primary subscribe-btn"
+        className={isSubscribed ? 'btn btn-secondary subscribe-btn' : 'btn btn-primary subscribe-btn'}
         onClick={() => onSubscribe(item)}
+        disabled={isSubscribed}
       >
-        Subscribe Now
+        {isSubscribed ? '✓ Subscribed' : 'Subscribe Now'}
       </button>
     </div>
-  );
+    </div>
 };
 
 const StudentCourseCatalog = () => {
-  const { addNotification } = useApp();
+  const { token, addNotification } = useApp();
   const [courseTypes, setCourseTypes] = useState([]);
   const [loading, setLoading] = useState(false);
   const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
@@ -130,8 +131,7 @@ const StudentCourseCatalog = () => {
     duration: '',
     search: ''
   });
-
-  // Mock data for testing
+  const [subscribedItems, setSubscribedItems] = useState(new Set());
   useEffect(() => {
     loadCourseData();
   }, []);
@@ -204,75 +204,77 @@ const StudentCourseCatalog = () => {
 
   const handlePayment = async () => {
     if (!selectedCourse) return;
-
     try {
       setLoading(true);
-      addNotification('Initializing payment...', 'info');
-
-      // Load Razorpay script first
+      addNotification({ type: 'info', message: 'Creating subscription...', duration: 3000 });
+      const subscriptionData = {
+        subscriptionLevel: selectedCourse.type === 'class' ? 'CLASS' : selectedCourse.type === 'exam' ? 'EXAM' : 'COURSE',
+        entityId: selectedCourse.id,
+        amount: selectedCourse.pricing[selectedPricing + 'FinalPrice'] || selectedCourse.pricing[selectedPricing + 'Price'] || 0,
+        durationDays: selectedPricing === 'monthly' ? 30 : selectedPricing === 'quarterly' ? 90 : 365
+      };
+      const response = await createSubscription(token, subscriptionData);
+      if (!response.order || !response.order.id) throw new Error('Failed to create Razorpay order');
+      const notes = JSON.parse(response.order.notes);
+      const subscriptionId = parseInt(notes.subscription_id);
       const scriptLoaded = await loadRazorpayScript();
-      if (!scriptLoaded) {
-        throw new Error('Failed to load Razorpay script');
-      }
-
-      if (!window.Razorpay) {
-        throw new Error('Razorpay not available on window object');
-      }
-
-      // Simple payment without order_id (direct payment flow)
-      const amount = selectedCourse.pricing[selectedPricing + "FinalPrice"] || selectedCourse.pricing[selectedPricing + "Price"] || 0 * 100; // Convert to paise
-
+      if (!scriptLoaded) throw new Error('Failed to load Razorpay script');
+      if (!window.Razorpay) throw new Error('Razorpay not available');
       const options = {
-        key: 'rzp_test_ROysXhPNhStyyy', // Updated with new working credentials
-        amount: amount,
+        key: response.keyId || process.env.REACT_APP_RAZORPAY_KEY_ID,
+        amount: response.order.amount,
         currency: 'INR',
-        name: 'Education Platform',
-        description: `Subscription for ${selectedCourse.name}`,
-        // Removed order_id to use direct payment flow
-        handler: function (response) {
-          console.log('Payment successful:', response);
-          handlePaymentSuccess(response);
+        order_id: response.order.id,
+        name: 'Coaxial LMS',
+        description: 'Course Subscription',
+        handler: async function (paymentResponse) {
+          try {
+            const verificationData = {
+              razorpay_order_id: paymentResponse.razorpay_order_id,
+              razorpay_payment_id: paymentResponse.razorpay_payment_id,
+              razorpay_signature: paymentResponse.razorpay_signature,
+              subscriptionId: subscriptionId
+            };
+            const verifyResult = await verifyPayment(token, verificationData);
+            if (verifyResult.success) {
+              const itemKey = `_`;
+              setSubscribedItems(prev => new Set([...prev, itemKey]));
+              setShowSubscriptionModal(false);
+              setSelectedCourse(null);
+              setLoading(false);
+            } else {
+              throw new Error('Payment verification failed');
+            }
+          } catch (error) {
+            console.error('Verification error:', error);
+            addNotification({ type: 'warning', message: 'Payment received! Activation in progress...', duration: 6000 });
+            setShowSubscriptionModal(false);
+            setSelectedCourse(null);
+            setLoading(false);
+          }
         },
+        prefill: { name: '', email: '', contact: '' },
+        theme: { color: '#3399cc' },
         modal: {
           ondismiss: function() {
-            console.log('Payment modal dismissed');
-            addNotification('Payment cancelled', 'warning');
+            addNotification({ type: 'warning', message: 'Payment cancelled', duration: 4000 });
             setLoading(false);
           }
         }
       };
-
-      console.log('Opening Razorpay with options:', options);
       const rzp = new window.Razorpay(options);
+      rzp.on('payment.failed', function (response) {
+        console.error('Payment failed:', response.error);
+        addNotification({ type: 'error', message: 'Payment failed: ' + response.error.description, duration: 6000 });
+        setLoading(false);
+      });
       rzp.open();
-      
     } catch (error) {
       console.error('Payment error:', error);
-      addNotification('Payment failed. Please try again.', 'error');
+      addNotification({ type: 'error', message: 'Failed to initialize payment: ' + error.message, duration: 6000 });
       setLoading(false);
     }
   };
-
-  const handlePaymentSuccess = async (response) => {
-    try {
-      console.log('Payment successful, response:', response);
-      addNotification('Payment successful! Creating subscription...', 'success');
-
-      // Simulate subscription creation
-      setTimeout(() => {
-        addNotification('Subscription created successfully! Welcome to your course.', 'success');
-        setShowSubscriptionModal(false);
-        setSelectedCourse(null);
-        setLoading(false);
-      }, 1000);
-      
-    } catch (error) {
-      console.error('Payment success handling error:', error);
-      addNotification('Payment successful but subscription creation failed. Please contact support.', 'error');
-      setLoading(false);
-    }
-  };
-
   const formatPrice = (price) => {
     return `₹${price}`;
   };
@@ -360,12 +362,11 @@ const StudentCourseCatalog = () => {
               </div>
 
               <div className="courses-grid">
-                {courseType.items && courseType.items.map(item => (
-                  <CatalogueCard key={item.id} item={item} onSubscribe={handleSubscribe} formatPrice={formatPrice} />
-                ))}
-              </div>
-            </div>
-          ))}
+                {courseType.items && courseType.items.map(item => {
+                  const itemKey = `_`;
+                  const itemKey = `_`;
+                  return <CatalogueCard key={item.id} item={item} onSubscribe={handleSubscribe} formatPrice={formatPrice} isSubscribed={isSubscribed} />;
+                })}
         </div>
       )}
       {/* Subscription Modal */}
@@ -502,6 +503,10 @@ const StudentCourseCatalog = () => {
 };
 
 export default StudentCourseCatalog;
+
+
+
+
 
 
 
