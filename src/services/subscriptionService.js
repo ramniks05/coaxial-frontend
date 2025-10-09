@@ -24,9 +24,24 @@ export const createSubscription = async (token, subscriptionData) => {
   console.log('Create subscription response status:', response.status);
   
   if (!response.ok) {
-    const errorText = await response.text();
-    console.error('Create subscription error:', errorText);
-    throw new Error(`Failed to create subscription: ${response.status} ${response.statusText}`);
+    // Clone response to allow multiple reads
+    const clonedResponse = response.clone();
+    
+    // Try to parse JSON error first
+    try {
+      const errorData = await response.json();
+      const errorMessage = errorData.error || errorData.message || 'Failed to create subscription';
+      throw new Error(errorMessage);
+    } catch (jsonError) {
+      // If JSON parsing fails, use cloned response for text
+      try {
+        const errorText = await clonedResponse.text();
+        console.error('Create subscription error:', errorText);
+        throw new Error(errorText || `Failed to create subscription: ${response.status} ${response.statusText}`);
+      } catch (textError) {
+        throw new Error(`Failed to create subscription: ${response.status} ${response.statusText}`);
+      }
+    }
   }
   
   const data = await response.json();
@@ -58,9 +73,25 @@ export const verifyPayment = async (token, paymentData) => {
   console.log('Verify payment response status:', response.status);
   
   if (!response.ok) {
-    const errorText = await response.text();
-    console.error('Verify payment error:', errorText);
-    throw new Error(`Failed to verify payment: ${response.status} ${response.statusText}`);
+    // Clone response to allow multiple reads
+    const clonedResponse = response.clone();
+    
+    // Try to parse JSON error first
+    try {
+      const errorData = await response.json();
+      const errorMessage = errorData.error || errorData.message || 'Failed to verify payment';
+      console.error('Verify payment error (JSON):', errorData);
+      throw new Error(errorMessage);
+    } catch (jsonError) {
+      // If JSON parsing fails, use cloned response for text
+      try {
+        const errorText = await clonedResponse.text();
+        console.error('Verify payment error (text):', errorText);
+        throw new Error(errorText || `Failed to verify payment: ${response.status} ${response.statusText}`);
+      } catch (textError) {
+        throw new Error(`Failed to verify payment: ${response.status} ${response.statusText}`);
+      }
+    }
   }
   
   const data = await response.json();
@@ -68,7 +99,7 @@ export const verifyPayment = async (token, paymentData) => {
   return data;
 };
 
-// Get User Subscriptions
+// Get User Subscriptions (All)
 export const getUserSubscriptions = async (token) => {
   const endpoint = `${API_BASE}/api/student/subscriptions`;
   
@@ -85,6 +116,120 @@ export const getUserSubscriptions = async (token) => {
   if (!response.ok) {
     const errorText = await response.text();
     throw new Error(`Failed to fetch subscriptions: ${response.status} ${response.statusText}`);
+  }
+  
+  return await response.json();
+};
+
+// Get My Subscriptions with Full Details
+export const getMySubscriptions = async (token) => {
+  const endpoint = `${API_BASE}/api/student/subscriptions/my-subscriptions`;
+  
+  const headers = {
+    'accept': '*/*',
+    'Authorization': `Bearer ${token}`
+  };
+  
+  const response = await fetch(endpoint, { headers });
+  
+  if (!response.ok) {
+    throw new Error(`Failed to fetch subscriptions: ${response.status}`);
+  }
+  
+  return await response.json();
+};
+
+// Get Single Subscription Details
+export const getSubscriptionDetails = async (token, subscriptionId) => {
+  const endpoint = `${API_BASE}/api/student/subscriptions/${subscriptionId}`;
+  
+  const headers = {
+    'accept': '*/*',
+    'Authorization': `Bearer ${token}`
+  };
+  
+  const response = await fetch(endpoint, { headers });
+  
+  if (!response.ok) {
+    throw new Error(`Failed to fetch subscription details: ${response.status}`);
+  }
+  
+  return await response.json();
+};
+
+// Cancel Subscription
+export const cancelSubscription = async (token, subscriptionId) => {
+  const endpoint = `${API_BASE}/api/student/subscriptions/${subscriptionId}/cancel`;
+  
+  const headers = {
+    'Authorization': `Bearer ${token}`
+  };
+  
+  const response = await fetch(endpoint, {
+    method: 'PUT',
+    headers
+  });
+  
+  if (!response.ok) {
+    throw new Error(`Failed to cancel subscription: ${response.status}`);
+  }
+  
+  return await response.json();
+};
+
+// Check Content Access
+export const checkContentAccess = async (token, entityType, entityId) => {
+  const endpoint = `${API_BASE}/api/student/subscriptions/check-access?entityType=${entityType}&entityId=${entityId}`;
+  
+  const headers = {
+    'accept': '*/*',
+    'Authorization': `Bearer ${token}`
+  };
+  
+  const response = await fetch(endpoint, { headers });
+  
+  if (!response.ok) {
+    throw new Error(`Failed to check access: ${response.status}`);
+  }
+  
+  return await response.json();
+};
+
+// Get Expiring Soon Subscriptions
+export const getExpiringSoonSubscriptions = async (token) => {
+  const endpoint = `${API_BASE}/api/student/subscriptions/expiring-soon`;
+  
+  const headers = {
+    'accept': '*/*',
+    'Authorization': `Bearer ${token}`
+  };
+  
+  const response = await fetch(endpoint, { headers });
+  
+  if (!response.ok) {
+    throw new Error(`Failed to fetch expiring subscriptions: ${response.status}`);
+  }
+  
+  return await response.json();
+};
+
+// Renew Subscription
+export const renewSubscription = async (token, subscriptionId, planType) => {
+  const endpoint = `${API_BASE}/api/student/subscriptions/${subscriptionId}/renew`;
+  
+  const headers = {
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${token}`
+  };
+  
+  const response = await fetch(endpoint, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({ planType })
+  });
+  
+  if (!response.ok) {
+    throw new Error(`Failed to renew subscription: ${response.status}`);
   }
   
   return await response.json();

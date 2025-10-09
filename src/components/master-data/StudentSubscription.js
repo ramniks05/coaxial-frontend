@@ -1,427 +1,714 @@
-import React, { useEffect, useRef, useState, useCallback } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useApp } from '../../context/AppContext';
-import { useFormManager } from '../../hooks/useFormManager';
+import { getMySubscriptions, cancelSubscription, renewSubscription, getExpiringSoonSubscriptions, createSubscription, verifyPayment } from '../../services/subscriptionService';
+import { loadRazorpayScript } from '../../utils/razorpay';
+import './StudentSubscription.css';
 
 const StudentSubscription = () => {
-  const { token, addNotification } = useApp();
-  // Using dummy data for now - will be replaced with actual API calls
-  const courseTypes = [
-    { id: 1, name: "Academic Course", description: "Complete school curriculum courses" },
-    { id: 2, name: "Competitive Exam", description: "Preparation courses for various competitive examinations" },
-    { id: 3, name: "Professional Course", description: "Skill-based professional development courses" }
-  ];
-  
-  const [courses, setCourses] = useState([]);
-  const [classes, setClasses] = useState([]);
-  const [exams, setExams] = useState([]);
-  
-  // Dummy data for courses, classes, and exams
-  const dummyCourses = [
-    { id: 1, name: "Academic Course Class 1-10", courseTypeId: 1 },
-    { id: 2, name: "SSC", courseTypeId: 2 },
-    { id: 3, name: "Photography", courseTypeId: 3 }
-  ];
-  
-  const dummyClasses = [
-    { id: 6, name: "Grade 1", courseId: 1 },
-    { id: 7, name: "Grade 2", courseId: 1 },
-    { id: 8, name: "Grade 12", courseId: 4 }
-  ];
-  
-  const dummyExams = [
-    { id: 1, name: "SSC MTS", courseId: 2 },
-    { id: 2, name: "SSC GD", courseId: 2 }
-  ];
-  
+  const { token, addNotification, user, isAuthenticated } = useApp();
   const [subscriptions, setSubscriptions] = useState([]);
+  const [expiringSubscriptions, setExpiringSubscriptions] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [showAddForm, setShowAddForm] = useState(false);
+  const [selectedSubscription, setSelectedSubscription] = useState(null);
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [filterStatus, setFilterStatus] = useState('ALL');
+  const [showRenewModal, setShowRenewModal] = useState(false);
+  const [renewPlanType, setRenewPlanType] = useState('MONTHLY');
   
-  // Refs for deduplication
-  const coursesLoadingRef = useRef(false);
-  const classesLoadingRef = useRef(false);
-  const examsLoadingRef = useRef(false);
-  
-  // Removed apiCall - using dummy data for now
-  
-  const { formData, errors, touched, handleInputChange, handleBlur, setFormData, resetForm } = useFormManager({
-    courseTypeId: '',
-    courseId: '',
-    classId: '',
-    examId: '',
-    subscriptionType: 'class', // class, exam, course
-    startDate: new Date().toISOString().split('T')[0],
-    endDate: '',
-    isActive: true
-  });
-
-  // Load course types on mount - using dummy data for now
-  useEffect(() => {
-    console.log('Course types loaded:', courseTypes);
-  }, [courseTypes]);
-
-  // Load subscriptions - using dummy data for now
-  const loadSubscriptions = useCallback(async () => {
-    try {
-      setLoading(true);
-      // Using dummy data for now
-      const dummySubscriptions = [
-        {
-          id: 1,
-          courseTypeId: 1,
-          courseId: 1,
-          classId: 6,
-          examId: null,
-          subscriptionType: 'class',
-          startDate: '2024-01-01',
-          endDate: '2024-12-31',
-          isActive: true
-        }
-      ];
-      
-      setSubscriptions(dummySubscriptions);
-    } catch (error) {
-      console.error('Error loading subscriptions:', error);
-      addNotification('Failed to load subscriptions', 'error');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
   // Load subscriptions on mount
   useEffect(() => {
     loadSubscriptions();
-  }, [loadSubscriptions]);
+    loadExpiringSubscriptions();
+  }, [token]);
 
-  // Load courses when course type changes - using dummy data for now
-  useEffect(() => {
-    if (formData.courseTypeId && !coursesLoadingRef.current) {
-      coursesLoadingRef.current = true;
-      const filteredCourses = dummyCourses.filter(course => course.courseTypeId === parseInt(formData.courseTypeId));
-      setCourses(filteredCourses);
-      coursesLoadingRef.current = false;
-    }
-  }, [formData.courseTypeId]);
-
-  // Load classes when course changes and subscription type is class - using dummy data for now
-  useEffect(() => {
-    if (formData.courseId && formData.subscriptionType === 'class' && !classesLoadingRef.current) {
-      classesLoadingRef.current = true;
-      const filteredClasses = dummyClasses.filter(cls => cls.courseId === parseInt(formData.courseId));
-      setClasses(filteredClasses);
-      classesLoadingRef.current = false;
-    }
-  }, [formData.courseId, formData.subscriptionType]);
-
-  // Load exams when course changes and subscription type is exam - using dummy data for now
-  useEffect(() => {
-    if (formData.courseId && formData.subscriptionType === 'exam' && !examsLoadingRef.current) {
-      examsLoadingRef.current = true;
-      const filteredExams = dummyExams.filter(exam => exam.courseId === parseInt(formData.courseId));
-      setExams(filteredExams);
-      examsLoadingRef.current = false;
-    }
-  }, [formData.courseId, formData.subscriptionType]);
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const loadSubscriptions = async () => {
+    if (!token) return;
     
     try {
       setLoading(true);
+      console.log('📥 Loading subscriptions from API...');
       
-      // Using dummy data for now - simulate API call
-      setTimeout(() => {
-        const newSubscription = {
-          id: Date.now(),
-          courseTypeId: parseInt(formData.courseTypeId),
-          courseId: parseInt(formData.courseId),
-          classId: formData.subscriptionType === 'class' ? parseInt(formData.classId) : null,
-          examId: formData.subscriptionType === 'exam' ? parseInt(formData.examId) : null,
-          subscriptionType: formData.subscriptionType,
-          startDate: formData.startDate,
-          endDate: formData.endDate || null,
-          isActive: formData.isActive
-        };
-        
-        setSubscriptions(prev => [...prev, newSubscription]);
-        addNotification('Subscription created successfully', 'success');
-        resetForm();
-        setShowAddForm(false);
-        setLoading(false);
-      }, 1000);
+      const response = await getMySubscriptions(token);
+      console.log('📥 Subscriptions loaded:', response);
+      
+      // Backend returns array directly
+      const subscriptionsData = Array.isArray(response) ? response : (response.subscriptions || []);
+      setSubscriptions(subscriptionsData);
       
     } catch (error) {
-      console.error('Error creating subscription:', error);
-      addNotification('Failed to create subscription', 'error');
+      console.error('Error loading subscriptions:', error);
+      addNotification({ type: 'error', message: 'Failed to load subscriptions: ' + error.message, duration: 5000 });
+    } finally {
       setLoading(false);
     }
   };
-
-  const handleDeleteSubscription = async (subscriptionId) => {
-    if (!window.confirm('Are you sure you want to delete this subscription?')) {
+  
+  const loadExpiringSubscriptions = async () => {
+    if (!token) return;
+    
+    try {
+      console.log('📥 Loading expiring subscriptions from API...');
+      
+      const response = await getExpiringSoonSubscriptions(token);
+      console.log('📥 Expiring subscriptions loaded:', response);
+      
+      // Backend returns array directly or wrapped object
+      const expiringData = Array.isArray(response) ? response : (response.expiringSubscriptions || []);
+      setExpiringSubscriptions(expiringData);
+      
+    } catch (error) {
+      console.error('Error loading expiring subscriptions:', error);
+      // Don't show error notification - this is a background operation
+    }
+  };
+  
+  const calculateDaysRemaining = (subscription) => {
+    // Use backend-calculated remainingDays if available, otherwise calculate
+    if (subscription.remainingDays !== undefined) {
+      return subscription.remainingDays;
+    }
+    
+    // Fallback calculation for compatibility
+    const now = new Date();
+    const expiry = new Date(subscription.expiryDate);
+    const diff = expiry - now;
+    return Math.ceil(diff / (1000 * 60 * 60 * 24));
+  };
+  
+  const formatDate = (dateString) => {
+    return new Date(dateString).toLocaleDateString('en-IN', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric'
+    });
+  };
+  
+  const getStatusBadgeClass = (subscription) => {
+    const daysRemaining = calculateDaysRemaining(subscription);
+    
+    if (!subscription.isActive || subscription.status === 'CANCELLED') {
+      return 'status-cancelled';
+    }
+    if (daysRemaining <= 0 || subscription.status === 'EXPIRED') {
+      return 'status-expired';
+    }
+    if (daysRemaining <= 7) {
+      return 'status-expiring';
+    }
+    return 'status-active';
+  };
+  
+  const getStatusText = (subscription) => {
+    const daysRemaining = calculateDaysRemaining(subscription);
+    
+    if (!subscription.isActive || subscription.status === 'CANCELLED') {
+      return 'Cancelled';
+    }
+    if (daysRemaining <= 0 || subscription.status === 'EXPIRED') {
+      return 'Expired';
+    }
+    if (daysRemaining <= 7) {
+      return `Expiring in ${daysRemaining} days`;
+    }
+    return 'Active';
+  };
+  
+  const handleCancelSubscription = async (subscriptionId) => {
+    if (!window.confirm('Are you sure you want to cancel this subscription? This action cannot be undone.')) {
       return;
     }
-
+    
     try {
       setLoading(true);
-      // Using dummy data for now - simulate API call
-      setTimeout(() => {
-        setSubscriptions(prev => prev.filter(sub => sub.id !== subscriptionId));
-        addNotification('Subscription deleted successfully', 'success');
-        setLoading(false);
-      }, 500);
+      console.log('🚫 Cancelling subscription:', subscriptionId);
+      
+      const response = await cancelSubscription(token, subscriptionId);
+      console.log('🚫 Cancel response:', response);
+      
+      addNotification({ type: 'success', message: response.message || 'Subscription cancelled successfully', duration: 5000 });
+      
+      // Reload subscriptions to get updated data
+      await loadSubscriptions();
+      setShowDetailsModal(false);
       
     } catch (error) {
-      console.error('Error deleting subscription:', error);
-      addNotification('Failed to delete subscription', 'error');
+      console.error('Error cancelling subscription:', error);
+      addNotification({ type: 'error', message: 'Failed to cancel subscription: ' + error.message, duration: 5000 });
+    } finally {
       setLoading(false);
     }
   };
 
-  const getSubscriptionDisplayText = (subscription) => {
-    const courseType = courseTypes.find(ct => ct.id === subscription.courseTypeId);
-    const course = courses.find(c => c.id === subscription.courseId);
-    
-    let text = `${courseType?.name || 'Unknown'} - ${course?.name || 'Unknown'}`;
-    
-    if (subscription.classId) {
-      const classItem = classes.find(c => c.id === subscription.classId);
-      text += ` - ${classItem?.name || 'Unknown Class'}`;
-    } else if (subscription.examId) {
-      const exam = exams.find(e => e.id === subscription.examId);
-      text += ` - ${exam?.name || 'Unknown Exam'}`;
+  const handleRenewClick = (subscription) => {
+    setSelectedSubscription(subscription);
+    setShowRenewModal(true);
+  };
+  
+  const handleRenewSubscription = async (e) => {
+    // Prevent any form submission or default behavior
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
     }
     
-    return text;
+    if (!selectedSubscription) return;
+    
+    // Capture ALL auth data in closure to ensure it persists
+    const currentToken = token;
+    const currentUser = user;
+    const currentIsAuthenticated = isAuthenticated;
+    
+    console.log('🔵 RENEWAL INITIATED - Starting renewal flow');
+    console.log('🔵 Auth state captured:', { 
+      hasToken: !!currentToken, 
+      hasUser: !!currentUser, 
+      isAuthenticated: currentIsAuthenticated,
+      username: currentUser?.username 
+    });
+    
+    if (!currentToken) {
+      addNotification({ type: 'error', message: 'Authentication required', duration: 5000 });
+      return;
+    }
+    
+    // Save to localStorage as backup BEFORE starting payment
+    if (currentToken) localStorage.setItem('token', currentToken);
+    if (currentUser) localStorage.setItem('user', JSON.stringify(currentUser));
+    console.log('🔵 Auth data backed up to localStorage');
+
+    try {
+      setLoading(true);
+      console.log('🔵 Renewing subscription:', selectedSubscription.id, 'Plan:', renewPlanType);
+      
+      addNotification({ type: 'info', message: 'Creating renewal order...', duration: 3000 });
+      
+      // Call backend to create renewal Razorpay order
+      const response = await renewSubscription(currentToken, selectedSubscription.id, renewPlanType);
+      console.log('🔵 Renewal order created:', response.order?.id);
+      console.log('🔵 Full renewal response:', response);
+      
+      // Check if response contains any redirect URLs
+      if (response.callback_url || response.redirect_url || response.return_url) {
+        console.warn('⚠️ Backend response contains redirect URL:', {
+          callback_url: response.callback_url,
+          redirect_url: response.redirect_url,
+          return_url: response.return_url
+        });
+      }
+      
+      if (!response.order || !response.order.id) {
+        throw new Error('Failed to create renewal order');
+      }
+      
+      console.log('🔵 Order notes (raw):', response.order.notes);
+      console.log('🔵 Note: subscriptionId not needed - backend creates new subscription after payment verification');
+      
+      // Load Razorpay and process payment
+      console.log('🔵 Loading Razorpay script...');
+      const scriptLoaded = await loadRazorpayScript();
+      if (!scriptLoaded) throw new Error('Failed to load Razorpay script');
+      if (!window.Razorpay) throw new Error('Razorpay not available');
+      console.log('🔵 Opening Razorpay modal for renewal...');
+      
+      // Store auth data globally to survive any context loss
+      window.__COAXIAL_AUTH__ = {
+        token: currentToken,
+        user: currentUser,
+        isAuthenticated: currentIsAuthenticated
+      };
+      console.log('🔵 Auth saved to window global:', !!window.__COAXIAL_AUTH__);
+      
+      const options = {
+        key: response.keyId || process.env.REACT_APP_RAZORPAY_KEY_ID,
+        amount: response.order.amount,
+        currency: 'INR',
+        order_id: response.order.id,
+        name: 'Coaxial LMS',
+        description: `Renewal: ${selectedSubscription.entityName}`,
+        redirect: false,
+        callback_url: null,
+        handler: async function (paymentResponse) {
+          console.log('🔵 HANDLER CALLED - Renewal payment response received from Razorpay');
+          
+          // Restore auth from global if needed
+          const authToken = currentToken || window.__COAXIAL_AUTH__?.token;
+          console.log('🔵 Handler - Token available:', !!authToken);
+          
+          try {
+            console.log('🔵 Renewal payment successful from Razorpay!', paymentResponse);
+            console.log('🔵 Using token:', !!authToken);
+            
+            const verificationData = {
+              razorpay_order_id: paymentResponse.razorpay_order_id,
+              razorpay_payment_id: paymentResponse.razorpay_payment_id,
+              razorpay_signature: paymentResponse.razorpay_signature
+              // NO subscriptionId - backend creates new subscription after verification
+            };
+            
+            console.log('🔵 Sending verification data (NO subscriptionId):', verificationData);
+            console.log('🔵 About to call verifyPayment API for renewal...');
+            
+            const verifyResult = await verifyPayment(authToken, verificationData);
+            
+            console.log('✅ Renewal verification API returned!');
+            console.log('✅ Renewal verification result:', verifyResult);
+            console.log('✅ Renewal verification success?:', verifyResult?.success);
+            console.log('✅ New subscription created:', verifyResult?.subscription);
+            
+            if (verifyResult.success && verifyResult.subscription) {
+              const newSubscription = verifyResult.subscription;
+              console.log('✅ New subscription ID from renewal:', newSubscription.id);
+              // Ensure localStorage is still intact
+              const storedToken = localStorage.getItem('token');
+              const storedUser = localStorage.getItem('user');
+              console.log('✅ RENEWAL SUCCESS - Token exists:', !!storedToken, 'User exists:', !!storedUser);
+              
+              // Backup to sessionStorage
+              if (storedToken) sessionStorage.setItem('token_backup', storedToken);
+              if (storedUser) sessionStorage.setItem('user_backup', storedUser);
+              
+              // Force stay on current path
+              if (window.location.pathname !== '/dashboard/student') {
+                console.warn('⚠️ Navigation detected! Forcing back to student dashboard');
+                window.history.pushState(null, '', '/dashboard/student');
+              }
+              
+              addNotification({ 
+                type: 'success', 
+                message: '🎉 Subscription renewed successfully!', 
+                duration: 5000 
+              });
+              
+              // Small delay to ensure state is updated
+              setTimeout(() => {
+                setShowRenewModal(false);
+                setSelectedSubscription(null);
+                setLoading(false);
+              }, 100);
+              
+              // Reload subscriptions after modal closes
+      setTimeout(() => {
+                loadSubscriptions();
+              }, 200);
+            } else {
+              throw new Error('Renewal verification failed');
+            }
+          } catch (error) {
+            console.error('❌ RENEWAL VERIFICATION ERROR CAUGHT:', error);
+            console.error('❌ Error type:', error.constructor.name);
+            console.error('❌ Error message:', error.message);
+            console.error('❌ Error stack:', error.stack);
+            console.error('❌ Full error object:', JSON.stringify(error, Object.getOwnPropertyNames(error)));
+            
+            addNotification({ 
+              type: 'warning', 
+              message: 'Payment received! Renewal activation in progress...', 
+              duration: 6000 
+            });
+            setShowRenewModal(false);
+            setLoading(false);
+          }
+        },
+        prefill: { 
+          name: user?.name || '', 
+          email: user?.email || '', 
+          contact: '' 
+        },
+        theme: { color: '#3399cc' },
+        modal: {
+          ondismiss: function() {
+            addNotification({ type: 'warning', message: 'Renewal cancelled', duration: 4000 });
+            setLoading(false);
+          },
+          escape: false,
+          backdrop_close: false
+        },
+        notes: {
+          stay_on_page: 'true'
+        }
+      };
+      
+      console.log('🔵 Creating Razorpay instance for renewal with options:', { 
+        hasKey: !!options.key, 
+        hasOrderId: !!options.order_id, 
+        hasHandler: !!options.handler 
+      });
+      
+      const rzp = new window.Razorpay(options);
+      
+      rzp.on('payment.failed', function (response) {
+        console.error('❌ Renewal payment failed:', response.error);
+        addNotification({ 
+          type: 'error', 
+          message: 'Renewal payment failed: ' + response.error.description, 
+          duration: 6000 
+        });
+        setLoading(false);
+      });
+      
+      console.log('🔵 Opening Razorpay checkout for renewal...');
+      rzp.open();
+      console.log('🔵 Razorpay renewal checkout opened successfully');
+      
+    } catch (error) {
+      console.error('Error renewing subscription:', error);
+      addNotification({ type: 'error', message: 'Failed to renew subscription: ' + error.message, duration: 5000 });
+      setLoading(false);
+    }
+  };
+
+  const filteredSubscriptions = subscriptions.filter(sub => {
+    if (filterStatus === 'ALL') return true;
+    if (filterStatus === 'ACTIVE') return sub.isActive && sub.status === 'ACTIVE';
+    if (filterStatus === 'EXPIRED') {
+      return sub.status === 'EXPIRED' || calculateDaysRemaining(sub) <= 0;
+    }
+    if (filterStatus === 'CANCELLED') return sub.status === 'CANCELLED';
+    return true;
+  });
+  
+  const stats = {
+    total: subscriptions.length,
+    active: subscriptions.filter(s => s.isActive && s.status === 'ACTIVE' && calculateDaysRemaining(s) > 0).length,
+    expiring: expiringSubscriptions.length,
+    totalSpent: subscriptions.reduce((sum, s) => sum + s.amount, 0)
   };
 
   return (
-    <div className="student-subscription">
+    <div className="student-subscription-dashboard">
+      {/* Page Header */}
       <div className="page-header">
+        <div>
         <h2>My Subscriptions</h2>
-        <button 
-          className="btn btn-primary"
-          onClick={() => setShowAddForm(true)}
-          disabled={loading}
-        >
-          Add New Subscription
-        </button>
+          <p>Manage all your course subscriptions</p>
+        </div>
+      </div>
+      
+      {/* Expiring Soon Banner */}
+      {expiringSubscriptions.length > 0 && (
+        <div className="expiring-banner">
+          <div className="banner-icon">⚠️</div>
+          <div className="banner-content">
+            <strong>Renewal Reminder:</strong> You have {expiringSubscriptions.length} subscription(s) expiring soon!
+            <button className="btn-link" onClick={() => setFilterStatus('EXPIRED')}>View Details</button>
+          </div>
+        </div>
+      )}
+      
+      {/* Stats Cards */}
+      <div className="stats-grid">
+        <div className="stat-card">
+          <div className="stat-icon">📚</div>
+          <div className="stat-content">
+            <div className="stat-value">{stats.total}</div>
+            <div className="stat-label">Total Subscriptions</div>
+          </div>
+        </div>
+        
+        <div className="stat-card active">
+          <div className="stat-icon">✅</div>
+          <div className="stat-content">
+            <div className="stat-value">{stats.active}</div>
+            <div className="stat-label">Active</div>
+          </div>
+        </div>
+        
+        <div className="stat-card warning">
+          <div className="stat-icon">⏰</div>
+          <div className="stat-content">
+            <div className="stat-value">{stats.expiring}</div>
+            <div className="stat-label">Expiring Soon</div>
+          </div>
+        </div>
+        
+        <div className="stat-card">
+          <div className="stat-icon">💰</div>
+          <div className="stat-content">
+            <div className="stat-value">₹{stats.totalSpent.toFixed(2)}</div>
+            <div className="stat-label">Total Spent</div>
+          </div>
+        </div>
       </div>
 
-      {/* Add Subscription Form */}
-      {showAddForm && (
-        <div className="modal-overlay">
-          <div className="modal-content">
-            <div className="modal-header">
-              <h3>Add New Subscription</h3>
+      {/* Filters */}
+      <div className="filters-section">
+        <div className="filter-tabs">
+          <button 
+            className={`filter-tab ${filterStatus === 'ALL' ? 'active' : ''}`}
+            onClick={() => setFilterStatus('ALL')}
+          >
+            All ({subscriptions.length})
+          </button>
+          <button 
+            className={`filter-tab ${filterStatus === 'ACTIVE' ? 'active' : ''}`}
+            onClick={() => setFilterStatus('ACTIVE')}
+          >
+            Active ({stats.active})
+          </button>
+          <button 
+            className={`filter-tab ${filterStatus === 'EXPIRED' ? 'active' : ''}`}
+            onClick={() => setFilterStatus('EXPIRED')}
+          >
+            Expired
+          </button>
               <button 
-                className="btn-close"
-                onClick={() => {
-                  setShowAddForm(false);
-                  resetForm();
-                }}
-              >
-                ×
+            className={`filter-tab ${filterStatus === 'CANCELLED' ? 'active' : ''}`}
+            onClick={() => setFilterStatus('CANCELLED')}
+          >
+            Cancelled
               </button>
+        </div>
             </div>
             
-            <form onSubmit={handleSubmit} className="form">
-              <div className="form-row">
-                <div className="form-group">
-                  <label htmlFor="subscriptionType">Subscription Type *</label>
-                  <select
-                    id="subscriptionType"
-                    name="subscriptionType"
-                    value={formData.subscriptionType}
-                    onChange={(e) => handleInputChange('subscriptionType', e.target.value)}
-                    className="form-input"
-                    required
-                  >
-                    <option value="">Select Type</option>
-                    <option value="course">Course Level</option>
-                    <option value="class">Class Level</option>
-                    <option value="exam">Exam Level</option>
-                  </select>
+      {/* Subscriptions List */}
+      {loading && subscriptions.length === 0 ? (
+        <div className="loading-container">
+          <div className="spinner"></div>
+          <p>Loading subscriptions...</p>
+        </div>
+      ) : filteredSubscriptions.length === 0 ? (
+        <div className="empty-state">
+          <div className="empty-icon">📭</div>
+          <h3>No Subscriptions Found</h3>
+          <p>You don't have any subscriptions yet. Browse our catalog to get started!</p>
+          <button className="btn btn-primary">Browse Catalog</button>
+        </div>
+      ) : (
+        <div className="subscriptions-grid">
+          {filteredSubscriptions.map(subscription => (
+            <div key={subscription.id} className="subscription-card">
+              <div className="card-header">
+                <div className="card-title">
+                  <h4>{subscription.entityName}</h4>
+                  <span className={`status-badge ${getStatusBadgeClass(subscription)}`}>
+                    {getStatusText(subscription)}
+                  </span>
                 </div>
-
-                <div className="form-group">
-                  <label htmlFor="courseTypeId">Course Type *</label>
-                  <select
-                    id="courseTypeId"
-                    name="courseTypeId"
-                    value={formData.courseTypeId}
-                    onChange={(e) => {
-                      handleInputChange('courseTypeId', e.target.value);
-                      setFormData(prev => ({ ...prev, courseId: '', classId: '', examId: '' }));
-                    }}
-                    className="form-input"
-                    required
-                  >
-                    <option value="">Select Course Type</option>
-                    {courseTypes.map(courseType => (
-                      <option key={courseType.id} value={courseType.id}>
-                        {courseType.name}
-                      </option>
-                    ))}
-                  </select>
+                <div className="card-meta">
+                  <span className="course-type">{subscription.courseTypeName}</span>
                 </div>
               </div>
 
-              <div className="form-row">
-                <div className="form-group">
-                  <label htmlFor="courseId">Course *</label>
-                  <select
-                    id="courseId"
-                    name="courseId"
-                    value={formData.courseId}
-                    onChange={(e) => {
-                      handleInputChange('courseId', e.target.value);
-                      setFormData(prev => ({ ...prev, classId: '', examId: '' }));
-                    }}
-                    className="form-input"
-                    required
-                    disabled={!formData.courseTypeId}
-                  >
-                    <option value="">Select Course</option>
-                    {courses.map(course => (
-                      <option key={course.id} value={course.id}>
-                        {course.name}
-                      </option>
-                    ))}
-                  </select>
+              <div className="card-body">
+                <div className="info-row">
+                  <span className="label">Course:</span>
+                  <span className="value">{subscription.courseName}</span>
+                </div>
+                <div className="info-row">
+                  <span className="label">Plan:</span>
+                  <span className="value">{subscription.planType}</span>
+                </div>
+                <div className="info-row">
+                  <span className="label">Started:</span>
+                  <span className="value">{formatDate(subscription.startDate)}</span>
+                </div>
+                <div className="info-row">
+                  <span className="label">Expires:</span>
+                  <span className="value">{formatDate(subscription.expiryDate)}</span>
+                </div>
+                <div className="info-row">
+                  <span className="label">Days Remaining:</span>
+                  <span className={`value ${calculateDaysRemaining(subscription) <= 7 ? 'text-warning' : ''}`}>
+                    {Math.max(0, calculateDaysRemaining(subscription))} days
+                  </span>
+                </div>
                 </div>
 
-                {formData.subscriptionType === 'class' && (
-                  <div className="form-group">
-                    <label htmlFor="classId">Class *</label>
-                    <select
-                      id="classId"
-                      name="classId"
-                      value={formData.classId}
-                      onChange={(e) => handleInputChange('classId', e.target.value)}
-                      className="form-input"
-                      required
-                      disabled={!formData.courseId}
+              <div className="card-footer">
+                <div className="amount">₹{subscription.amount.toFixed(2)}</div>
+                <div className="actions">
+                  {subscription.isActive && calculateDaysRemaining(subscription) > 0 && (
+                    <button 
+                      className="btn btn-sm btn-outline"
+                      onClick={() => {
+                        setSelectedSubscription(subscription);
+                        setShowDetailsModal(true);
+                      }}
                     >
-                      <option value="">Select Class</option>
-                      {classes.map(classItem => (
-                        <option key={classItem.id} value={classItem.id}>
-                          {classItem.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                )}
-
-                {formData.subscriptionType === 'exam' && (
-                  <div className="form-group">
-                    <label htmlFor="examId">Exam *</label>
-                    <select
-                      id="examId"
-                      name="examId"
-                      value={formData.examId}
-                      onChange={(e) => handleInputChange('examId', e.target.value)}
-                      className="form-input"
-                      required
-                      disabled={!formData.courseId}
+                      View Details
+                    </button>
+                  )}
+                  {(calculateDaysRemaining(subscription) <= 7 || !subscription.isActive) && (
+                    <button 
+                      className="btn btn-sm btn-primary"
+                      onClick={() => handleRenewClick(subscription)}
                     >
-                      <option value="">Select Exam</option>
-                      {exams.map(exam => (
-                        <option key={exam.id} value={exam.id}>
-                          {exam.name}
-                        </option>
-                      ))}
-                    </select>
+                      Renew Now
+                    </button>
+                  )}
                   </div>
-                )}
               </div>
-
-              <div className="form-row">
-                <div className="form-group">
-                  <label htmlFor="startDate">Start Date *</label>
-                  <input
-                    type="date"
-                    id="startDate"
-                    name="startDate"
-                    value={formData.startDate}
-                    onChange={(e) => handleInputChange('startDate', e.target.value)}
-                    className="form-input"
-                    required
-                  />
+            </div>
+          ))}
+        </div>
+      )}
+      
+      {/* Subscription Details Modal */}
+      {showDetailsModal && selectedSubscription && (
+        <div className="modal-overlay" onClick={() => setShowDetailsModal(false)}>
+          <div className="modal-content subscription-details-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>Subscription Details</h3>
+              <button className="btn-close" onClick={() => setShowDetailsModal(false)}>×</button>
                 </div>
 
-                <div className="form-group">
-                  <label htmlFor="endDate">End Date</label>
-                  <input
-                    type="date"
-                    id="endDate"
-                    name="endDate"
-                    value={formData.endDate}
-                    onChange={(e) => handleInputChange('endDate', e.target.value)}
-                    className="form-input"
-                  />
+            <div className="modal-body">
+              <div className="details-section">
+                <h4>{selectedSubscription.entityName}</h4>
+                <p className="course-info">{selectedSubscription.courseTypeName} • {selectedSubscription.courseName}</p>
+                
+                <div className="details-grid">
+                  <div className="detail-item">
+                    <span className="detail-label">Plan Type</span>
+                    <span className="detail-value">{selectedSubscription.planType}</span>
+                  </div>
+                  <div className="detail-item">
+                    <span className="detail-label">Amount Paid</span>
+                    <span className="detail-value">₹{selectedSubscription.amount.toFixed(2)}</span>
+                  </div>
+                  <div className="detail-item">
+                    <span className="detail-label">Duration</span>
+                    <span className="detail-value">{selectedSubscription.durationDays} days</span>
+                  </div>
+                  <div className="detail-item">
+                    <span className="detail-label">Status</span>
+                    <span className={`status-badge ${getStatusBadgeClass(selectedSubscription)}`}>
+                      {getStatusText(selectedSubscription)}
+                    </span>
+                  </div>
+                  <div className="detail-item">
+                    <span className="detail-label">Start Date</span>
+                    <span className="detail-value">{formatDate(selectedSubscription.startDate)}</span>
+                  </div>
+                  <div className="detail-item">
+                    <span className="detail-label">Expiry Date</span>
+                    <span className="detail-value">{formatDate(selectedSubscription.expiryDate)}</span>
+                  </div>
+                  <div className="detail-item">
+                    <span className="detail-label">Payment ID</span>
+                    <span className="detail-value small">{selectedSubscription.razorpay_payment_id}</span>
+                  </div>
+                  <div className="detail-item">
+                    <span className="detail-label">Order ID</span>
+                    <span className="detail-value small">{selectedSubscription.razorpay_order_id}</span>
+                  </div>
+                </div>
                 </div>
               </div>
 
-              <div className="form-actions">
-                <button type="submit" className="btn btn-primary" disabled={loading}>
-                  {loading ? 'Creating...' : 'Create Subscription'}
+            <div className="modal-footer">
+              <button className="btn btn-secondary" onClick={() => setShowDetailsModal(false)}>
+                Close
                 </button>
+              {selectedSubscription.isActive && (
                 <button 
-                  type="button" 
-                  className="btn btn-secondary"
-                  onClick={() => {
-                    setShowAddForm(false);
-                    resetForm();
-                  }}
+                  className="btn btn-danger"
+                  onClick={() => handleCancelSubscription(selectedSubscription.id)}
+                  disabled={loading}
                 >
-                  Cancel
+                  {loading ? 'Cancelling...' : 'Cancel Subscription'}
                 </button>
+              )}
               </div>
-            </form>
           </div>
         </div>
       )}
 
-      {/* Subscriptions List */}
-      <div className="subscriptions-list">
-        {loading && subscriptions.length === 0 ? (
-          <div className="loading">Loading subscriptions...</div>
-        ) : subscriptions.length === 0 ? (
-          <div className="empty-state">
-            <p>No subscriptions found. Create your first subscription to get started!</p>
+      {/* Renew Modal */}
+      {showRenewModal && selectedSubscription && (
+        <div className="modal-overlay" onClick={() => setShowRenewModal(false)}>
+          <div className="modal-content renew-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>Renew Subscription</h3>
+              <button className="btn-close" onClick={() => setShowRenewModal(false)}>×</button>
+            </div>
+            
+            <div className="modal-body">
+              <div className="renew-info">
+                <h4>{selectedSubscription.entityName}</h4>
+                <p>{selectedSubscription.courseTypeName} • {selectedSubscription.courseName}</p>
+              </div>
+              
+              <div className="plan-selection">
+                <h5>Select Renewal Plan</h5>
+                <div className="plan-options">
+                  <label className={`plan-option ${renewPlanType === 'MONTHLY' ? 'selected' : ''}`}>
+                    <input
+                      type="radio"
+                      name="renewPlan"
+                      value="MONTHLY"
+                      checked={renewPlanType === 'MONTHLY'}
+                      onChange={(e) => setRenewPlanType(e.target.value)}
+                    />
+                    <div className="plan-details">
+                      <span className="plan-name">Monthly</span>
+                      <span className="plan-price">
+                        ₹{selectedSubscription.monthlyPrice?.toFixed(2) || '0.00'}/month
+                      </span>
           </div>
-        ) : (
-          <div className="subscription-cards">
-            {subscriptions.map(subscription => (
-              <div key={subscription.id} className="subscription-card">
-                <div className="subscription-info">
-                  <h4>{getSubscriptionDisplayText(subscription)}</h4>
-                  <p className="subscription-details">
-                    <span>Type: {subscription.subscriptionType}</span>
-                    <span>Start: {new Date(subscription.startDate).toLocaleDateString()}</span>
-                    {subscription.endDate && (
-                      <span>End: {new Date(subscription.endDate).toLocaleDateString()}</span>
-                    )}
-                    <span className={`status ${subscription.isActive ? 'active' : 'inactive'}`}>
-                      {subscription.isActive ? 'Active' : 'Inactive'}
+                  </label>
+                  
+                  <label className={`plan-option ${renewPlanType === 'QUARTERLY' ? 'selected' : ''}`}>
+                    <input
+                      type="radio"
+                      name="renewPlan"
+                      value="QUARTERLY"
+                      checked={renewPlanType === 'QUARTERLY'}
+                      onChange={(e) => setRenewPlanType(e.target.value)}
+                    />
+                    <div className="plan-details">
+                      <span className="plan-name">Quarterly</span>
+                      <span className="plan-price">
+                        ₹{selectedSubscription.quarterlyPrice?.toFixed(2) || '0.00'}/3 months
+                      </span>
+                      {selectedSubscription.quarterlyPrice && selectedSubscription.monthlyPrice && selectedSubscription.quarterlyPrice < selectedSubscription.monthlyPrice * 3 && (
+                        <span className="plan-badge">
+                          Save {Math.round((1 - selectedSubscription.quarterlyPrice / (selectedSubscription.monthlyPrice * 3)) * 100)}%
+                        </span>
+                      )}
+                    </div>
+                  </label>
+                  
+                  <label className={`plan-option ${renewPlanType === 'YEARLY' ? 'selected' : ''}`}>
+                    <input
+                      type="radio"
+                      name="renewPlan"
+                      value="YEARLY"
+                      checked={renewPlanType === 'YEARLY'}
+                      onChange={(e) => setRenewPlanType(e.target.value)}
+                    />
+                    <div className="plan-details">
+                      <span className="plan-name">Yearly</span>
+                      <span className="plan-price">
+                        ₹{selectedSubscription.yearlyPrice?.toFixed(2) || '0.00'}/year
+                      </span>
+                      {selectedSubscription.yearlyPrice && selectedSubscription.monthlyPrice && selectedSubscription.yearlyPrice < selectedSubscription.monthlyPrice * 12 && (
+                        <span className="plan-badge">
+                          Save {Math.round((1 - selectedSubscription.yearlyPrice / (selectedSubscription.monthlyPrice * 12)) * 100)}%
                     </span>
-                  </p>
+                      )}
+                    </div>
+                  </label>
                 </div>
-                <div className="subscription-actions">
+              </div>
+            </div>
+            
+            <div className="modal-footer">
+              <button className="btn btn-secondary" onClick={() => setShowRenewModal(false)}>
+                Cancel
+              </button>
                   <button 
-                    className="btn btn-danger btn-sm"
-                    onClick={() => handleDeleteSubscription(subscription.id)}
+                type="button"
+                className="btn btn-primary"
+                onClick={(e) => handleRenewSubscription(e)}
                     disabled={loading}
                   >
-                    Delete
+                {loading ? 'Processing...' : 'Proceed to Payment'}
                   </button>
                 </div>
               </div>
-            ))}
           </div>
         )}
-      </div>
     </div>
   );
 };
