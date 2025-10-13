@@ -139,6 +139,96 @@ export const getMySubscriptions = async (token) => {
   return await response.json();
 };
 
+// Get Active Subscriptions for Content Browser
+export const getActiveSubscriptions = async (token) => {
+  const endpoint = `${API_BASE}/api/student/subscriptions/active`;
+  
+  const headers = {
+    'accept': '*/*',
+    'Authorization': `Bearer ${token}`
+  };
+  
+  const response = await fetch(endpoint, { headers });
+  
+  if (!response.ok) {
+    throw new Error(`Failed to fetch active subscriptions: ${response.status}`);
+  }
+  
+  return await response.json();
+};
+
+// Get Subjects for Entity (Class/Exam/Course)
+export const getEntitySubjects = async (token, entityId, courseTypeId) => {
+  const endpoint = `${API_BASE}/api/student/course-content/subjects?entityId=${entityId}&courseTypeId=${courseTypeId}`;
+  
+  const headers = {
+    'accept': '*/*',
+    'Authorization': `Bearer ${token}`
+  };
+  
+  const response = await fetch(endpoint, { headers });
+  
+  if (!response.ok) {
+    throw new Error(`Failed to fetch subjects: ${response.status}`);
+  }
+  
+  return await response.json();
+};
+
+// Get Topics for Subject
+export const getTopicsForSubject = async (token, courseTypeId, linkageId) => {
+  const endpoint = `${API_BASE}/api/student/course-content/topics?courseTypeId=${courseTypeId}&linkageId=${linkageId}`;
+  
+  const headers = {
+    'accept': '*/*',
+    'Authorization': `Bearer ${token}`
+  };
+  
+  const response = await fetch(endpoint, { headers });
+  
+  if (!response.ok) {
+    throw new Error(`Failed to fetch topics: ${response.status}`);
+  }
+  
+  return await response.json();
+};
+
+// Get Modules for Topic
+export const getModulesForTopic = async (token, topicId) => {
+  const endpoint = `${API_BASE}/api/student/course-content/modules?topicId=${topicId}`;
+  
+  const headers = {
+    'accept': '*/*',
+    'Authorization': `Bearer ${token}`
+  };
+  
+  const response = await fetch(endpoint, { headers });
+  
+  if (!response.ok) {
+    throw new Error(`Failed to fetch modules: ${response.status}`);
+  }
+  
+  return await response.json();
+};
+
+// Get Chapters for Module
+export const getChaptersForModule = async (token, moduleId) => {
+  const endpoint = `${API_BASE}/api/student/course-content/chapters?moduleId=${moduleId}`;
+  
+  const headers = {
+    'accept': '*/*',
+    'Authorization': `Bearer ${token}`
+  };
+  
+  const response = await fetch(endpoint, { headers });
+  
+  if (!response.ok) {
+    throw new Error(`Failed to fetch chapters: ${response.status}`);
+  }
+  
+  return await response.json();
+};
+
 // Get Single Subscription Details
 export const getSubscriptionDetails = async (token, subscriptionId) => {
   const endpoint = `${API_BASE}/api/student/subscriptions/${subscriptionId}`;
