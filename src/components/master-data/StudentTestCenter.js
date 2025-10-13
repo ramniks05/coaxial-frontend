@@ -207,7 +207,25 @@ const StudentTestCenter = () => {
       
     } catch (error) {
       console.error('Error starting test:', error);
-      addNotification(`Failed to start test: ${error.message}`, 'error');
+      
+      // Handle specific error for active session
+      if (error.message && error.message.includes('already have an active session')) {
+        const continueTest = window.confirm(
+          '⚠️ You have an existing test session in progress.\n\n' +
+          'You can:\n' +
+          '• Click OK to continue your existing attempt\n' +
+          '• Click Cancel to abandon the current attempt\n\n' +
+          'Note: Abandoning will count as one attempt.'
+        );
+        
+        if (continueTest) {
+          addNotification('Please contact support to resume your test session', 'info');
+        } else {
+          addNotification('Please submit or abandon your current test attempt first', 'warning');
+        }
+      } else {
+        addNotification(`Failed to start test: ${error.message}`, 'error');
+      }
     } finally {
       setLoading(false);
     }
