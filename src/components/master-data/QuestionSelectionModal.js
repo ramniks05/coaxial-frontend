@@ -88,12 +88,14 @@ const QuestionSelectionModal = ({ test, onClose, onComplete }) => {
         );
       }
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [test, preFilterApplied]);
   
   // Load initial data
   useEffect(() => {
     fetchQuestions();
     fetchMasterData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page, filters, sortBy, sortOrder]);
   
   // Fetch questions with advanced filtering
@@ -115,10 +117,7 @@ const QuestionSelectionModal = ({ test, onClose, onComplete }) => {
         }
       });
       
-      const result = await executeApiCall(
-        () => getQuestions(token, queryParams),
-        'Failed to fetch questions'
-      );
+      const result = await executeApiCall(getQuestions, token, queryParams);
       
       if (result) {
         const questionsData = Array.isArray(result) ? result : result.content || result.data || [];
@@ -137,7 +136,8 @@ const QuestionSelectionModal = ({ test, onClose, onComplete }) => {
     } finally {
       setLoading(false);
     }
-  }, [page, filters, sortBy, sortOrder, token, executeApiCall, addNotification]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page, filters, sortBy, sortOrder, token]);
   
   // Fetch master data for filters
   const fetchMasterData = useCallback(async () => {
@@ -412,114 +412,376 @@ const QuestionSelectionModal = ({ test, onClose, onComplete }) => {
   };
   
   return (
-    <div className="modal-overlay">
-      <div className="modal-content question-selection-modal">
-        {/* Modal Header */}
-        <div className="modal-header">
-          <div className="modal-title">
-            <h3>📝 Select Questions for "{test?.testName}"</h3>
-            <p>Choose questions to add to your test</p>
-            {/* NEW: Show test content linkage info */}
-            {test && test.testCreationMode === 'CONTENT_BASED' && (
-              <div className="info-alert" style={{ marginTop: '12px' }}>
-                <span className="info-icon">ℹ️</span>
-                <div>
-                  <strong>Pre-filtered for {test.testLevel} level:</strong>
-                  {' '}
-                  {test.chapterName && `Chapter: ${test.chapterName}`}
-                  {test.moduleName && !test.chapterName && `Module: ${test.moduleName}`}
-                  {test.topicName && !test.moduleName && !test.chapterName && `Topic: ${test.topicName}`}
-                  {test.subjectName && !test.topicName && !test.moduleName && !test.chapterName && `Subject: ${test.subjectName}`}
-                  {test.courseTypeName && !test.subjectName && !test.topicName && !test.moduleName && !test.chapterName && `Course Type: ${test.courseTypeName}`}
+    <div className="modal-overlay" style={{ 
+      position: 'fixed', 
+      top: 0, 
+      left: 0, 
+      right: 0, 
+      bottom: 0, 
+      zIndex: 9999,
+      background: 'rgba(0, 0, 0, 0.8)',
+      backdropFilter: 'blur(4px)'
+    }}>
+      <div className="modal-content question-selection-modal" style={{ 
+        width: '100vw', 
+        height: '100vh', 
+        maxWidth: '100vw',
+        maxHeight: '100vh',
+        margin: 0,
+        borderRadius: 0,
+        display: 'flex',
+        flexDirection: 'column',
+        background: '#f8fafc'
+      }}>
+        {/* Full-Screen Modal Header */}
+        <div className="modal-header" style={{ 
+          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', 
+          color: 'white', 
+          padding: '24px 32px',
+          flexShrink: 0,
+          boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
+        }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+            <div className="modal-title" style={{ flex: 1 }}>
+              <h2 style={{ margin: 0, fontSize: '28px', fontWeight: '700', marginBottom: '8px' }}>
+                📋 Select Questions for Test
+              </h2>
+              <p style={{ margin: 0, opacity: 0.95, fontSize: '16px', fontWeight: '500' }}>
+                {test?.testName}
+              </p>
+              {/* NEW: Show test content linkage info */}
+              {test && test.testCreationMode === 'CONTENT_BASED' && (
+                <div className="info-alert" style={{ 
+                  marginTop: '16px',
+                  background: 'rgba(255,255,255,0.15)',
+                  padding: '12px 16px',
+                  borderRadius: '8px',
+                  display: 'flex',
+                  gap: '12px',
+                  alignItems: 'center',
+                  border: '1px solid rgba(255,255,255,0.2)'
+                }}>
+                  <span style={{ fontSize: '20px' }}>ℹ️</span>
+                  <div>
+                    <strong style={{ fontSize: '14px' }}>Pre-filtered for {test.testLevel} level:</strong>
+                    {' '}
+                    <span style={{ fontSize: '14px', opacity: 0.9 }}>
+                      {test.chapterName && `Chapter: ${test.chapterName}`}
+                      {test.moduleName && !test.chapterName && `Module: ${test.moduleName}`}
+                      {test.topicName && !test.moduleName && !test.chapterName && `Topic: ${test.topicName}`}
+                      {test.subjectName && !test.topicName && !test.moduleName && !test.chapterName && `Subject: ${test.subjectName}`}
+                      {test.courseTypeName && !test.subjectName && !test.topicName && !test.moduleName && !test.chapterName && `Course Type: ${test.courseTypeName}`}
+                    </span>
+                  </div>
                 </div>
-              </div>
-            )}
-            {test && test.testCreationMode === 'EXAM_BASED' && (
-              <div className="info-alert" style={{ marginTop: '12px' }}>
-                <span className="info-icon">ℹ️</span>
-                <div>
-                  <strong>Exam-Based Test:</strong> Questions filtered by exam suitability tags
+              )}
+              {test && test.testCreationMode === 'EXAM_BASED' && (
+                <div className="info-alert" style={{ 
+                  marginTop: '16px',
+                  background: 'rgba(255,255,255,0.15)',
+                  padding: '12px 16px',
+                  borderRadius: '8px',
+                  display: 'flex',
+                  gap: '12px',
+                  alignItems: 'center',
+                  border: '1px solid rgba(255,255,255,0.2)'
+                }}>
+                  <span style={{ fontSize: '20px' }}>ℹ️</span>
+                  <div>
+                    <strong style={{ fontSize: '14px' }}>Exam-Based Test:</strong>
+                    {' '}
+                    <span style={{ fontSize: '14px', opacity: 0.9 }}>Questions filtered by exam suitability tags</span>
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
+            </div>
+            <button 
+              className="modal-close" 
+              onClick={onClose}
+              style={{
+                background: 'rgba(255,255,255,0.2)',
+                color: 'white',
+                border: 'none',
+                borderRadius: '8px',
+                width: '40px',
+                height: '40px',
+                fontSize: '24px',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                marginLeft: '24px',
+                flexShrink: 0
+              }}
+            >
+              ✕
+            </button>
           </div>
-          <button className="modal-close" onClick={onClose}>
-            ✕
-          </button>
         </div>
         
-        {/* Modal Body */}
-        <div className="modal-body">
-          {/* Selection Summary - Sticky */}
-          <div className="selection-summary sticky-summary">
-            <div className="summary-row-1">
-              <div className="summary-stats">
-                <span className="stat primary">
-                  <span className="stat-icon">✓</span>
-                  <strong>{selectedQuestions.length}</strong> Selected
-                </span>
-                <span className="stat-divider">|</span>
-                <span className="stat">
-                  <strong>{filteredCount}</strong> Available
-                </span>
-                <span className="stat-divider">|</span>
-                <span className="stat highlight">
-                  <strong>{selectedQuestions.reduce((sum, q) => sum + (q.marks || 0), 0)}</strong> Total Marks
-                </span>
+        {/* Modal Body - Full Height with Scroll */}
+        <div className="modal-body" style={{ 
+          flex: 1, 
+          overflow: 'auto', 
+          padding: '24px 32px',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '20px'
+        }}>
+          {/* Selection Summary - Modern Design */}
+          <div className="selection-summary" style={{
+            background: 'white',
+            borderRadius: '12px',
+            padding: '20px',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+            position: 'sticky',
+            top: 0,
+            zIndex: 100
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: selectedQuestions.length > 0 ? '16px' : '0' }}>
+              <div style={{ display: 'flex', gap: '32px', alignItems: 'center' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <div style={{
+                    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                    color: 'white',
+                    width: '48px',
+                    height: '48px',
+                    borderRadius: '12px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: '20px',
+                    fontWeight: 'bold'
+                  }}>
+                    {selectedQuestions.length}
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '24px', fontWeight: '700', color: '#1e293b' }}>
+                      Questions Selected
+                    </div>
+                    <div style={{ fontSize: '14px', color: '#64748b' }}>
+                      {filteredCount} available to choose from
+                    </div>
+                  </div>
+                </div>
+                
+                <div style={{
+                  padding: '12px 20px',
+                  background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
+                  borderRadius: '10px',
+                  color: 'white'
+                }}>
+                  <div style={{ fontSize: '14px', opacity: 0.9 }}>Total Marks</div>
+                  <div style={{ fontSize: '28px', fontWeight: 'bold', marginTop: '4px' }}>
+                    {selectedQuestions.reduce((sum, q) => sum + (q.marks || 0), 0)}
+                  </div>
+                </div>
               </div>
-              <div className="summary-actions">
+              
+              <div style={{ display: 'flex', gap: '12px' }}>
                 <button 
                   className="btn btn-outline btn-sm"
                   onClick={handleSelectAll}
+                  style={{
+                    padding: '10px 20px',
+                    borderRadius: '8px',
+                    border: '2px solid #cbd5e1',
+                    background: 'white',
+                    color: '#475569',
+                    fontSize: '14px',
+                    fontWeight: '500',
+                    cursor: 'pointer'
+                  }}
                 >
-                  {questions.every(q => selectedQuestions.some(sq => sq.id === q.id)) ? 'Deselect All' : 'Select All Visible'}
+                  {questions.every(q => selectedQuestions.some(sq => sq.id === q.id)) ? '❌ Deselect All' : '✓ Select All Visible'}
                 </button>
                 <button 
                   className="btn btn-outline btn-sm"
                   onClick={() => setSelectedQuestions([])}
+                  style={{
+                    padding: '10px 20px',
+                    borderRadius: '8px',
+                    border: '2px solid #fecaca',
+                    background: 'white',
+                    color: '#dc2626',
+                    fontSize: '14px',
+                    fontWeight: '500',
+                    cursor: 'pointer'
+                  }}
                 >
-                  Clear Selection
+                  🗑️ Clear Selection
                 </button>
               </div>
             </div>
             
             {/* Difficulty Breakdown */}
             {selectedQuestions.length > 0 && (
-              <div className="summary-row-2">
-                <div className="difficulty-breakdown">
-                  <span className="breakdown-label">Breakdown:</span>
-                  <span className="breakdown-item easy">
-                    🟢 Easy: {difficultyBreakdown.EASY.count} ({difficultyBreakdown.EASY.marks}m)
-                  </span>
-                  <span className="breakdown-item medium">
-                    🟡 Medium: {difficultyBreakdown.MEDIUM.count} ({difficultyBreakdown.MEDIUM.marks}m)
-                  </span>
-                  <span className="breakdown-item hard">
-                    🔴 Hard: {difficultyBreakdown.HARD.count} ({difficultyBreakdown.HARD.marks}m)
-                  </span>
+              <div style={{ 
+                paddingTop: '16px', 
+                borderTop: '1px solid #e2e8f0',
+                display: 'flex',
+                gap: '20px',
+                alignItems: 'center'
+              }}>
+                <span style={{ fontWeight: '600', color: '#475569', fontSize: '14px' }}>Difficulty Breakdown:</span>
+                <div style={{ display: 'flex', gap: '24px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <div style={{
+                      background: '#22c55e',
+                      color: 'white',
+                      padding: '4px 12px',
+                      borderRadius: '6px',
+                      fontSize: '13px',
+                      fontWeight: '600'
+                    }}>
+                      🟢 Easy
+                    </div>
+                    <span style={{ color: '#64748b', fontSize: '14px' }}>
+                      <strong>{difficultyBreakdown.EASY.count}</strong> ({difficultyBreakdown.EASY.marks}m)
+                    </span>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <div style={{
+                      background: '#f59e0b',
+                      color: 'white',
+                      padding: '4px 12px',
+                      borderRadius: '6px',
+                      fontSize: '13px',
+                      fontWeight: '600'
+                    }}>
+                      🟡 Medium
+                    </div>
+                    <span style={{ color: '#64748b', fontSize: '14px' }}>
+                      <strong>{difficultyBreakdown.MEDIUM.count}</strong> ({difficultyBreakdown.MEDIUM.marks}m)
+                    </span>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <div style={{
+                      background: '#ef4444',
+                      color: 'white',
+                      padding: '4px 12px',
+                      borderRadius: '6px',
+                      fontSize: '13px',
+                      fontWeight: '600'
+                    }}>
+                      🔴 Hard
+                    </div>
+                    <span style={{ color: '#64748b', fontSize: '14px' }}>
+                      <strong>{difficultyBreakdown.HARD.count}</strong> ({difficultyBreakdown.HARD.marks}m)
+                    </span>
+                  </div>
                 </div>
               </div>
             )}
           </div>
           
-          {/* Filter Presets */}
-          <div className="filter-presets">
-            <div className="preset-label">Quick Filters:</div>
-            <button className="preset-btn easy" onClick={() => applyPreset('easy')}>
-              <span className="preset-icon">🟢</span> Easy (1-2m)
-            </button>
-            <button className="preset-btn medium" onClick={() => applyPreset('medium')}>
-              <span className="preset-icon">🟡</span> Medium (3-4m)
-            </button>
-            <button className="preset-btn hard" onClick={() => applyPreset('hard')}>
-              <span className="preset-icon">🔴</span> Hard (5+m)
-            </button>
-            <button className="preset-btn explanation" onClick={() => applyPreset('withExplanation')}>
-              <span className="preset-icon">📝</span> With Explanation
-            </button>
-            <button className="preset-btn mcq" onClick={() => applyPreset('mcq')}>
-              <span className="preset-icon">🎯</span> MCQ Only
-            </button>
+          {/* Filter Presets - Modern Pills */}
+          <div style={{
+            background: 'white',
+            borderRadius: '12px',
+            padding: '20px',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+          }}>
+            <div style={{ marginBottom: '16px', fontWeight: '600', color: '#1e293b', fontSize: '16px' }}>
+              ⚡ Quick Filters
+            </div>
+            <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+              <button 
+                className="preset-btn easy" 
+                onClick={() => applyPreset('easy')}
+                style={{
+                  padding: '10px 20px',
+                  borderRadius: '8px',
+                  border: 'none',
+                  background: '#dcfce7',
+                  color: '#166534',
+                  fontSize: '14px',
+                  fontWeight: '500',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px'
+                }}
+              >
+                <span>🟢</span> Easy (1-2m)
+              </button>
+              <button 
+                className="preset-btn medium" 
+                onClick={() => applyPreset('medium')}
+                style={{
+                  padding: '10px 20px',
+                  borderRadius: '8px',
+                  border: 'none',
+                  background: '#fef3c7',
+                  color: '#92400e',
+                  fontSize: '14px',
+                  fontWeight: '500',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px'
+                }}
+              >
+                <span>🟡</span> Medium (3-4m)
+              </button>
+              <button 
+                className="preset-btn hard" 
+                onClick={() => applyPreset('hard')}
+                style={{
+                  padding: '10px 20px',
+                  borderRadius: '8px',
+                  border: 'none',
+                  background: '#fee2e2',
+                  color: '#991b1b',
+                  fontSize: '14px',
+                  fontWeight: '500',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px'
+                }}
+              >
+                <span>🔴</span> Hard (5+m)
+              </button>
+              <button 
+                className="preset-btn explanation" 
+                onClick={() => applyPreset('withExplanation')}
+                style={{
+                  padding: '10px 20px',
+                  borderRadius: '8px',
+                  border: 'none',
+                  background: '#dbeafe',
+                  color: '#1e40af',
+                  fontSize: '14px',
+                  fontWeight: '500',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px'
+                }}
+              >
+                <span>📝</span> With Explanation
+              </button>
+              <button 
+                className="preset-btn mcq" 
+                onClick={() => applyPreset('mcq')}
+                style={{
+                  padding: '10px 20px',
+                  borderRadius: '8px',
+                  border: 'none',
+                  background: '#e0e7ff',
+                  color: '#3730a3',
+                  fontSize: '14px',
+                  fontWeight: '500',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px'
+                }}
+              >
+                <span>🎯</span> MCQ Only
+              </button>
+            </div>
           </div>
 
           {/* Active Filter Chips */}
@@ -791,10 +1053,25 @@ const QuestionSelectionModal = ({ test, onClose, onComplete }) => {
                     <div 
                       key={question.id} 
                       className={`question-card enhanced ${isSelected ? 'selected' : ''}`}
-                      style={{ borderLeftColor: difficultyColor }}
+                      style={{ 
+                        borderLeftColor: difficultyColor,
+                        position: 'relative',
+                        background: 'white',
+                        borderRadius: '12px',
+                        padding: '20px',
+                        border: `1px solid ${isSelected ? '#667eea' : '#e2e8f0'}`,
+                        boxShadow: isSelected ? '0 4px 12px rgba(102,126,234,0.2)' : '0 2px 4px rgba(0,0,0,0.05)',
+                        transition: 'all 0.2s ease',
+                        display: 'flex',
+                        gap: '16px'
+                      }}
                     >
                       {/* Selection Checkbox */}
-                      <div className="card-selection">
+                      <div className="card-selection" style={{
+                        display: 'flex',
+                        alignItems: 'flex-start',
+                        paddingTop: '4px'
+                      }}>
                         <input
                           type="checkbox"
                           className="question-checkbox"
@@ -803,11 +1080,21 @@ const QuestionSelectionModal = ({ test, onClose, onComplete }) => {
                             e.stopPropagation();
                             handleQuestionSelect(question);
                           }}
+                          style={{
+                            width: '20px',
+                            height: '20px',
+                            cursor: 'pointer',
+                            accentColor: '#667eea'
+                          }}
                         />
                       </div>
                       
                       {/* Card Content - Clickable */}
-                      <div className="card-main" onClick={() => handleQuestionSelect(question)}>
+                      <div className="card-main" onClick={() => handleQuestionSelect(question)} style={{
+                        flex: 1,
+                        cursor: 'pointer',
+                        paddingRight: '100px'
+                      }}>
                         {/* Breadcrumb */}
                         {(question.chapterName || question.moduleName || question.topicName || question.subjectName) && (
                           <div className="question-breadcrumb">
@@ -869,7 +1156,13 @@ const QuestionSelectionModal = ({ test, onClose, onComplete }) => {
                       </div>
                       
                       {/* Quick Actions */}
-                      <div className="card-actions">
+                      <div className="card-actions" style={{
+                        position: 'absolute',
+                        top: '12px',
+                        right: '12px',
+                        display: 'flex',
+                        gap: '8px'
+                      }}>
                         <button 
                           className="action-btn preview-btn"
                           onClick={(e) => {
@@ -878,8 +1171,26 @@ const QuestionSelectionModal = ({ test, onClose, onComplete }) => {
                             setShowPreview(true);
                           }}
                           title="Preview Question"
+                          style={{
+                            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: '8px',
+                            padding: '8px 16px',
+                            fontSize: '16px',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '6px',
+                            fontWeight: '500',
+                            boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+                            transition: 'transform 0.2s ease'
+                          }}
+                          onMouseOver={(e) => e.currentTarget.style.transform = 'scale(1.05)'}
+                          onMouseOut={(e) => e.currentTarget.style.transform = 'scale(1)'}
                         >
-                          👁️
+                          <span style={{ fontSize: '18px' }}>👁️</span>
+                          <span style={{ fontSize: '13px' }}>View</span>
                         </button>
                       </div>
                     </div>
@@ -903,20 +1214,41 @@ const QuestionSelectionModal = ({ test, onClose, onComplete }) => {
           </div>
         </div>
         
-        {/* Modal Footer */}
-        <div className="modal-footer">
-          <div className="footer-info">
-            <span>
-              {selectedQuestions.length} question(s) selected
-            </span>
-            <span>
-              Total marks: {selectedQuestions.reduce((sum, q) => sum + (q.marks || 0), 0)}
-            </span>
+        {/* Modal Footer - Sticky Full Width */}
+        <div className="modal-footer" style={{
+          background: 'white',
+          padding: '20px 32px',
+          borderTop: '2px solid #e2e8f0',
+          boxShadow: '0 -4px 6px rgba(0,0,0,0.05)',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          flexShrink: 0
+        }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            <div style={{ fontSize: '18px', fontWeight: '600', color: '#1e293b' }}>
+              {selectedQuestions.length} Question{selectedQuestions.length !== 1 ? 's' : ''} Selected
+            </div>
+            <div style={{ fontSize: '14px', color: '#64748b' }}>
+              Total marks: <strong style={{ color: '#667eea' }}>
+                {selectedQuestions.reduce((sum, q) => sum + (q.marks || 0), 0)}
+              </strong>
+            </div>
           </div>
-          <div className="footer-actions">
+          <div style={{ display: 'flex', gap: '16px' }}>
             <button 
               className="btn btn-secondary"
               onClick={onClose}
+              style={{
+                padding: '12px 32px',
+                borderRadius: '8px',
+                border: '2px solid #cbd5e1',
+                background: 'white',
+                color: '#475569',
+                fontSize: '16px',
+                fontWeight: '500',
+                cursor: 'pointer'
+              }}
             >
               Cancel
             </button>
@@ -924,8 +1256,21 @@ const QuestionSelectionModal = ({ test, onClose, onComplete }) => {
               className="btn btn-primary"
               onClick={handleComplete}
               disabled={selectedQuestions.length === 0}
+              style={{
+                padding: '12px 32px',
+                borderRadius: '8px',
+                background: selectedQuestions.length === 0 
+                  ? '#cbd5e1' 
+                  : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                color: 'white',
+                border: 'none',
+                fontSize: '16px',
+                fontWeight: '600',
+                cursor: selectedQuestions.length === 0 ? 'not-allowed' : 'pointer',
+                opacity: selectedQuestions.length === 0 ? 0.6 : 1
+              }}
             >
-              Add {selectedQuestions.length} Question(s) to Test
+              ➕ Add {selectedQuestions.length} Question{selectedQuestions.length !== 1 ? 's' : ''} to Test
             </button>
           </div>
         </div>
@@ -933,102 +1278,338 @@ const QuestionSelectionModal = ({ test, onClose, onComplete }) => {
       
       {/* Question Preview Modal */}
       {showPreview && previewQuestion && (
-        <div className="modal-overlay preview-overlay" onClick={() => setShowPreview(false)}>
-          <div className="modal-content preview-modal-content" onClick={(e) => e.stopPropagation()}>
-            <div className="preview-modal-header">
-              <h3>Question Preview</h3>
-              <button className="modal-close" onClick={() => setShowPreview(false)}>✕</button>
+        <div 
+          className="modal-overlay preview-overlay" 
+          onClick={() => setShowPreview(false)}
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'rgba(0, 0, 0, 0.7)',
+            backdropFilter: 'blur(4px)',
+            zIndex: 10000,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '20px'
+          }}
+        >
+          <div 
+            className="modal-content preview-modal-content" 
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              background: 'white',
+              borderRadius: '16px',
+              maxWidth: '900px',
+              width: '100%',
+              maxHeight: '90vh',
+              display: 'flex',
+              flexDirection: 'column',
+              boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)'
+            }}
+          >
+            <div className="preview-modal-header" style={{
+              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+              color: 'white',
+              padding: '24px',
+              borderTopLeftRadius: '16px',
+              borderTopRightRadius: '16px',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              flexShrink: 0
+            }}>
+              <h3 style={{ margin: 0, fontSize: '24px', fontWeight: '600' }}>📋 Question Preview</h3>
+              <button 
+                className="modal-close" 
+                onClick={() => setShowPreview(false)}
+                style={{
+                  background: 'rgba(255,255,255,0.2)',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '8px',
+                  width: '36px',
+                  height: '36px',
+                  fontSize: '20px',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}
+              >
+                ✕
+              </button>
             </div>
             
-            <div className="preview-modal-body">
+            <div className="preview-modal-body" style={{
+              padding: '24px',
+              overflowY: 'auto',
+              flex: 1
+            }}>
               {/* Question Metadata */}
-              <div className="preview-metadata">
-                <div className="metadata-item">
-                  <span className="meta-label">Difficulty:</span>
+              <div className="preview-metadata" style={{
+                display: 'flex',
+                gap: '16px',
+                marginBottom: '24px',
+                flexWrap: 'wrap'
+              }}>
+                <div className="metadata-item" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span style={{ fontSize: '14px', color: '#64748b', fontWeight: '500' }}>Difficulty:</span>
                   <span 
                     className="meta-value difficulty-badge"
-                    style={{ backgroundColor: getDifficultyColor(previewQuestion.difficultyLevel) }}
+                    style={{ 
+                      backgroundColor: getDifficultyColor(previewQuestion.difficultyLevel),
+                      color: 'white',
+                      padding: '4px 12px',
+                      borderRadius: '6px',
+                      fontSize: '13px',
+                      fontWeight: '600'
+                    }}
                   >
                     {previewQuestion.difficultyLevel || 'UNKNOWN'}
                   </span>
                 </div>
-                <div className="metadata-item">
-                  <span className="meta-label">Marks:</span>
-                  <span className="meta-value marks-badge">{previewQuestion.marks || 0}</span>
+                <div className="metadata-item" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span style={{ fontSize: '14px', color: '#64748b', fontWeight: '500' }}>Marks:</span>
+                  <span style={{
+                    background: '#dbeafe',
+                    color: '#1e40af',
+                    padding: '4px 12px',
+                    borderRadius: '6px',
+                    fontSize: '13px',
+                    fontWeight: '600'
+                  }}>
+                    {previewQuestion.marks || 0}
+                  </span>
                 </div>
-                <div className="metadata-item">
-                  <span className="meta-label">Type:</span>
-                  <span className="meta-value type-badge">{previewQuestion.questionType || 'MCQ'}</span>
+                <div className="metadata-item" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span style={{ fontSize: '14px', color: '#64748b', fontWeight: '500' }}>Type:</span>
+                  <span style={{
+                    background: '#e0e7ff',
+                    color: '#3730a3',
+                    padding: '4px 12px',
+                    borderRadius: '6px',
+                    fontSize: '13px',
+                    fontWeight: '600'
+                  }}>
+                    {previewQuestion.questionType || 'MCQ'}
+                  </span>
                 </div>
               </div>
               
               {/* Hierarchy Info */}
               {(previewQuestion.chapterName || previewQuestion.moduleName || previewQuestion.topicName) && (
-                <div className="preview-hierarchy">
-                  <strong>Content Path:</strong>
-                  <div className="hierarchy-path">
-                    {previewQuestion.className && <span>{previewQuestion.className}</span>}
-                    {previewQuestion.className && previewQuestion.subjectName && <span>›</span>}
-                    {previewQuestion.subjectName && <span>{previewQuestion.subjectName}</span>}
-                    {previewQuestion.subjectName && previewQuestion.topicName && <span>›</span>}
-                    {previewQuestion.topicName && <span>{previewQuestion.topicName}</span>}
-                    {previewQuestion.topicName && previewQuestion.moduleName && <span>›</span>}
-                    {previewQuestion.moduleName && <span>{previewQuestion.moduleName}</span>}
-                    {previewQuestion.moduleName && previewQuestion.chapterName && <span>›</span>}
-                    {previewQuestion.chapterName && <span>{previewQuestion.chapterName}</span>}
+                <div style={{
+                  background: '#f8fafc',
+                  padding: '16px',
+                  borderRadius: '8px',
+                  marginBottom: '24px'
+                }}>
+                  <strong style={{ fontSize: '14px', color: '#475569', marginBottom: '8px', display: 'block' }}>📍 Content Path:</strong>
+                  <div style={{ 
+                    display: 'flex', 
+                    gap: '8px', 
+                    alignItems: 'center',
+                    fontSize: '14px',
+                    color: '#667eea',
+                    flexWrap: 'wrap'
+                  }}>
+                    {previewQuestion.className && <span style={{ fontWeight: '500' }}>{previewQuestion.className}</span>}
+                    {previewQuestion.className && previewQuestion.subjectName && <span style={{ color: '#94a3b8' }}>›</span>}
+                    {previewQuestion.subjectName && <span style={{ fontWeight: '500' }}>{previewQuestion.subjectName}</span>}
+                    {previewQuestion.subjectName && previewQuestion.topicName && <span style={{ color: '#94a3b8' }}>›</span>}
+                    {previewQuestion.topicName && <span style={{ fontWeight: '500' }}>{previewQuestion.topicName}</span>}
+                    {previewQuestion.topicName && previewQuestion.moduleName && <span style={{ color: '#94a3b8' }}>›</span>}
+                    {previewQuestion.moduleName && <span style={{ fontWeight: '500' }}>{previewQuestion.moduleName}</span>}
+                    {previewQuestion.moduleName && previewQuestion.chapterName && <span style={{ color: '#94a3b8' }}>›</span>}
+                    {previewQuestion.chapterName && <span style={{ fontWeight: '500' }}>{previewQuestion.chapterName}</span>}
                   </div>
                 </div>
               )}
               
               {/* Full Question Text */}
-              <div className="preview-question">
-                <h4>Question:</h4>
-                <div className="question-text-full">{previewQuestion.questionText}</div>
+              <div style={{ marginBottom: '24px' }}>
+                <h4 style={{ 
+                  margin: '0 0 12px 0', 
+                  fontSize: '16px', 
+                  fontWeight: '600', 
+                  color: '#1e293b' 
+                }}>
+                  ❓ Question:
+                </h4>
+                <div style={{ 
+                  fontSize: '16px', 
+                  lineHeight: '1.7', 
+                  color: '#334155',
+                  background: '#f8fafc',
+                  padding: '16px',
+                  borderRadius: '8px',
+                  borderLeft: '4px solid #667eea'
+                }}>
+                  {previewQuestion.questionText}
+                </div>
               </div>
               
               {/* All Options */}
               {previewQuestion.options && previewQuestion.options.length > 0 && (
-                <div className="preview-options">
-                  <h4>Options:</h4>
-                  {previewQuestion.options.map((option, index) => {
-                    const isCorrect = option.isCorrect || option.optionLetter === previewQuestion.correctAnswer;
-                    return (
-                      <div 
-                        key={index} 
-                        className={`preview-option ${isCorrect ? 'correct' : ''}`}
-                      >
-                        <span className="option-letter">{option.optionLetter || String.fromCharCode(65 + index)}</span>
-                        <span className="option-text">{option.optionText}</span>
-                        {isCorrect && <span className="correct-indicator">✓ Correct</span>}
-                      </div>
-                    );
-                  })}
+                <div style={{ marginBottom: '24px' }}>
+                  <h4 style={{ 
+                    margin: '0 0 16px 0', 
+                    fontSize: '16px', 
+                    fontWeight: '600', 
+                    color: '#1e293b' 
+                  }}>
+                    📝 Options:
+                  </h4>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                    {previewQuestion.options.map((option, index) => {
+                      const isCorrect = option.isCorrect || option.optionLetter === previewQuestion.correctAnswer;
+                      return (
+                        <div 
+                          key={index} 
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '12px',
+                            padding: '12px 16px',
+                            background: isCorrect ? '#dcfce7' : 'white',
+                            border: `2px solid ${isCorrect ? '#86efac' : '#e2e8f0'}`,
+                            borderRadius: '8px'
+                          }}
+                        >
+                          <span style={{
+                            background: isCorrect ? '#22c55e' : '#94a3b8',
+                            color: 'white',
+                            width: '32px',
+                            height: '32px',
+                            borderRadius: '6px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontSize: '14px',
+                            fontWeight: 'bold',
+                            flexShrink: 0
+                          }}>
+                            {option.optionLetter || String.fromCharCode(65 + index)}
+                          </span>
+                          <span style={{ 
+                            flex: 1, 
+                            color: '#334155',
+                            fontSize: '15px',
+                            lineHeight: '1.5'
+                          }}>
+                            {option.optionText}
+                          </span>
+                          {isCorrect && (
+                            <span style={{
+                              background: '#22c55e',
+                              color: 'white',
+                              padding: '4px 12px',
+                              borderRadius: '6px',
+                              fontSize: '12px',
+                              fontWeight: '600',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '4px'
+                            }}>
+                              ✓ Correct
+                            </span>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
               )}
               
               {/* Explanation */}
               {previewQuestion.explanation && (
-                <div className="preview-explanation">
-                  <h4>Explanation:</h4>
-                  <div className="explanation-text">{previewQuestion.explanation}</div>
+                <div style={{ 
+                  marginBottom: '24px',
+                  background: 'linear-gradient(135deg, #dbeafe 0%, #e0e7ff 100%)',
+                  padding: '20px',
+                  borderRadius: '12px'
+                }}>
+                  <h4 style={{ 
+                    margin: '0 0 12px 0', 
+                    fontSize: '16px', 
+                    fontWeight: '600', 
+                    color: '#1e40af',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px'
+                  }}>
+                    💡 Explanation:
+                  </h4>
+                  <div style={{ 
+                    fontSize: '15px', 
+                    lineHeight: '1.7', 
+                    color: '#1e3a8a'
+                  }}>
+                    {previewQuestion.explanation}
+                  </div>
                 </div>
               )}
               
               {/* Exam Suitabilities */}
               {previewQuestion.examSuitabilities && previewQuestion.examSuitabilities.length > 0 && (
-                <div className="preview-exams">
-                  <h4>Suitable for Exams:</h4>
-                  <div className="exam-tags">
+                <div style={{ marginBottom: '24px' }}>
+                  <h4 style={{ 
+                    margin: '0 0 12px 0', 
+                    fontSize: '16px', 
+                    fontWeight: '600', 
+                    color: '#1e293b' 
+                  }}>
+                    🎯 Suitable for Exams:
+                  </h4>
+                  <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                     {previewQuestion.examSuitabilities.map((exam, index) => (
-                      <span key={index} className="exam-tag">{exam.examName || exam.name || exam}</span>
+                      <span 
+                        key={index} 
+                        style={{
+                          background: '#e0e7ff',
+                          color: '#3730a3',
+                          padding: '6px 14px',
+                          borderRadius: '6px',
+                          fontSize: '13px',
+                          fontWeight: '500'
+                        }}
+                      >
+                        {exam.examName || exam.name || exam}
+                      </span>
                     ))}
                   </div>
                 </div>
               )}
             </div>
             
-            <div className="preview-modal-footer">
-              <button className="btn btn-secondary" onClick={() => setShowPreview(false)}>
+            <div className="preview-modal-footer" style={{
+              background: '#f8fafc',
+              padding: '20px 24px',
+              borderTop: '1px solid #e2e8f0',
+              borderBottomLeftRadius: '16px',
+              borderBottomRightRadius: '16px',
+              display: 'flex',
+              justifyContent: 'flex-end',
+              gap: '12px',
+              flexShrink: 0
+            }}>
+              <button 
+                className="btn btn-secondary" 
+                onClick={() => setShowPreview(false)}
+                style={{
+                  padding: '10px 24px',
+                  borderRadius: '8px',
+                  border: '2px solid #cbd5e1',
+                  background: 'white',
+                  color: '#475569',
+                  fontSize: '14px',
+                  fontWeight: '500',
+                  cursor: 'pointer'
+                }}
+              >
                 Close
               </button>
               <button 
@@ -1037,8 +1618,20 @@ const QuestionSelectionModal = ({ test, onClose, onComplete }) => {
                   handleQuestionSelect(previewQuestion);
                   setShowPreview(false);
                 }}
+                style={{
+                  padding: '10px 24px',
+                  borderRadius: '8px',
+                  background: selectedQuestions.some(q => q.id === previewQuestion.id) 
+                    ? '#dc2626' 
+                    : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                  color: 'white',
+                  border: 'none',
+                  fontSize: '14px',
+                  fontWeight: '600',
+                  cursor: 'pointer'
+                }}
               >
-                {selectedQuestions.some(q => q.id === previewQuestion.id) ? 'Remove from Selection' : 'Add to Selection'}
+                {selectedQuestions.some(q => q.id === previewQuestion.id) ? '❌ Remove from Selection' : '✓ Add to Selection'}
               </button>
             </div>
           </div>
