@@ -189,3 +189,32 @@ export const getStudentTestAttempts = async (token) => {
     throw error;
   }
 };
+
+// Abandon active test session
+export const abandonTestSession = async (token, testId) => {
+  const endpoint = `/api/student/tests/${testId}/abandon-session`;
+  
+  console.log('Abandoning test session for test:', testId);
+  
+  try {
+    const response = await fetch(`http://localhost:8080${endpoint}`, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'accept': '*/*'
+      }
+    });
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Failed to abandon session: ${response.status} - ${errorText}`);
+    }
+    
+    const data = await response.json();
+    console.log('Session abandoned:', data);
+    return data;
+  } catch (error) {
+    console.error('Error abandoning session:', error);
+    throw error;
+  }
+};

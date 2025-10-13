@@ -7,7 +7,8 @@ import {
   getStudentTestQuestions,
   submitStudentAnswer,
   submitStudentTest,
-  getStudentTestAttempts 
+  getStudentTestAttempts,
+  abandonTestSession
 } from '../../services/studentService';
 
 const StudentTestCenter = () => {
@@ -210,18 +211,28 @@ const StudentTestCenter = () => {
       
       // Handle specific error for active session
       if (error.message && error.message.includes('already have an active session')) {
-        const continueTest = window.confirm(
+        const abandonSession = window.confirm(
           '⚠️ You have an existing test session in progress.\n\n' +
-          'You can:\n' +
-          '• Click OK to continue your existing attempt\n' +
-          '• Click Cancel to abandon the current attempt\n\n' +
-          'Note: Abandoning will count as one attempt.'
+          'Would you like to abandon the current session and start fresh?\n\n' +
+          '• Click OK to abandon current session (will count as one attempt)\n' +
+          '• Click Cancel to keep the current session\n\n' +
+          'Note: Abandoning will forfeit the current attempt.'
         );
         
-        if (continueTest) {
-          addNotification('Please contact support to resume your test session', 'info');
+        if (abandonSession) {
+          try {
+            // Abandon the existing session
+            await abandonTestSession(token, test.id);
+            addNotification('✅ Previous session abandoned. Starting fresh...', 'success');
+            
+            // Retry starting the test
+            setTimeout(() => startTest(test), 500);
+          } catch (abandonError) {
+            console.error('Error abandoning session:', abandonError);
+            addNotification(`Failed to abandon session: ${abandonError.message}`, 'error');
+          }
         } else {
-          addNotification('Please submit or abandon your current test attempt first', 'warning');
+          addNotification('Please complete or submit your current test attempt first', 'info');
         }
       } else {
         addNotification(`Failed to start test: ${error.message}`, 'error');
