@@ -1,8 +1,8 @@
 ﻿import React, { useEffect, useState } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useApp } from '../../context/AppContext';
-import { createSubscription, verifyPayment, getUserSubscriptions } from '../../services/subscriptionService';
 import { getCourseCatalog } from '../../services/studentService';
+import { createSubscription, getUserSubscriptions, verifyPayment } from '../../services/subscriptionService';
 import { loadRazorpayScript } from '../../utils/razorpay';
 
 // Shared Catalogue Card Component
@@ -135,6 +135,7 @@ const StudentCourseCatalog = () => {
     search: ''
   });
   const [subscribedItems, setSubscribedItems] = useState(new Set());
+  const loadingRef = React.useRef(false);
   
   // Debug auth state
   useEffect(() => {
@@ -148,10 +149,12 @@ const StudentCourseCatalog = () => {
   }, [token, isAuthenticated, user, location]);
 
   useEffect(() => {
-    if (token) {
+    if (token && !loadingRef.current) {
+      loadingRef.current = true;
     loadCourseData();
       loadUserSubscriptions();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
 
   const loadUserSubscriptions = async () => {

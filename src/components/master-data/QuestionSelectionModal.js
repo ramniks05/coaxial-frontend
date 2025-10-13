@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import { useApiManager } from '../../hooks/useApiManager';
 import { getQuestions } from '../../services/masterDataService';
@@ -23,6 +23,8 @@ const QuestionSelectionModal = ({ test, onClose, onComplete }) => {
     topicId: '',
     subjectId: '',
     courseTypeId: '',
+    moduleId: '',
+    chapterId: '',
     examSuitability: '',
     hasExplanation: '',
     marksRange: { min: '', max: '' }
@@ -32,13 +34,61 @@ const QuestionSelectionModal = ({ test, onClose, onComplete }) => {
   const [topics, setTopics] = useState([]);
   const [subjects, setSubjects] = useState([]);
   const [courseTypes, setCourseTypes] = useState([]);
+  const [modules, setModules] = useState([]);
+  const [chapters, setChapters] = useState([]);
   const [masterExams, setMasterExams] = useState([]);
+  
+  // State for question preview modal
+  const [previewQuestion, setPreviewQuestion] = useState(null);
+  const [showPreview, setShowPreview] = useState(false);
   
   // UI states
   const [showFilters, setShowFilters] = useState(false);
   const [sortBy, setSortBy] = useState('createdAt');
   const [sortOrder] = useState('desc');
   const [viewMode, setViewMode] = useState('grid'); // grid or list
+  const [preFilterApplied, setPreFilterApplied] = useState(false);
+  
+  // NEW: Initialize filters based on test content linkage
+  useEffect(() => {
+    if (test && test.testCreationMode === 'CONTENT_BASED' && !preFilterApplied) {
+      const newFilters = { ...filters };
+      
+      // Apply filters based on test level
+      if (test.chapterId) {
+        newFilters.chapterId = test.chapterId;
+      } else if (test.moduleId) {
+        newFilters.moduleId = test.moduleId;
+      } else if (test.topicId) {
+        newFilters.topicId = test.topicId;
+      } else if (test.subjectLinkageId) {
+        newFilters.subjectId = test.subjectLinkageId;
+      } else if (test.courseTypeId) {
+        newFilters.courseTypeId = test.courseTypeId;
+      }
+      
+      setFilters(newFilters);
+      setPreFilterApplied(true);
+      setShowFilters(true); // Show filters so user can see what's applied
+      
+      addNotification(
+        `Filtering questions for ${test.testLevel} level test`, 
+        'info'
+      );
+    } else if (test && test.testCreationMode === 'EXAM_BASED' && !preFilterApplied) {
+      // For exam-based tests, filter by examSuitability
+      if (test.masterExamId) {
+        setFilters(prev => ({ ...prev, examSuitability: test.masterExamId }));
+        setPreFilterApplied(true);
+        setShowFilters(true);
+        
+        addNotification(
+          'Filtering questions by exam suitability', 
+          'info'
+        );
+      }
+    }
+  }, [test, preFilterApplied]);
   
   // Load initial data
   useEffect(() => {
@@ -103,10 +153,100 @@ const QuestionSelectionModal = ({ test, onClose, onComplete }) => {
     }
   }, []);
   
+  // Debounced search
+  const [searchInput, setSearchInput] = useState('');
+  const searchTimeoutRef = React.useRef(null);
+  
+  const handleSearchChange = (value) => {
+    setSearchInput(value);
+    
+    // Clear existing timeout
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+    
+    // Set new timeout for debounced search
+    searchTimeoutRef.current = setTimeout(() => {
+      setFilters(prev => ({ ...prev, searchTerm: value }));
+      setPage(0);
+    }, 500);
+  };
+  
   // Handle filter changes
   const handleFilterChange = (key, value) => {
     setFilters(prev => ({ ...prev, [key]: value }));
     setPage(0); // Reset to first page when filters change
+  };
+  
+  // Apply filter preset
+  const applyPreset = (presetType) => {
+    let newFilters = { ...filters };
+    
+    switch (presetType) {
+      case 'easy':
+        newFilters.difficultyLevel = 'EASY';
+        newFilters.marksRange = { min: '1', max: '2' };
+        break;
+      case 'medium':
+        newFilters.difficultyLevel = 'MEDIUM';
+        newFilters.marksRange = { min: '3', max: '4' };
+        break;
+      case 'hard':
+        newFilters.difficultyLevel = 'HARD';
+        newFilters.marksRange = { min: '5', max: '' };
+        break;
+      case 'withExplanation':
+        newFilters.hasExplanation = 'true';
+        break;
+      case 'mcq':
+        newFilters.questionType = 'MULTIPLE_CHOICE';
+        break;
+      default:
+        break;
+    }
+    
+    setFilters(newFilters);
+    setPage(0);
+    addNotification(`Filter preset applied: ${presetType}`, 'success');
+  };
+  
+  // Bulk selection functions
+  const selectByDifficulty = (difficulty) => {
+    const questionsToSelect = questions.filter(q => q.difficultyLevel === difficulty);
+    const newSelections = questionsToSelect.filter(q => 
+      !selectedQuestions.some(selected => selected.id === q.id)
+    );
+    setSelectedQuestions(prev => [...prev, ...newSelections]);
+    addNotification(`Selected ${newSelections.length} ${difficulty} questions`, 'success');
+  };
+  
+  const selectByMarks = (marks) => {
+    const questionsToSelect = questions.filter(q => q.marks === parseInt(marks));
+    const newSelections = questionsToSelect.filter(q => 
+      !selectedQuestions.some(selected => selected.id === q.id)
+    );
+    setSelectedQuestions(prev => [...prev, ...newSelections]);
+    addNotification(`Selected ${newSelections.length} questions with ${marks} marks`, 'success');
+  };
+  
+  const selectRandom = (count) => {
+    const availableQuestions = questions.filter(q => 
+      !selectedQuestions.some(selected => selected.id === q.id)
+    );
+    
+    const shuffled = [...availableQuestions].sort(() => Math.random() - 0.5);
+    const randomSelections = shuffled.slice(0, count);
+    
+    setSelectedQuestions(prev => [...prev, ...randomSelections]);
+    addNotification(`Randomly selected ${randomSelections.length} questions`, 'success');
+  };
+  
+  const selectFirst = (count) => {
+    const questionsToSelect = questions.slice(0, count).filter(q => 
+      !selectedQuestions.some(selected => selected.id === q.id)
+    );
+    setSelectedQuestions(prev => [...prev, ...questionsToSelect]);
+    addNotification(`Selected first ${questionsToSelect.length} questions`, 'success');
   };
   
   // Handle question selection
@@ -170,6 +310,79 @@ const QuestionSelectionModal = ({ test, onClose, onComplete }) => {
     return questions.length;
   }, [questions]);
   
+  // Calculate difficulty breakdown
+  const difficultyBreakdown = useMemo(() => {
+    const breakdown = {
+      EASY: { count: 0, marks: 0 },
+      MEDIUM: { count: 0, marks: 0 },
+      HARD: { count: 0, marks: 0 }
+    };
+    
+    selectedQuestions.forEach(q => {
+      const difficulty = q.difficultyLevel?.toUpperCase() || 'MEDIUM';
+      if (breakdown[difficulty]) {
+        breakdown[difficulty].count++;
+        breakdown[difficulty].marks += q.marks || 0;
+      }
+    });
+    
+    return breakdown;
+  }, [selectedQuestions]);
+  
+  // Get active filters for chips display
+  const activeFilters = useMemo(() => {
+    const active = [];
+    
+    if (filters.difficultyLevel) {
+      active.push({ key: 'difficultyLevel', label: `Difficulty: ${filters.difficultyLevel}`, value: filters.difficultyLevel });
+    }
+    if (filters.questionType) {
+      active.push({ key: 'questionType', label: `Type: ${filters.questionType}`, value: filters.questionType });
+    }
+    if (filters.courseTypeId) {
+      const courseType = courseTypes.find(ct => ct.id === parseInt(filters.courseTypeId));
+      active.push({ key: 'courseTypeId', label: `Course Type: ${courseType?.name || filters.courseTypeId}`, value: filters.courseTypeId });
+    }
+    if (filters.subjectId) {
+      const subject = subjects.find(s => s.id === parseInt(filters.subjectId));
+      active.push({ key: 'subjectId', label: `Subject: ${subject?.name || filters.subjectId}`, value: filters.subjectId });
+    }
+    if (filters.topicId) {
+      const topic = topics.find(t => t.id === parseInt(filters.topicId));
+      active.push({ key: 'topicId', label: `Topic: ${topic?.name || filters.topicId}`, value: filters.topicId });
+    }
+    if (filters.moduleId) {
+      const module = modules.find(m => m.id === parseInt(filters.moduleId));
+      active.push({ key: 'moduleId', label: `Module: ${module?.name || filters.moduleId}`, value: filters.moduleId });
+    }
+    if (filters.chapterId) {
+      const chapter = chapters.find(ch => ch.id === parseInt(filters.chapterId));
+      active.push({ key: 'chapterId', label: `Chapter: ${chapter?.name || filters.chapterId}`, value: filters.chapterId });
+    }
+    if (filters.hasExplanation) {
+      active.push({ key: 'hasExplanation', label: `Has Explanation: ${filters.hasExplanation === 'true' ? 'Yes' : 'No'}`, value: filters.hasExplanation });
+    }
+    if (filters.marksRange.min || filters.marksRange.max) {
+      active.push({ 
+        key: 'marksRange', 
+        label: `Marks: ${filters.marksRange.min || '0'}-${filters.marksRange.max || '∞'}`, 
+        value: filters.marksRange 
+      });
+    }
+    
+    return active;
+  }, [filters, courseTypes, subjects, topics, modules, chapters]);
+  
+  // Remove specific filter
+  const removeFilter = (filterKey) => {
+    if (filterKey === 'marksRange') {
+      setFilters(prev => ({ ...prev, marksRange: { min: '', max: '' } }));
+    } else {
+      setFilters(prev => ({ ...prev, [filterKey]: '' }));
+    }
+    setPage(0);
+  };
+  
   // Handle complete selection
   const handleComplete = () => {
     if (selectedQuestions.length === 0) {
@@ -206,6 +419,29 @@ const QuestionSelectionModal = ({ test, onClose, onComplete }) => {
           <div className="modal-title">
             <h3>📝 Select Questions for "{test?.testName}"</h3>
             <p>Choose questions to add to your test</p>
+            {/* NEW: Show test content linkage info */}
+            {test && test.testCreationMode === 'CONTENT_BASED' && (
+              <div className="info-alert" style={{ marginTop: '12px' }}>
+                <span className="info-icon">ℹ️</span>
+                <div>
+                  <strong>Pre-filtered for {test.testLevel} level:</strong>
+                  {' '}
+                  {test.chapterName && `Chapter: ${test.chapterName}`}
+                  {test.moduleName && !test.chapterName && `Module: ${test.moduleName}`}
+                  {test.topicName && !test.moduleName && !test.chapterName && `Topic: ${test.topicName}`}
+                  {test.subjectName && !test.topicName && !test.moduleName && !test.chapterName && `Subject: ${test.subjectName}`}
+                  {test.courseTypeName && !test.subjectName && !test.topicName && !test.moduleName && !test.chapterName && `Course Type: ${test.courseTypeName}`}
+                </div>
+              </div>
+            )}
+            {test && test.testCreationMode === 'EXAM_BASED' && (
+              <div className="info-alert" style={{ marginTop: '12px' }}>
+                <span className="info-icon">ℹ️</span>
+                <div>
+                  <strong>Exam-Based Test:</strong> Questions filtered by exam suitability tags
+                </div>
+              </div>
+            )}
           </div>
           <button className="modal-close" onClick={onClose}>
             ✕
@@ -214,33 +450,122 @@ const QuestionSelectionModal = ({ test, onClose, onComplete }) => {
         
         {/* Modal Body */}
         <div className="modal-body">
-          {/* Selection Summary */}
-          <div className="selection-summary">
-            <div className="summary-stats">
-              <span className="stat">
-                <strong>{selectedQuestions.length}</strong> selected
-              </span>
-              <span className="stat">
-                <strong>{filteredCount}</strong> available
-              </span>
-              <span className="stat">
-                <strong>{selectedQuestions.reduce((sum, q) => sum + (q.marks || 0), 0)}</strong> total marks
-              </span>
+          {/* Selection Summary - Sticky */}
+          <div className="selection-summary sticky-summary">
+            <div className="summary-row-1">
+              <div className="summary-stats">
+                <span className="stat primary">
+                  <span className="stat-icon">✓</span>
+                  <strong>{selectedQuestions.length}</strong> Selected
+                </span>
+                <span className="stat-divider">|</span>
+                <span className="stat">
+                  <strong>{filteredCount}</strong> Available
+                </span>
+                <span className="stat-divider">|</span>
+                <span className="stat highlight">
+                  <strong>{selectedQuestions.reduce((sum, q) => sum + (q.marks || 0), 0)}</strong> Total Marks
+                </span>
+              </div>
+              <div className="summary-actions">
+                <button 
+                  className="btn btn-outline btn-sm"
+                  onClick={handleSelectAll}
+                >
+                  {questions.every(q => selectedQuestions.some(sq => sq.id === q.id)) ? 'Deselect All' : 'Select All Visible'}
+                </button>
+                <button 
+                  className="btn btn-outline btn-sm"
+                  onClick={() => setSelectedQuestions([])}
+                >
+                  Clear Selection
+                </button>
+              </div>
             </div>
-            <div className="summary-actions">
-              <button 
-                className="btn btn-outline btn-sm"
-                onClick={handleSelectAll}
-              >
-                {questions.every(q => selectedQuestions.some(sq => sq.id === q.id)) ? 'Deselect All' : 'Select All'}
-              </button>
-              <button 
-                className="btn btn-outline btn-sm"
-                onClick={() => setSelectedQuestions([])}
-              >
-                Clear Selection
-              </button>
+            
+            {/* Difficulty Breakdown */}
+            {selectedQuestions.length > 0 && (
+              <div className="summary-row-2">
+                <div className="difficulty-breakdown">
+                  <span className="breakdown-label">Breakdown:</span>
+                  <span className="breakdown-item easy">
+                    🟢 Easy: {difficultyBreakdown.EASY.count} ({difficultyBreakdown.EASY.marks}m)
+                  </span>
+                  <span className="breakdown-item medium">
+                    🟡 Medium: {difficultyBreakdown.MEDIUM.count} ({difficultyBreakdown.MEDIUM.marks}m)
+                  </span>
+                  <span className="breakdown-item hard">
+                    🔴 Hard: {difficultyBreakdown.HARD.count} ({difficultyBreakdown.HARD.marks}m)
+                  </span>
+                </div>
+              </div>
+            )}
+          </div>
+          
+          {/* Filter Presets */}
+          <div className="filter-presets">
+            <div className="preset-label">Quick Filters:</div>
+            <button className="preset-btn easy" onClick={() => applyPreset('easy')}>
+              <span className="preset-icon">🟢</span> Easy (1-2m)
+            </button>
+            <button className="preset-btn medium" onClick={() => applyPreset('medium')}>
+              <span className="preset-icon">🟡</span> Medium (3-4m)
+            </button>
+            <button className="preset-btn hard" onClick={() => applyPreset('hard')}>
+              <span className="preset-icon">🔴</span> Hard (5+m)
+            </button>
+            <button className="preset-btn explanation" onClick={() => applyPreset('withExplanation')}>
+              <span className="preset-icon">📝</span> With Explanation
+            </button>
+            <button className="preset-btn mcq" onClick={() => applyPreset('mcq')}>
+              <span className="preset-icon">🎯</span> MCQ Only
+            </button>
+          </div>
+
+          {/* Active Filter Chips */}
+          {activeFilters.length > 0 && (
+            <div className="active-filters-bar">
+              <div className="active-filters-label">
+                <strong>Active Filters ({activeFilters.length}):</strong>
+              </div>
+              <div className="filter-chips">
+                {activeFilters.map((filter, index) => (
+                  <div key={index} className="filter-chip">
+                    <span>{filter.label}</span>
+                    <button 
+                      className="chip-remove"
+                      onClick={() => removeFilter(filter.key)}
+                      title="Remove filter"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                ))}
+                <button className="clear-all-filters-btn" onClick={clearFilters}>
+                  Clear All
+                </button>
+              </div>
             </div>
+          )}
+
+          {/* Quick Selection Toolbar */}
+          <div className="quick-selection-toolbar">
+            <div className="toolbar-label">Quick Select:</div>
+            <button className="quick-btn" onClick={() => selectByDifficulty('EASY')}>
+              All Easy
+            </button>
+            <button className="quick-btn" onClick={() => selectByDifficulty('MEDIUM')}>
+              All Medium
+            </button>
+            <button className="quick-btn" onClick={() => selectByDifficulty('HARD')}>
+              All Hard
+            </button>
+            <button className="quick-btn" onClick={() => selectRandom(10)}>
+              Random 10
+            </button>
+            <button className="quick-btn" onClick={() => selectFirst(20)}>
+              First 20
+            </button>
           </div>
           
           {/* Advanced Filters */}
@@ -257,14 +582,73 @@ const QuestionSelectionModal = ({ test, onClose, onComplete }) => {
             
             {showFilters && (
               <div className="filters-content">
+                {/* Hierarchy Filters Row */}
+                <div className="filter-row hierarchy-filters">
+                  <div className="filter-group">
+                    <label>Chapter</label>
+                    <select
+                      value={filters.chapterId}
+                      onChange={(e) => handleFilterChange('chapterId', e.target.value)}
+                      className="form-control"
+                    >
+                      <option value="">All Chapters</option>
+                      {chapters.map(ch => (
+                        <option key={ch.id} value={ch.id}>{ch.name || ch.chapterName}</option>
+                      ))}
+                    </select>
+                  </div>
+                  
+                  <div className="filter-group">
+                    <label>Module</label>
+                    <select
+                      value={filters.moduleId}
+                      onChange={(e) => handleFilterChange('moduleId', e.target.value)}
+                      className="form-control"
+                    >
+                      <option value="">All Modules</option>
+                      {modules.map(m => (
+                        <option key={m.id} value={m.id}>{m.name || m.moduleName}</option>
+                      ))}
+                    </select>
+                  </div>
+                  
+                  <div className="filter-group">
+                    <label>Topic</label>
+                    <select
+                      value={filters.topicId}
+                      onChange={(e) => handleFilterChange('topicId', e.target.value)}
+                      className="form-control"
+                    >
+                      <option value="">All Topics</option>
+                      {topics.map(t => (
+                        <option key={t.id} value={t.id}>{t.name || t.topicName}</option>
+                      ))}
+                    </select>
+                  </div>
+                  
+                  <div className="filter-group">
+                    <label>Subject</label>
+                    <select
+                      value={filters.subjectId}
+                      onChange={(e) => handleFilterChange('subjectId', e.target.value)}
+                      className="form-control"
+                    >
+                      <option value="">All Subjects</option>
+                      {subjects.map(s => (
+                        <option key={s.id} value={s.id}>{s.name || s.subjectName}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
                 <div className="filter-row">
                   <div className="filter-group">
                     <label>Search</label>
                     <input
                       type="text"
-                      value={filters.searchTerm}
-                      onChange={(e) => handleFilterChange('searchTerm', e.target.value)}
-                      placeholder="Search questions..."
+                      value={searchInput}
+                      onChange={(e) => handleSearchChange(e.target.value)}
+                      placeholder="Search questions... (debounced)"
                       className="form-control"
                     />
                   </div>
@@ -401,37 +785,50 @@ const QuestionSelectionModal = ({ test, onClose, onComplete }) => {
               <div className={`questions-container ${viewMode}`}>
                 {questions.map(question => {
                   const isSelected = selectedQuestions.some(q => q.id === question.id);
+                  const difficultyColor = getDifficultyColor(question.difficultyLevel);
+                  
                   return (
                     <div 
                       key={question.id} 
-                      className={`question-card ${isSelected ? 'selected' : ''}`}
-                      onClick={() => handleQuestionSelect(question)}
+                      className={`question-card enhanced ${isSelected ? 'selected' : ''}`}
+                      style={{ borderLeftColor: difficultyColor }}
                     >
-                      <div className="question-header">
-                        <div className="question-meta">
-                          <span 
-                            className="difficulty-badge"
-                            style={{ backgroundColor: getDifficultyColor(question.difficultyLevel) }}
-                          >
-                            {question.difficultyLevel || 'UNKNOWN'}
-                          </span>
-                          <span className="marks-badge">
-                            {question.marks || 0} marks
-                          </span>
-                          <span className="type-badge">
-                            {question.questionType || 'MCQ'}
-                          </span>
-                        </div>
-                        <div className="selection-indicator">
-                          {isSelected ? '✓' : '○'}
-                        </div>
+                      {/* Selection Checkbox */}
+                      <div className="card-selection">
+                        <input
+                          type="checkbox"
+                          className="question-checkbox"
+                          checked={isSelected}
+                          onChange={(e) => {
+                            e.stopPropagation();
+                            handleQuestionSelect(question);
+                          }}
+                        />
                       </div>
                       
-                      <div className="question-content">
+                      {/* Card Content - Clickable */}
+                      <div className="card-main" onClick={() => handleQuestionSelect(question)}>
+                        {/* Breadcrumb */}
+                        {(question.chapterName || question.moduleName || question.topicName || question.subjectName) && (
+                          <div className="question-breadcrumb">
+                            {question.className && <span>{question.className}</span>}
+                            {question.className && question.subjectName && <span className="separator">›</span>}
+                            {question.subjectName && <span>{question.subjectName}</span>}
+                            {question.subjectName && question.topicName && <span className="separator">›</span>}
+                            {question.topicName && <span>{question.topicName}</span>}
+                            {question.topicName && question.moduleName && <span className="separator">›</span>}
+                            {question.moduleName && <span>{question.moduleName}</span>}
+                            {question.moduleName && question.chapterName && <span className="separator">›</span>}
+                            {question.chapterName && <span>{question.chapterName}</span>}
+                          </div>
+                        )}
+                        
+                        {/* Question Text */}
                         <div className="question-text">
                           {getQuestionPreview(question.questionText)}
                         </div>
                         
+                        {/* Options Preview */}
                         {question.options && question.options.length > 0 && (
                           <div className="question-options">
                             {question.options.slice(0, 2).map((option, index) => (
@@ -451,21 +848,39 @@ const QuestionSelectionModal = ({ test, onClose, onComplete }) => {
                           </div>
                         )}
                         
-                        <div className="question-footer">
-                          <div className="question-stats">
-                            {question.explanation && (
-                              <span className="stat">📝 Has explanation</span>
-                            )}
-                            {question.examSuitabilities && question.examSuitabilities.length > 0 && (
-                              <span className="stat">
-                                🎯 {question.examSuitabilities.length} exam(s)
-                              </span>
-                            )}
-                          </div>
-                          <div className="question-date">
-                            {new Date(question.createdAt).toLocaleDateString()}
-                          </div>
+                        {/* Question Meta Badges */}
+                        <div className="question-badges">
+                          <span 
+                            className="difficulty-badge"
+                            style={{ backgroundColor: difficultyColor }}
+                          >
+                            {question.difficultyLevel || 'UNKNOWN'}
+                          </span>
+                          <span className="marks-badge">
+                            {question.marks || 0} marks
+                          </span>
+                          <span className="type-badge">
+                            {question.questionType || 'MCQ'}
+                          </span>
+                          {question.explanation && (
+                            <span className="has-explanation-badge">📝</span>
+                          )}
                         </div>
+                      </div>
+                      
+                      {/* Quick Actions */}
+                      <div className="card-actions">
+                        <button 
+                          className="action-btn preview-btn"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setPreviewQuestion(question);
+                            setShowPreview(true);
+                          }}
+                          title="Preview Question"
+                        >
+                          👁️
+                        </button>
                       </div>
                     </div>
                   );
@@ -515,6 +930,120 @@ const QuestionSelectionModal = ({ test, onClose, onComplete }) => {
           </div>
         </div>
       </div>
+      
+      {/* Question Preview Modal */}
+      {showPreview && previewQuestion && (
+        <div className="modal-overlay preview-overlay" onClick={() => setShowPreview(false)}>
+          <div className="modal-content preview-modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="preview-modal-header">
+              <h3>Question Preview</h3>
+              <button className="modal-close" onClick={() => setShowPreview(false)}>✕</button>
+            </div>
+            
+            <div className="preview-modal-body">
+              {/* Question Metadata */}
+              <div className="preview-metadata">
+                <div className="metadata-item">
+                  <span className="meta-label">Difficulty:</span>
+                  <span 
+                    className="meta-value difficulty-badge"
+                    style={{ backgroundColor: getDifficultyColor(previewQuestion.difficultyLevel) }}
+                  >
+                    {previewQuestion.difficultyLevel || 'UNKNOWN'}
+                  </span>
+                </div>
+                <div className="metadata-item">
+                  <span className="meta-label">Marks:</span>
+                  <span className="meta-value marks-badge">{previewQuestion.marks || 0}</span>
+                </div>
+                <div className="metadata-item">
+                  <span className="meta-label">Type:</span>
+                  <span className="meta-value type-badge">{previewQuestion.questionType || 'MCQ'}</span>
+                </div>
+              </div>
+              
+              {/* Hierarchy Info */}
+              {(previewQuestion.chapterName || previewQuestion.moduleName || previewQuestion.topicName) && (
+                <div className="preview-hierarchy">
+                  <strong>Content Path:</strong>
+                  <div className="hierarchy-path">
+                    {previewQuestion.className && <span>{previewQuestion.className}</span>}
+                    {previewQuestion.className && previewQuestion.subjectName && <span>›</span>}
+                    {previewQuestion.subjectName && <span>{previewQuestion.subjectName}</span>}
+                    {previewQuestion.subjectName && previewQuestion.topicName && <span>›</span>}
+                    {previewQuestion.topicName && <span>{previewQuestion.topicName}</span>}
+                    {previewQuestion.topicName && previewQuestion.moduleName && <span>›</span>}
+                    {previewQuestion.moduleName && <span>{previewQuestion.moduleName}</span>}
+                    {previewQuestion.moduleName && previewQuestion.chapterName && <span>›</span>}
+                    {previewQuestion.chapterName && <span>{previewQuestion.chapterName}</span>}
+                  </div>
+                </div>
+              )}
+              
+              {/* Full Question Text */}
+              <div className="preview-question">
+                <h4>Question:</h4>
+                <div className="question-text-full">{previewQuestion.questionText}</div>
+              </div>
+              
+              {/* All Options */}
+              {previewQuestion.options && previewQuestion.options.length > 0 && (
+                <div className="preview-options">
+                  <h4>Options:</h4>
+                  {previewQuestion.options.map((option, index) => {
+                    const isCorrect = option.isCorrect || option.optionLetter === previewQuestion.correctAnswer;
+                    return (
+                      <div 
+                        key={index} 
+                        className={`preview-option ${isCorrect ? 'correct' : ''}`}
+                      >
+                        <span className="option-letter">{option.optionLetter || String.fromCharCode(65 + index)}</span>
+                        <span className="option-text">{option.optionText}</span>
+                        {isCorrect && <span className="correct-indicator">✓ Correct</span>}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+              
+              {/* Explanation */}
+              {previewQuestion.explanation && (
+                <div className="preview-explanation">
+                  <h4>Explanation:</h4>
+                  <div className="explanation-text">{previewQuestion.explanation}</div>
+                </div>
+              )}
+              
+              {/* Exam Suitabilities */}
+              {previewQuestion.examSuitabilities && previewQuestion.examSuitabilities.length > 0 && (
+                <div className="preview-exams">
+                  <h4>Suitable for Exams:</h4>
+                  <div className="exam-tags">
+                    {previewQuestion.examSuitabilities.map((exam, index) => (
+                      <span key={index} className="exam-tag">{exam.examName || exam.name || exam}</span>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+            
+            <div className="preview-modal-footer">
+              <button className="btn btn-secondary" onClick={() => setShowPreview(false)}>
+                Close
+              </button>
+              <button 
+                className="btn btn-primary"
+                onClick={() => {
+                  handleQuestionSelect(previewQuestion);
+                  setShowPreview(false);
+                }}
+              >
+                {selectedQuestions.some(q => q.id === previewQuestion.id) ? 'Remove from Selection' : 'Add to Selection'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

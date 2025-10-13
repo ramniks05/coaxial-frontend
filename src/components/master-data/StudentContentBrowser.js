@@ -815,18 +815,8 @@ const StudentContentBrowser = () => {
                       <div className="card-header-row">
                         <span className="card-icon">{getContentIcon('subject')}</span>
                         <h5 className="card-title">{getSubjectDisplayText(subject)}</h5>
-                        <span className={`status-badge ${statusBadge.class}`}>{statusBadge.text}</span>
-                      </div>
+                  </div>
                       <p className="card-description">{subject.description || 'No description available'}</p>
-                      
-                      {subject.progress !== undefined && (
-                        <div className="progress-container">
-                          <div className="progress-bar-wrapper">
-                            <div className="progress-bar-fill" style={{ width: `${subject.progress}%` }}></div>
-                          </div>
-                          <span className="progress-text">{subject.progress}% Complete</span>
-                        </div>
-                      )}
                       
                       <div className="card-stats">
                         {subject.topicCount > 0 && (
@@ -1066,10 +1056,10 @@ const StudentContentBrowser = () => {
                     title="Next Chapter"
                   >
                     Next →
-                  </button>
-                </div>
+                        </button>
+                      </div>
                 <button className="btn-close" onClick={closeChapterModal}>×</button>
-              </div>
+                    </div>
             </div>
 
             {/* Chapter Description */}
@@ -1127,8 +1117,8 @@ const StudentContentBrowser = () => {
                           </option>
                         ))}
                       </select>
-                    </div>
-                  )}
+                </div>
+              )}
                   
                   <div className="video-player-wrapper">
                     {selectedChapter.videos && selectedChapter.videos[currentVideoIndex] && selectedChapter.videos[currentVideoIndex].youtubeLink.includes('youtube') ? (
@@ -1160,8 +1150,8 @@ const StudentContentBrowser = () => {
                       {isVideoFullscreen ? '🗗' : '⛶'}
                     </button>
                   </div>
-                </div>
-              )}
+            </div>
+          )}
 
               {/* PDF Tab */}
               {activeTab === 'pdf' && selectedChapter.hasPdf && (

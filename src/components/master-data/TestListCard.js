@@ -33,7 +33,18 @@ const TestListCard = ({
     updatedAt,
     createdBy,
     updatedBy,
-    questionCount = 0
+    questionCount = 0,
+    // NEW: Content Linkage fields
+    testCreationMode,
+    testLevel,
+    courseTypeName,
+    courseName,
+    className,
+    examName,
+    subjectName,
+    topicName,
+    moduleName,
+    chapterName
   } = test;
 
   const getStatusBadgeClass = (status, isPublished) => {
@@ -92,6 +103,36 @@ const TestListCard = ({
     }
   };
 
+  // NEW: Get test level badge
+  const getTestLevelBadge = () => {
+    if (testCreationMode === 'EXAM_BASED') {
+      return <span className="test-level-badge exam-based">📝 Exam-Based</span>;
+    }
+    
+    if (testLevel) {
+      const badgeClass = testLevel.toLowerCase().replace('_', '-');
+      const badgeText = testLevel.replace('_', '-');
+      return <span className={`test-level-badge ${badgeClass}`}>
+        {testLevel === 'CHAPTER' && '📖'}
+        {testLevel === 'MODULE' && '🎯'}
+        {testLevel === 'SUBJECT' && '📚'}
+        {testLevel === 'CLASS_EXAM' && '🎓'}
+        {testLevel === 'GENERAL' && '📑'}
+        {' '}{badgeText}
+      </span>;
+    }
+    
+    return null;
+  };
+
+  // NEW: Check if test has content linkage
+  const hasContentLinkage = () => {
+    return testCreationMode === 'CONTENT_BASED' && (
+      courseTypeName || courseName || className || examName || 
+      subjectName || topicName || moduleName || chapterName
+    );
+  };
+
   return (
     <div className={`test-list-card ${isSelected ? 'selected' : ''}`}>
       {/* Selection Checkbox */}
@@ -111,6 +152,7 @@ const TestListCard = ({
         <div className="test-title-section">
           <h3 className="test-title">{testName || 'Untitled Test'}</h3>
           <div className="test-badges">
+            {getTestLevelBadge()}
             <span className={getStatusBadgeClass(status, isPublished)}>
               {getStatusIcon(status, isPublished)} {getStatusText(status, isPublished)}
             </span>
@@ -195,6 +237,68 @@ const TestListCard = ({
             )}
           </div>
         </div>
+
+        {/* NEW: Content Linkage Display */}
+        {hasContentLinkage() && (
+          <div className="test-content-linkage">
+            {courseTypeName && (
+              <div className="linkage-item">
+                <span className="linkage-item-icon">📚</span>
+                <span className="linkage-item-label">Type:</span>
+                <span className="linkage-item-value">{courseTypeName}</span>
+              </div>
+            )}
+            {courseName && (
+              <div className="linkage-item">
+                <span className="linkage-item-icon">📘</span>
+                <span className="linkage-item-label">Course:</span>
+                <span className="linkage-item-value">{courseName}</span>
+              </div>
+            )}
+            {className && (
+              <div className="linkage-item">
+                <span className="linkage-item-icon">🎓</span>
+                <span className="linkage-item-label">Class:</span>
+                <span className="linkage-item-value">{className}</span>
+              </div>
+            )}
+            {examName && (
+              <div className="linkage-item">
+                <span className="linkage-item-icon">📝</span>
+                <span className="linkage-item-label">Exam:</span>
+                <span className="linkage-item-value">{examName}</span>
+              </div>
+            )}
+            {subjectName && (
+              <div className="linkage-item">
+                <span className="linkage-item-icon">📖</span>
+                <span className="linkage-item-label">Subject:</span>
+                <span className="linkage-item-value">{subjectName}</span>
+              </div>
+            )}
+            {topicName && (
+              <div className="linkage-item">
+                <span className="linkage-item-icon">🎯</span>
+                <span className="linkage-item-label">Topic:</span>
+                <span className="linkage-item-value">{topicName}</span>
+              </div>
+            )}
+            {moduleName && (
+              <div className="linkage-item">
+                <span className="linkage-item-icon">📦</span>
+                <span className="linkage-item-label">Module:</span>
+                <span className="linkage-item-value">{moduleName}</span>
+              </div>
+            )}
+            {chapterName && (
+              <div className="linkage-item">
+                <span className="linkage-item-icon">📄</span>
+                <span className="linkage-item-label">Chapter:</span>
+                <span className="linkage-item-value">{chapterName}</span>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Availability Window */}
         {(startDate || endDate) && (
