@@ -28,23 +28,24 @@ FROM nginx:alpine
 # Copy built files from builder stage
 COPY --from=builder /app/build /usr/share/nginx/html
 
-# Copy nginx configuration (optional, for SPA routing)
-RUN echo 'server { \
-    listen 80; \
-    server_name _; \
-    root /usr/share/nginx/html; \
-    index index.html; \
-    location / { \
-        try_files $uri $uri/ /index.html; \
-    } \
-    # Enable gzip compression \
-    gzip on; \
-    gzip_types text/plain text/css application/json application/javascript text/xml application/xml application/xml+rss text/javascript; \
-    # Cache static assets \
-    location ~* \.(jpg|jpeg|png|gif|ico|css|js|svg|woff|woff2)$ { \
-        expires 1y; \
-        add_header Cache-Control "public, immutable"; \
-    } \
+# Create nginx configuration for SPA routing
+RUN echo 'server { \n\
+    listen 80; \n\
+    server_name _; \n\
+    root /usr/share/nginx/html; \n\
+    index index.html; \n\
+    \n\
+    location / { \n\
+        try_files $uri $uri/ /index.html; \n\
+    } \n\
+    \n\
+    gzip on; \n\
+    gzip_types text/plain text/css application/json application/javascript text/xml application/xml application/xml+rss text/javascript; \n\
+    \n\
+    location ~* \\.(jpg|jpeg|png|gif|ico|css|js|svg|woff|woff2)$ { \n\
+        expires 1y; \n\
+        add_header Cache-Control "public, immutable"; \n\
+    } \n\
 }' > /etc/nginx/conf.d/default.conf
 
 # Expose port 80
@@ -52,7 +53,7 @@ EXPOSE 80
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
-    CMD wget --quiet --tries=1 --spider http://localhost/ || exit 1
+    CMD wget --quiet --tries=1 --spider http://localhost:80/ || exit 1
 
 # Start nginx
 CMD ["nginx", "-g", "daemon off;"]
