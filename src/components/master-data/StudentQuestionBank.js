@@ -1,873 +1,325 @@
-import React, { useEffect, useRef, useState, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useApp } from '../../context/AppContext';
+import { getStudentQuestions, getStudentQuestionById } from '../../services/studentService';
+import StudentQuestionCard from './StudentQuestionCard';
+import StudentQuestionFilters from './StudentQuestionFilters';
+import './StudentQuestionBank.css';
 
-const StudentQuestionBank = () => {
+const StudentQuestionBank = ({ onBackToDashboard = null }) => {
   const { token, addNotification } = useApp();
-  // Using dummy data for now - will be replaced with actual API calls
-  const courseTypes = [
-    { id: 1, name: "Academic Course", description: "Complete school curriculum courses" },
-    { id: 2, name: "Competitive Exam", description: "Preparation courses for various competitive examinations" },
-    { id: 3, name: "Professional Course", description: "Skill-based professional development courses" }
-  ];
   
-  const courses = [
-    { id: 1, name: "Academic Course Class 1-10", courseTypeId: 1 },
-    { id: 2, name: "SSC", courseTypeId: 2 },
-    { id: 3, name: "Photography", courseTypeId: 3 }
-  ];
-  
-  const classes = [
-    { id: 6, name: "Grade 1", courseId: 1 },
-    { id: 7, name: "Grade 2", courseId: 1 },
-    { id: 8, name: "Grade 12", courseId: 4 }
-  ];
-  
-  const exams = [
-    { id: 1, name: "SSC MTS", courseId: 2 },
-    { id: 2, name: "SSC GD", courseId: 2 }
-  ];
-  
-  const [subjects, setSubjects] = useState([]);
-  const [topics, setTopics] = useState([]);
-  const [modules, setModules] = useState([]);
-  const [chapters, setChapters] = useState([]);
-  
-  const [subscriptions, setSubscriptions] = useState([]);
-  const [selectedSubscription, setSelectedSubscription] = useState(null);
-  const [questions, setQuestions] = useState([]);
-  const [filteredQuestions, setFilteredQuestions] = useState([]);
+  const [questions, setQuestions] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [showQuestionModal, setShowQuestionModal] = useState(false);
   const [selectedQuestion, setSelectedQuestion] = useState(null);
-  const [userAnswer, setUserAnswer] = useState('');
-  const [showAnswer, setShowAnswer] = useState(false);
-  const [questionProgress, setQuestionProgress] = useState({});
+  const [showDetailModal, setShowDetailModal] = useState(false);
   
-  // Filter states
-  const [filters, setFilters] = useState({
-    subjectId: '',
-    topicId: '',
-    moduleId: '',
-    chapterId: '',
-    difficulty: '',
-    questionType: '',
-    search: ''
+  // Bookmarks stored in localStorage
+  const [bookmarks, setBookmarks] = useState(() => {
+    const saved = localStorage.getItem('questionBookmarks');
+    return saved ? new Set(JSON.parse(saved)) : new Set();
   });
-  
-  // Refs for deduplication
-  const subjectsLoadingRef = useRef(false);
-  const topicsLoadingRef = useRef(false);
-  const modulesLoadingRef = useRef(false);
-  const chaptersLoadingRef = useRef(false);
-  
-  // Removed apiCall - using dummy data for now
 
-  // Load course types on mount - using dummy data for now
+  const [filters, setFilters] = useState({
+    page: 0,
+    size: 20,
+    sortBy: 'id',
+    sortDir: 'asc'
+  });
+
+  // Load questions when component mounts or filters change
   useEffect(() => {
-    console.log('Course types loaded:', courseTypes);
-  }, [courseTypes]);
-
-  // Load student subscriptions - using dummy data for now
-  const loadSubscriptions = useCallback(async () => {
-    try {
-      setLoading(true);
-      // Using dummy data for now
-      const dummySubscriptions = [
-        {
-          id: 1,
-          courseTypeId: 1,
-          courseId: 1,
-          classId: 6,
-          examId: null,
-          subscriptionType: 'class',
-          startDate: '2024-01-01',
-          endDate: '2024-12-31',
-          isActive: true
-        }
-      ];
-      
-      setSubscriptions(dummySubscriptions);
-    } catch (error) {
-      console.error('Error loading subscriptions:', error);
-      addNotification('Failed to load subscriptions', 'error');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  // Load subscriptions on mount
-  useEffect(() => {
-    loadSubscriptions();
-  }, [loadSubscriptions]);
-
-  // Load questions when subscription changes
-  useEffect(() => {
-    if (selectedSubscription) {
+    if (token) {
       loadQuestions();
-      loadQuestionProgress();
     }
-  }, [selectedSubscription]);
-
-  // Apply filters when questions or filters change
-  useEffect(() => {
-    applyFilters();
-  }, [questions, filters]);
+  }, [token, filters.page, filters.size]);
 
   const loadQuestions = async () => {
-    if (!selectedSubscription) return;
-
     try {
       setLoading(true);
       
-      // Using dummy data for now
-      const dummyQuestions = [
-        {
-          id: 1,
-          questionText: "What is 2 + 2?",
-          questionType: "MULTIPLE_CHOICE",
-          difficulty: "EASY",
-          subjectId: 1,
-          subjectName: "Mathematics",
-          topicId: 1,
-          topicName: "Basic Addition",
-          moduleId: 1,
-          moduleName: "Number Operations",
-          chapterId: 1,
-          chapterName: "Introduction to Numbers",
-          options: ["3", "4", "5", "6"],
-          correctAnswer: "4",
-          explanation: "Basic addition: 2 + 2 = 4"
-        },
-        {
-          id: 2,
-          questionText: "What is the capital of India?",
-          questionType: "MULTIPLE_CHOICE",
-          difficulty: "MEDIUM",
-          subjectId: 2,
-          subjectName: "General Knowledge",
-          topicId: 2,
-          topicName: "Geography",
-          moduleId: 2,
-          moduleName: "Indian Geography",
-          chapterId: 2,
-          chapterName: "States and Capitals",
-          options: ["Mumbai", "Delhi", "Kolkata", "Chennai"],
-          correctAnswer: "Delhi",
-          explanation: "Delhi is the capital city of India"
-        },
-        {
-          id: 3,
-          questionText: "The Earth is round.",
-          questionType: "TRUE_FALSE",
-          difficulty: "EASY",
-          subjectId: 3,
-          subjectName: "Science",
-          topicId: 3,
-          topicName: "Earth Science",
-          moduleId: 3,
-          moduleName: "Planetary Science",
-          chapterId: 3,
-          chapterName: "Earth and Space",
-          options: ["True", "False"],
-          correctAnswer: "True",
-          explanation: "The Earth is approximately spherical in shape"
+      // If bookmarkedOnly filter is active, filter locally
+      if (filters.bookmarkedOnly && bookmarks.size > 0) {
+        // Fetch all questions then filter by bookmarks
+        const allFilters = { ...filters, bookmarkedOnly: undefined };
+        const data = await getStudentQuestions(token, allFilters);
+        
+        // Filter by bookmarks
+        const bookmarkedQuestions = data.content.filter(q => bookmarks.has(q.id));
+        setQuestions({
+          ...data,
+          content: bookmarkedQuestions,
+          totalElements: bookmarkedQuestions.length,
+          numberOfElements: bookmarkedQuestions.length
+        });
+      } else {
+        // Remove bookmarkedOnly before API call (it's client-side only)
+        const apiFilters = { ...filters };
+        delete apiFilters.bookmarkedOnly;
+        delete apiFilters.searchText; // searchText not supported by API yet
+        
+        const data = await getStudentQuestions(token, apiFilters);
+        
+        // Apply client-side search if searchText exists
+        if (filters.searchText && filters.searchText.trim()) {
+          const searchLower = filters.searchText.toLowerCase();
+          const filtered = data.content.filter(q => 
+            q.questionText?.toLowerCase().includes(searchLower)
+          );
+          setQuestions({
+            ...data,
+            content: filtered,
+            totalElements: filtered.length,
+            numberOfElements: filtered.length
+          });
+        } else {
+          setQuestions(data);
         }
-      ];
+      }
       
-      setQuestions(dummyQuestions);
+      if (questions?.totalElements === 0) {
+        if (hasActiveFilters()) {
+          addNotification('ℹ️ No questions found with the selected filters', 'info');
+        } else {
+          addNotification('ℹ️ No questions available. Please check your subscriptions.', 'info');
+        }
+      }
     } catch (error) {
       console.error('Error loading questions:', error);
-      addNotification('Failed to load questions', 'error');
+      addNotification(`❌ Failed to load questions: ${error.message}`, 'error');
     } finally {
       setLoading(false);
     }
   };
 
-  const loadQuestionProgress = async () => {
-    try {
-      // Using dummy data for now
-      const dummyProgress = {
-        1: {
-          questionId: 1,
-          attempts: 2,
-          isCorrect: true,
-          isBookmarked: false,
-          lastAttempted: '2024-01-15T10:30:00.000Z'
-        },
-        2: {
-          questionId: 2,
-          attempts: 1,
-          isCorrect: true,
-          isBookmarked: true,
-          lastAttempted: '2024-01-14T14:00:00.000Z'
-        },
-        3: {
-          questionId: 3,
-          attempts: 3,
-          isCorrect: false,
-          isBookmarked: false,
-          lastAttempted: '2024-01-13T16:20:00.000Z'
-        }
-      };
-      
-      setQuestionProgress(dummyProgress);
-    } catch (error) {
-      console.error('Error loading question progress:', error);
-    }
+  const handleApplyFilters = () => {
+    loadQuestions();
   };
 
-  const applyFilters = () => {
-    let filtered = [...questions];
-
-    // Apply text search
-    if (filters.search) {
-      const searchTerm = filters.search.toLowerCase();
-      filtered = filtered.filter(q => 
-        q.questionText.toLowerCase().includes(searchTerm) ||
-        q.subjectName?.toLowerCase().includes(searchTerm) ||
-        q.topicName?.toLowerCase().includes(searchTerm) ||
-        q.moduleName?.toLowerCase().includes(searchTerm) ||
-        q.chapterName?.toLowerCase().includes(searchTerm)
-      );
-    }
-
-    // Apply subject filter
-    if (filters.subjectId) {
-      filtered = filtered.filter(q => q.subjectId === parseInt(filters.subjectId));
-    }
-
-    // Apply topic filter
-    if (filters.topicId) {
-      filtered = filtered.filter(q => q.topicId === parseInt(filters.topicId));
-    }
-
-    // Apply module filter
-    if (filters.moduleId) {
-      filtered = filtered.filter(q => q.moduleId === parseInt(filters.moduleId));
-    }
-
-    // Apply chapter filter
-    if (filters.chapterId) {
-      filtered = filtered.filter(q => q.chapterId === parseInt(filters.chapterId));
-    }
-
-    // Apply difficulty filter
-    if (filters.difficulty) {
-      filtered = filtered.filter(q => q.difficulty === filters.difficulty);
-    }
-
-    // Apply question type filter
-    if (filters.questionType) {
-      filtered = filtered.filter(q => q.questionType === filters.questionType);
-    }
-
-    setFilteredQuestions(filtered);
+  const handleClearFilters = () => {
+    setFilters({
+      page: 0,
+      size: 20,
+      sortBy: 'id',
+      sortDir: 'asc'
+    });
+    // Load questions will be triggered by useEffect
   };
 
-  const loadTopicsForSubject = async (subjectId, linkageId) => {
-    if (subjectsLoadingRef.current) return;
-    
-    try {
-      subjectsLoadingRef.current = true;
-      // Using dummy data for now
-      const dummyTopics = [
-        { id: 1, name: 'Basic Addition', description: 'Introduction to addition' },
-        { id: 2, name: 'Basic Subtraction', description: 'Introduction to subtraction' },
-        { id: 3, name: 'Multiplication', description: 'Learning multiplication' }
-      ];
-      
-      setTopics(dummyTopics);
-      setFilters(prev => ({
-        ...prev,
-        subjectId,
-        topicId: '',
-        moduleId: '',
-        chapterId: ''
-      }));
-    } catch (error) {
-      console.error('Error loading topics:', error);
-      addNotification('Failed to load topics', 'error');
-    } finally {
-      subjectsLoadingRef.current = false;
-    }
+  const handleFilterChange = (newFilters) => {
+    setFilters(newFilters);
   };
 
-  const loadModulesForTopic = async (topicId) => {
-    if (topicsLoadingRef.current) return;
-    
-    try {
-      topicsLoadingRef.current = true;
-      // Using dummy data for now
-      const dummyModules = [
-        { id: 1, name: 'Module 1: Introduction', description: 'Basic concepts' },
-        { id: 2, name: 'Module 2: Practice', description: 'Practice exercises' },
-        { id: 3, name: 'Module 3: Advanced', description: 'Advanced concepts' }
-      ];
-      
-      setModules(dummyModules);
-      setFilters(prev => ({
-        ...prev,
-        topicId,
-        moduleId: '',
-        chapterId: ''
-      }));
-    } catch (error) {
-      console.error('Error loading modules:', error);
-      addNotification('Failed to load modules', 'error');
-    } finally {
-      topicsLoadingRef.current = false;
-    }
+  const handlePageChange = (newPage) => {
+    setFilters(prev => ({ ...prev, page: newPage }));
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const loadChaptersForModule = async (moduleId) => {
-    if (modulesLoadingRef.current) return;
-    
-    try {
-      modulesLoadingRef.current = true;
-      // Using dummy data for now
-      const dummyChapters = [
-        { id: 1, name: 'Chapter 1: Getting Started', description: 'Introduction' },
-        { id: 2, name: 'Chapter 2: Core Concepts', description: 'Fundamentals' },
-        { id: 3, name: 'Chapter 3: Examples', description: 'Real-world examples' }
-      ];
-      
-      setChapters(dummyChapters);
-      setFilters(prev => ({
-        ...prev,
-        moduleId,
-        chapterId: ''
-      }));
-    } catch (error) {
-      console.error('Error loading chapters:', error);
-      addNotification('Failed to load chapters', 'error');
-    } finally {
-      modulesLoadingRef.current = false;
-    }
+  const handlePageSizeChange = (newSize) => {
+    setFilters(prev => ({ ...prev, size: parseInt(newSize), page: 0 }));
   };
 
-  const viewQuestion = (question) => {
-    setSelectedQuestion(question);
-    setUserAnswer('');
-    setShowAnswer(false);
-    setShowQuestionModal(true);
+  const hasActiveFilters = () => {
+    return filters.linkageId || filters.topicId || filters.moduleId || 
+           filters.chapterId || filters.questionType || filters.difficultyLevel ||
+           filters.searchText || filters.bookmarkedOnly;
   };
 
-  const submitAnswer = async () => {
-    if (!selectedQuestion || !userAnswer) {
-      addNotification('Please provide an answer', 'warning');
-      return;
-    }
-
-    try {
-      // Using dummy data for now - simulate API call
-      const isCorrect = userAnswer === selectedQuestion.correctAnswer;
-      console.log('Answer submitted:', { questionId: selectedQuestion.id, userAnswer, isCorrect });
-      
-      // Update local progress
-      setQuestionProgress(prev => ({
-        ...prev,
-        [selectedQuestion.id]: {
-          questionId: selectedQuestion.id,
-          attempts: (prev[selectedQuestion.id]?.attempts || 0) + 1,
-          isCorrect: isCorrect,
-          isBookmarked: prev[selectedQuestion.id]?.isBookmarked || false,
-          lastAttempted: new Date().toISOString()
-        }
-      }));
-      
-      setShowAnswer(true);
-      addNotification('Answer submitted successfully', 'success');
-    } catch (error) {
-      console.error('Error submitting answer:', error);
-      addNotification('Failed to submit answer', 'error');
-    }
-  };
-
-  const bookmarkQuestion = async (questionId) => {
-    try {
-      // Using dummy data for now - simulate API call
-      const currentBookmark = questionProgress[questionId]?.isBookmarked || false;
-      
-      // Update local progress
-      setQuestionProgress(prev => ({
-        ...prev,
-        [questionId]: {
-          ...prev[questionId],
-          questionId: questionId,
-          isBookmarked: !currentBookmark,
-          lastAttempted: prev[questionId]?.lastAttempted || new Date().toISOString()
-        }
-      }));
-      
-      addNotification(
-        !currentBookmark ? 'Question bookmarked successfully' : 'Question removed from bookmarks',
-        'success'
-      );
-    } catch (error) {
-      console.error('Error bookmarking question:', error);
-      addNotification('Failed to bookmark question', 'error');
-    }
-  };
-
-  const getSubscriptionDisplayText = (subscription) => {
-    const courseType = courseTypes.find(ct => ct.id === subscription.courseTypeId);
-    const course = courses.find(c => c.id === subscription.courseId);
-    
-    let text = `${courseType?.name || 'Unknown'} - ${course?.name || 'Unknown'}`;
-    
-    if (subscription.classId) {
-      const classItem = classes.find(c => c.id === subscription.classId);
-      text += ` - ${classItem?.name || 'Unknown Class'}`;
-    } else if (subscription.examId) {
-      const exam = exams.find(e => e.id === subscription.examId);
-      text += ` - ${exam?.name || 'Unknown Exam'}`;
-    }
-    
-    return text;
-  };
-
-  const getSubjectDisplayText = (subject) => {
-    return subject.subjectName || subject.name || 'Unknown Subject';
-  };
-
-  const getQuestionStatus = (questionId) => {
-    const progress = questionProgress[questionId];
-    if (!progress) return 'not-attempted';
-    
-    if (progress.isBookmarked) return 'bookmarked';
-    if (progress.isCorrect) return 'correct';
-    if (progress.isIncorrect) return 'incorrect';
-    return 'attempted';
-  };
-
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'correct': return 'text-success';
-      case 'incorrect': return 'text-danger';
-      case 'bookmarked': return 'text-warning';
-      case 'attempted': return 'text-info';
-      default: return 'text-muted';
-    }
-  };
-
-  const getStatusText = (status) => {
-    switch (status) {
-      case 'correct': return '✓ Correct';
-      case 'incorrect': return '✗ Incorrect';
-      case 'bookmarked': return '★ Bookmarked';
-      case 'attempted': return '○ Attempted';
-      default: return '○ Not Attempted';
-    }
-  };
-
-  // Get unique values for filter dropdowns
-  const getUniqueSubjects = () => {
-    const uniqueSubjects = questions.reduce((acc, q) => {
-      if (q.subjectId && !acc.find(s => s.id === q.subjectId)) {
-        acc.push({
-          id: q.subjectId,
-          name: q.subjectName || 'Unknown Subject',
-          linkageId: q.linkageId
-        });
+  const toggleBookmark = (questionId) => {
+    setBookmarks(prev => {
+      const newBookmarks = new Set(prev);
+      if (newBookmarks.has(questionId)) {
+        newBookmarks.delete(questionId);
+        addNotification('🤍 Bookmark removed', 'info');
+      } else {
+        newBookmarks.add(questionId);
+        addNotification('❤️ Question bookmarked', 'success');
       }
-      return acc;
-    }, []);
-    return uniqueSubjects;
+      localStorage.setItem('questionBookmarks', JSON.stringify([...newBookmarks]));
+      return newBookmarks;
+    });
   };
 
-  const getUniqueTopics = () => {
-    const uniqueTopics = questions.reduce((acc, q) => {
-      if (q.topicId && !acc.find(t => t.id === q.topicId)) {
-        acc.push({
-          id: q.topicId,
-          name: q.topicName || 'Unknown Topic'
-        });
-      }
-      return acc;
-    }, []);
-    return uniqueTopics;
+  const viewQuestionDetails = async (questionId) => {
+    try {
+      const question = await getStudentQuestionById(token, questionId);
+      setSelectedQuestion(question);
+      setShowDetailModal(true);
+    } catch (error) {
+      console.error('Error loading question details:', error);
+      addNotification(`❌ Failed to load question details: ${error.message}`, 'error');
+    }
   };
 
-  const getUniqueModules = () => {
-    const uniqueModules = questions.reduce((acc, q) => {
-      if (q.moduleId && !acc.find(m => m.id === q.moduleId)) {
-        acc.push({
-          id: q.moduleId,
-          name: q.moduleName || 'Unknown Module'
-        });
-      }
-      return acc;
-    }, []);
-    return uniqueModules;
+  const closeDetailModal = () => {
+    setShowDetailModal(false);
+    setSelectedQuestion(null);
   };
 
-  const getUniqueChapters = () => {
-    const uniqueChapters = questions.reduce((acc, q) => {
-      if (q.chapterId && !acc.find(c => c.id === q.chapterId)) {
-        acc.push({
-          id: q.chapterId,
-          name: q.chapterName || 'Unknown Chapter'
-        });
-      }
-      return acc;
-    }, []);
-    return uniqueChapters;
-  };
+  if (!token) {
+    return (
+      <div className="student-question-bank">
+        <div className="empty-state">
+          <div className="empty-icon">🔒</div>
+          <h2>Authentication Required</h2>
+          <p>Please log in to access the question bank.</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="student-question-bank">
+      {/* Header */}
       <div className="page-header">
-        <h2>Question Bank</h2>
-        <div className="question-stats">
-          <span>Total Questions: {questions.length}</span>
-          <span>Filtered: {filteredQuestions.length}</span>
+        <div className="header-content">
+          {onBackToDashboard && (
+            <button 
+              onClick={onBackToDashboard}
+              className="back-button"
+            >
+              ← Back
+            </button>
+          )}
+          <div>
+            <h1 className="page-title">📚 Question Bank</h1>
+            <p className="page-subtitle">Browse and practice questions from your subscribed courses</p>
+          </div>
         </div>
       </div>
 
-      {/* Subscription Selection */}
-      <div className="subscription-section">
-        <h3>Select Subscription</h3>
-        {loading && subscriptions.length === 0 ? (
-          <div className="loading">Loading subscriptions...</div>
-        ) : subscriptions.length === 0 ? (
+      {/* Main Content */}
+      <div className="content-wrapper">
+        {/* Filters Sidebar */}
+        <aside className="filters-sidebar">
+          <StudentQuestionFilters
+            filters={filters}
+            onFilterChange={handleFilterChange}
+            onApplyFilters={handleApplyFilters}
+            onClearFilters={handleClearFilters}
+            questionCount={questions?.totalElements}
+            bookmarks={Array.from(bookmarks)}
+          />
+        </aside>
+
+        {/* Questions Grid */}
+        <main className="questions-main">
+          {loading ? (
+            <div className="loading-container">
+              <div className="loading-spinner"></div>
+              <p>Loading questions...</p>
+            </div>
+          ) : !questions ? (
           <div className="empty-state">
-            <p>No active subscriptions found. Please create a subscription first.</p>
+              <div className="empty-icon">🎓</div>
+              <h2>Select a Subscription</h2>
+              <p>Choose a subscription from the filters to view questions.</p>
           </div>
-        ) : (
-          <div className="subscription-cards">
-            {subscriptions
-              .filter(sub => sub.isActive)
-              .map(subscription => (
-                <div 
-                  key={subscription.id} 
-                  className={`subscription-card ${selectedSubscription?.id === subscription.id ? 'selected' : ''}`}
-                  onClick={() => setSelectedSubscription(subscription)}
-                >
-                  <h4>{getSubscriptionDisplayText(subscription)}</h4>
-                  <p className="subscription-details">
-                    <span>Type: {subscription.subscriptionType}</span>
-                    <span>Questions: {questions.length}</span>
-                  </p>
-                </div>
-              ))}
-          </div>
-        )}
+          ) : questions && questions.content.length > 0 ? (
+            <>
+              {/* Results Info */}
+              <div className="results-info">
+                <p>
+                  Showing <strong>{questions.content.length}</strong> of <strong>{questions.totalElements}</strong> questions
+                  {questions.totalPages > 1 && (
+                    <> (Page <strong>{questions.number + 1}</strong> of <strong>{questions.totalPages}</strong>)</>
+                  )}
+                </p>
       </div>
 
-      {/* Filters */}
-      {selectedSubscription && questions.length > 0 && (
-        <div className="filters-section">
-          <h3>Filters</h3>
-          <div className="filter-row">
-            <div className="filter-group">
-              <input
-                type="text"
-                placeholder="Search questions..."
-                value={filters.search}
-                onChange={(e) => setFilters(prev => ({ ...prev, search: e.target.value }))}
-                className="form-input"
-              />
-            </div>
-            
-            <div className="filter-group">
-              <select
-                value={filters.subjectId}
-                onChange={(e) => {
-                  setFilters(prev => ({ ...prev, subjectId: e.target.value }));
-                  if (e.target.value) {
-                    const subject = getUniqueSubjects().find(s => s.id === parseInt(e.target.value));
-                    if (subject) {
-                      loadTopicsForSubject(subject.id, subject.linkageId);
-                    }
-                  }
-                }}
-                className="form-input"
-              >
-                <option value="">All Subjects</option>
-                {getUniqueSubjects().map(subject => (
-                  <option key={subject.id} value={subject.id}>
-                    {subject.name}
-                  </option>
+              {/* Questions Grid */}
+              <div className="questions-grid">
+                {questions.content.map(question => (
+                  <StudentQuestionCard
+                    key={question.id}
+                    question={question}
+                    isBookmarked={bookmarks.has(question.id)}
+                    onToggleBookmark={toggleBookmark}
+                  />
                 ))}
-              </select>
             </div>
 
-            <div className="filter-group">
-              <select
-                value={filters.topicId}
-                onChange={(e) => {
-                  setFilters(prev => ({ ...prev, topicId: e.target.value }));
-                  if (e.target.value) {
-                    loadModulesForTopic(parseInt(e.target.value));
-                  }
-                }}
-                className="form-input"
-                disabled={!filters.subjectId}
-              >
-                <option value="">All Topics</option>
-                {getUniqueTopics().map(topic => (
-                  <option key={topic.id} value={topic.id}>
-                    {topic.name}
-                  </option>
-                ))}
-              </select>
+              {/* Pagination */}
+              {questions.totalPages > 1 && (
+                <div className="pagination">
+                  <button
+                    disabled={questions.first}
+                    onClick={() => handlePageChange(filters.page - 1)}
+                    className="pagination-button"
+                  >
+                    ← Previous
+                  </button>
+
+                  <div className="pagination-info">
+                    <span>Page {questions.number + 1} of {questions.totalPages}</span>
             </div>
 
-            <div className="filter-group">
-              <select
-                value={filters.moduleId}
-                onChange={(e) => {
-                  setFilters(prev => ({ ...prev, moduleId: e.target.value }));
-                  if (e.target.value) {
-                    loadChaptersForModule(parseInt(e.target.value));
-                  }
-                }}
-                className="form-input"
-                disabled={!filters.topicId}
-              >
-                <option value="">All Modules</option>
-                {getUniqueModules().map(module => (
-                  <option key={module.id} value={module.id}>
-                    {module.name}
-                  </option>
-                ))}
-              </select>
-            </div>
+                  <button
+                    disabled={questions.last}
+                    onClick={() => handlePageChange(filters.page + 1)}
+                    className="pagination-button"
+                  >
+                    Next →
+                  </button>
 
-            <div className="filter-group">
               <select
-                value={filters.chapterId}
-                onChange={(e) => setFilters(prev => ({ ...prev, chapterId: e.target.value }))}
-                className="form-input"
-                disabled={!filters.moduleId}
-              >
-                <option value="">All Chapters</option>
-                {getUniqueChapters().map(chapter => (
-                  <option key={chapter.id} value={chapter.id}>
-                    {chapter.name}
-                  </option>
-                ))}
+                    value={filters.size}
+                    onChange={(e) => handlePageSizeChange(e.target.value)}
+                    className="page-size-select"
+                  >
+                    <option value={10}>10 per page</option>
+                    <option value={20}>20 per page</option>
+                    <option value={50}>50 per page</option>
+                    <option value={100}>100 per page</option>
               </select>
-            </div>
-
-            <div className="filter-group">
-              <select
-                value={filters.difficulty}
-                onChange={(e) => setFilters(prev => ({ ...prev, difficulty: e.target.value }))}
-                className="form-input"
-              >
-                <option value="">All Difficulties</option>
-                <option value="EASY">Easy</option>
-                <option value="MEDIUM">Medium</option>
-                <option value="HARD">Hard</option>
-              </select>
-            </div>
-
-            <div className="filter-group">
-              <select
-                value={filters.questionType}
-                onChange={(e) => setFilters(prev => ({ ...prev, questionType: e.target.value }))}
-                className="form-input"
-              >
-                <option value="">All Types</option>
-                <option value="MULTIPLE_CHOICE">Multiple Choice</option>
-                <option value="TRUE_FALSE">True/False</option>
-                <option value="SHORT_ANSWER">Short Answer</option>
-                <option value="ESSAY">Essay</option>
-              </select>
-            </div>
-          </div>
         </div>
       )}
-
-      {/* Questions List */}
-      {selectedSubscription && (
-        <div className="questions-section">
-          <h3>Questions ({filteredQuestions.length})</h3>
-          {loading ? (
-            <div className="loading">Loading questions...</div>
-          ) : filteredQuestions.length === 0 ? (
-            <div className="empty-state">
-              <p>No questions found matching your filters.</p>
-            </div>
+            </>
           ) : (
-            <div className="questions-grid">
-              {filteredQuestions.map(question => {
-                const status = getQuestionStatus(question.id);
-                return (
-                  <div key={question.id} className="question-card">
-                    <div className="question-header">
-                      <h4>Question #{question.id}</h4>
-                      <span className={`status ${getStatusColor(status)}`}>
-                        {getStatusText(status)}
-                      </span>
-                    </div>
-                    
-                    <div className="question-content">
-                      <p className="question-text">
-                        {question.questionText.length > 150 
-                          ? `${question.questionText.substring(0, 150)}...` 
-                          : question.questionText}
-                      </p>
-                      
-                      <div className="question-meta">
-                        <span>Subject: {question.subjectName}</span>
-                        {question.topicName && <span>Topic: {question.topicName}</span>}
-                        {question.difficulty && <span>Difficulty: {question.difficulty}</span>}
-                        <span>Type: {question.questionType}</span>
-                      </div>
-                    </div>
-                    
-                    <div className="question-actions">
-                      <button 
-                        className="btn btn-primary btn-sm"
-                        onClick={() => viewQuestion(question)}
-                      >
-                        View Question
+            <div className="empty-state">
+              <div className="empty-icon">
+                {hasActiveFilters() ? '🔍' : '📚'}
+            </div>
+              <h2>
+                {hasActiveFilters() ? 'No Questions Found' : 'No Questions Available'}
+              </h2>
+              <p>
+                {hasActiveFilters() 
+                  ? 'Try adjusting your filters to find more questions.'
+                  : 'You don\'t have any active subscriptions or there are no questions available for your subscribed courses.'
+                }
+              </p>
+              {hasActiveFilters() ? (
+                <button onClick={handleClearFilters} className="clear-filters-button">
+                  Clear All Filters
                       </button>
-                      <button 
-                        className="btn btn-secondary btn-sm"
-                        onClick={() => bookmarkQuestion(question.id)}
-                      >
-                        {questionProgress[question.id]?.isBookmarked ? '★' : '☆'}
+              ) : onBackToDashboard ? (
+                <button onClick={onBackToDashboard} className="clear-filters-button">
+                  Browse Courses
                       </button>
-                    </div>
-                  </div>
-                );
-              })}
+              ) : null}
             </div>
           )}
-        </div>
-      )}
-
-      {/* Question Modal */}
-      {showQuestionModal && selectedQuestion && (
-        <div className="modal-overlay">
-          <div className="modal-content question-modal">
-            <div className="modal-header">
-              <h3>Question #{selectedQuestion.id}</h3>
-              <button 
-                className="btn-close"
-                onClick={() => setShowQuestionModal(false)}
-              >
-                ×
-              </button>
+        </main>
             </div>
             
-            <div className="question-content">
-              <div className="question-text">
-                {selectedQuestion.questionText}
-              </div>
-              
-              <div className="question-meta">
-                <p><strong>Subject:</strong> {selectedQuestion.subjectName}</p>
-                {selectedQuestion.topicName && <p><strong>Topic:</strong> {selectedQuestion.topicName}</p>}
-                {selectedQuestion.moduleName && <p><strong>Module:</strong> {selectedQuestion.moduleName}</p>}
-                {selectedQuestion.chapterName && <p><strong>Chapter:</strong> {selectedQuestion.chapterName}</p>}
-                <p><strong>Difficulty:</strong> {selectedQuestion.difficulty}</p>
-                <p><strong>Type:</strong> {selectedQuestion.questionType}</p>
+      {/* Question Detail Modal */}
+      {showDetailModal && selectedQuestion && (
+        <div className="modal-overlay" onClick={closeDetailModal}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <button className="modal-close" onClick={closeDetailModal}>
+              ✕
+            </button>
+            
+            <div className="modal-header">
+              <h2>Question Details</h2>
               </div>
 
-              {selectedQuestion.questionType === 'MULTIPLE_CHOICE' && (
-                <div className="question-options">
-                  <h4>Options:</h4>
-                  {selectedQuestion.options?.map((option, index) => (
-                    <label key={index} className="option-label">
-                      <input
-                        type="radio"
-                        name="userAnswer"
-                        value={option}
-                        checked={userAnswer === option}
-                        onChange={(e) => setUserAnswer(e.target.value)}
-                      />
-                      <span>{option}</span>
-                    </label>
-                  ))}
-                </div>
-              )}
-
-              {selectedQuestion.questionType === 'TRUE_FALSE' && (
-                <div className="question-options">
-                  <h4>Select Answer:</h4>
-                  <label className="option-label">
-                    <input
-                      type="radio"
-                      name="userAnswer"
-                      value="true"
-                      checked={userAnswer === 'true'}
-                      onChange={(e) => setUserAnswer(e.target.value)}
-                    />
-                    <span>True</span>
-                  </label>
-                  <label className="option-label">
-                    <input
-                      type="radio"
-                      name="userAnswer"
-                      value="false"
-                      checked={userAnswer === 'false'}
-                      onChange={(e) => setUserAnswer(e.target.value)}
-                    />
-                    <span>False</span>
-                  </label>
-                </div>
-              )}
-
-              {(selectedQuestion.questionType === 'SHORT_ANSWER' || selectedQuestion.questionType === 'ESSAY') && (
-                <div className="question-input">
-                  <label htmlFor="userAnswer">Your Answer:</label>
-                  <textarea
-                    id="userAnswer"
-                    value={userAnswer}
-                    onChange={(e) => setUserAnswer(e.target.value)}
-                    className="form-input"
-                    rows={selectedQuestion.questionType === 'ESSAY' ? 6 : 3}
-                    placeholder="Enter your answer here..."
-                  />
-                </div>
-              )}
-
-              {showAnswer && (
-                <div className="correct-answer">
-                  <h4>Correct Answer:</h4>
-                  <p>{selectedQuestion.correctAnswer}</p>
-                  <div className="answer-explanation">
-                    {selectedQuestion.explanation && (
-                      <div>
-                        <h5>Explanation:</h5>
-                        <p>{selectedQuestion.explanation}</p>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              <div className="question-actions">
-                {!showAnswer ? (
-                  <button 
-                    className="btn btn-primary"
-                    onClick={submitAnswer}
-                    disabled={!userAnswer}
-                  >
-                    Submit Answer
-                  </button>
-                ) : (
-                  <button 
-                    className="btn btn-secondary"
-                    onClick={() => {
-                      setShowAnswer(false);
-                      setUserAnswer('');
-                    }}
-                  >
-                    Try Again
-                  </button>
-                )}
-                <button 
-                  className="btn btn-secondary"
-                  onClick={() => setShowQuestionModal(false)}
-                >
-                  Close
-                </button>
-              </div>
+            <div className="modal-body">
+              <StudentQuestionCard
+                question={selectedQuestion}
+                isBookmarked={bookmarks.has(selectedQuestion.id)}
+                onToggleBookmark={toggleBookmark}
+              />
             </div>
           </div>
         </div>

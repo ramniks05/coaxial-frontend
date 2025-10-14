@@ -271,3 +271,78 @@ export const abandonTestSession = async (token, testId) => {
     throw error;
   }
 };
+
+// ========================================
+// STUDENT QUESTION BANK SERVICES
+// ========================================
+
+// Get questions for student (subscription-based access)
+export const getStudentQuestions = async (token, filters = {}) => {
+  const params = new URLSearchParams();
+  
+  // Required: courseTypeId (1=Academic, 2=Competitive, 3=Professional)
+  if (filters.courseTypeId) params.append('courseTypeId', filters.courseTypeId);
+  
+  // linkageId is the ClassSubject/ExamSubject/CourseSubject ID (previously called subjectId)
+  if (filters.linkageId) params.append('linkageId', filters.linkageId);
+  
+  // Hierarchy filters
+  if (filters.topicId) params.append('topicId', filters.topicId);
+  if (filters.moduleId) params.append('moduleId', filters.moduleId);
+  if (filters.chapterId) params.append('chapterId', filters.chapterId);
+  
+  // Basic filters
+  if (filters.questionType) params.append('questionType', filters.questionType);
+  if (filters.difficultyLevel) params.append('difficultyLevel', filters.difficultyLevel);
+  
+  // Pagination and sorting
+  if (filters.page !== undefined) params.append('page', filters.page);
+  if (filters.size) params.append('size', filters.size);
+  if (filters.sortBy) params.append('sortBy', filters.sortBy);
+  if (filters.sortDir) params.append('sortDir', filters.sortDir);
+  
+  const endpoint = `/api/student/questions${params.toString() ? `?${params.toString()}` : ''}`;
+  
+  console.log('=== Fetching Student Questions ===');
+  console.log('Endpoint:', endpoint);
+  console.log('Full URL:', `http://localhost:8080${endpoint}`);
+  console.log('Filters applied:', filters);
+  console.log('Parameters:', {
+    courseTypeId: filters.courseTypeId,
+    linkageId: filters.linkageId,
+    topicId: filters.topicId,
+    moduleId: filters.moduleId,
+    chapterId: filters.chapterId,
+    questionType: filters.questionType,
+    difficultyLevel: filters.difficultyLevel
+  });
+  
+  try {
+    const response = await apiGet(endpoint, token);
+    const data = await response.json();
+    console.log('Student questions response:', data);
+    console.log('Total questions:', data.totalElements);
+    return data;
+  } catch (error) {
+    console.error('Error fetching student questions:', error);
+    throw error;
+  }
+};
+
+// Get specific question by ID
+export const getStudentQuestionById = async (token, questionId) => {
+  const endpoint = `/api/student/questions/${questionId}`;
+  
+  console.log('Fetching question by ID:', questionId);
+  console.log('Full URL:', `http://localhost:8080${endpoint}`);
+  
+  try {
+    const response = await apiGet(endpoint, token);
+    const data = await response.json();
+    console.log('Question details:', data);
+    return data;
+  } catch (error) {
+    console.error('Error fetching question details:', error);
+    throw error;
+  }
+};
