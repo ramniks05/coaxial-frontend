@@ -266,8 +266,9 @@ export const AppProvider = ({ children }) => {
 
     try {
       console.log('Refreshing token...');
+      const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:8080';
       
-      const response = await fetch('http://localhost:8080/api/auth/refresh', {
+      const response = await fetch(`${API_BASE_URL}/api/auth/refresh`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -352,13 +353,16 @@ export const AppProvider = ({ children }) => {
       
       console.log(`Checking backend connectivity... (attempt ${retryAttempt + 1})`);
       
+      // Get API base URL from environment
+      const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:8080';
+      
       // Try multiple endpoints to check connectivity
       const endpoints = [
-        'http://localhost:8080/api/health',
-        'http://localhost:8080/api/auth/me',
-        'http://localhost:8080/actuator/health',
-        'http://localhost:8080/',  // Root endpoint
-        'http://localhost:8080/api/'  // API root
+        `${API_BASE_URL}/api/health`,
+        `${API_BASE_URL}/api/auth/me`,
+        `${API_BASE_URL}/actuator/health`,
+        `${API_BASE_URL}/`,  // Root endpoint
+        `${API_BASE_URL}/api/`  // API root
       ];
       
       let isConnected = false;
