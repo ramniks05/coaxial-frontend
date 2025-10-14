@@ -122,9 +122,15 @@ export const startStudentTest = async (token, testId) => {
 
 // Get test questions with session
 export const getStudentTestQuestions = async (token, testId, sessionId) => {
+  if (!sessionId) {
+    throw new Error('SessionId is required to fetch test questions');
+  }
+  
   const endpoint = `/api/student/tests/${testId}/questions?sessionId=${sessionId}`;
   
   console.log('Fetching test questions from:', endpoint);
+  console.log('SessionId:', sessionId);
+  console.log('Full URL:', `http://localhost:8080${endpoint}`);
   
   try {
     const response = await apiGet(endpoint, token);
@@ -141,31 +147,42 @@ export const getStudentTestQuestions = async (token, testId, sessionId) => {
 export const submitStudentAnswer = async (token, testId, answerData) => {
   const endpoint = `/api/student/tests/${testId}/submit-answer`;
   
-  console.log('Submitting answer for question:', answerData.questionId);
+  console.log('=== Submitting Answer ===');
+  console.log('Endpoint:', endpoint);
+  console.log('Full URL:', `http://localhost:8080${endpoint}`);
+  console.log('Answer data:', answerData);
+  console.log('Validation:', {
+    hasSessionId: !!answerData.sessionId,
+    hasQuestionId: !!answerData.questionId,
+    hasSelectedOptionId: !!answerData.selectedOptionId,
+    sessionId: answerData.sessionId,
+    questionId: answerData.questionId,
+    selectedOptionId: answerData.selectedOptionId
+  });
   
   try {
     const response = await apiPost(endpoint, answerData, token);
     const data = await response.json();
-    console.log('Answer submitted:', data);
+    console.log('✅ Answer submitted successfully:', data);
     return data;
   } catch (error) {
-    console.error('Error submitting answer:', error);
+    console.error('❌ Error submitting answer:', error);
+    console.error('Error details:', error.message);
     throw error;
   }
 };
 
 // Submit test (end attempt)
 export const submitStudentTest = async (token, testId, sessionId) => {
-  const endpoint = `/api/student/tests/${testId}/submit`;
+  // sessionId as query parameter, not body
+  const endpoint = `/api/student/tests/${testId}/submit?sessionId=${sessionId}`;
   
-  const payload = {
-    sessionId: sessionId
-  };
-  
-  console.log('Submitting test:', payload);
+  console.log('Submitting test with endpoint:', endpoint);
+  console.log('Full URL:', `http://localhost:8080${endpoint}`);
   
   try {
-    const response = await apiPost(endpoint, payload, token);
+    // Empty body since sessionId is in query params
+    const response = await apiPost(endpoint, {}, token);
     const data = await response.json();
     console.log('Test submitted, result:', data);
     return data;
@@ -175,9 +192,11 @@ export const submitStudentTest = async (token, testId, sessionId) => {
   }
 };
 
-// Get student's test attempt history
+// Get student's test attempt history (all tests)
 export const getStudentTestAttempts = async (token) => {
-  const endpoint = `/api/student/test-attempts`;
+  const endpoint = `/api/student/tests/attempts`;
+  
+  console.log('Fetching all test attempts from:', endpoint);
   
   try {
     const response = await apiGet(endpoint, token);
@@ -186,6 +205,40 @@ export const getStudentTestAttempts = async (token) => {
     return data;
   } catch (error) {
     console.error('Error fetching test attempts:', error);
+    throw error;
+  }
+};
+
+// Get attempts for specific test
+export const getTestAttempts = async (token, testId) => {
+  const endpoint = `/api/student/tests/${testId}/attempts`;
+  
+  console.log('Fetching attempts for test:', testId);
+  
+  try {
+    const response = await apiGet(endpoint, token);
+    const data = await response.json();
+    console.log('Test attempts:', data);
+    return data;
+  } catch (error) {
+    console.error('Error fetching test attempts:', error);
+    throw error;
+  }
+};
+
+// Check for active session
+export const checkActiveSession = async (token, testId) => {
+  const endpoint = `/api/student/tests/${testId}/active-session`;
+  
+  console.log('Checking active session for test:', testId);
+  
+  try {
+    const response = await apiGet(endpoint, token);
+    const data = await response.json();
+    console.log('Active session check:', data);
+    return data;
+  } catch (error) {
+    console.error('Error checking active session:', error);
     throw error;
   }
 };
