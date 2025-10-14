@@ -170,83 +170,170 @@ const StudentQuestionCard = ({ question, isBookmarked, onToggleBookmark }) => {
         )}
       </div>
 
-      {/* Options (revealed when Show Answer is clicked) */}
+      {/* Options Section with Toggle/Minimize */}
       {showAnswer && question.options && question.options.length > 0 && (
-        <div style={{ marginBottom: '16px' }}>
+        <div style={{ 
+          marginBottom: '16px',
+          border: '2px solid #86efac',
+          borderRadius: '12px',
+          overflow: 'hidden'
+        }}>
+          {/* Header with Minimize Button */}
           <div style={{
-            fontSize: '14px',
-            fontWeight: '600',
-            color: '#374151',
-            marginBottom: '12px'
-          }}>
-            Options:
+            background: 'linear-gradient(135deg, #dcfce7 0%, #86efac 100%)',
+            padding: '12px 16px',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            cursor: 'pointer'
+          }}
+          onClick={() => setShowAnswer(false)}
+          >
+            <div style={{
+              fontSize: '14px',
+              fontWeight: '700',
+              color: '#166534',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px'
+            }}>
+              <span>✓</span>
+              <span>Answer Options</span>
+            </div>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowAnswer(false);
+              }}
+              style={{
+                background: 'rgba(255,255,255,0.3)',
+                border: 'none',
+                borderRadius: '6px',
+                padding: '4px 12px',
+                color: '#166534',
+                fontSize: '12px',
+                fontWeight: '600',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease'
+              }}
+              onMouseOver={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.5)'}
+              onMouseOut={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.3)'}
+            >
+              ▼ Hide
+            </button>
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            {question.options.map((option, index) => (
-              <div
-                key={option.optionId || index}
-                style={{
-                  padding: '12px 16px',
-                  borderRadius: '8px',
-                  background: option.isCorrect ? '#dcfce7' : '#f9fafb',
-                  border: `2px solid ${option.isCorrect ? '#86efac' : '#e5e7eb'}`,
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  transition: 'all 0.2s ease'
-                }}
-              >
-                <span style={{
-                  fontSize: '14px',
-                  color: option.isCorrect ? '#166534' : '#374151',
-                  fontWeight: option.isCorrect ? '600' : '400'
-                }}>
-                  <strong>{String.fromCharCode(65 + index)}.</strong> {option.optionText}
-                </span>
-                {option.isCorrect && (
+          
+          {/* Options Content */}
+          <div style={{ 
+            padding: '16px',
+            background: 'white'
+          }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              {question.options.map((option, index) => (
+                <div
+                  key={option.optionId || index}
+                  style={{
+                    padding: '12px 16px',
+                    borderRadius: '8px',
+                    background: option.isCorrect ? '#dcfce7' : '#f9fafb',
+                    border: `2px solid ${option.isCorrect ? '#86efac' : '#e5e7eb'}`,
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    transition: 'all 0.2s ease'
+                  }}
+                >
                   <span style={{
                     fontSize: '14px',
-                    fontWeight: '700',
-                    color: '#166534',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '4px'
+                    color: option.isCorrect ? '#166534' : '#374151',
+                    fontWeight: option.isCorrect ? '600' : '400'
                   }}>
-                    ✓ Correct
+                    <strong>{String.fromCharCode(65 + index)}.</strong> {option.optionText}
                   </span>
-                )}
-              </div>
-            ))}
+                  {option.isCorrect && (
+                    <span style={{
+                      fontSize: '14px',
+                      fontWeight: '700',
+                      color: '#166534',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px'
+                    }}>
+                      ✓ Correct
+                    </span>
+                  )}
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       )}
 
-      {/* Explanation (revealed when Show Explanation is clicked) */}
+      {/* Explanation Section with Toggle/Minimize */}
       {showExplanation && question.explanation && (
         <div style={{
           marginBottom: '16px',
-          padding: '16px',
-          background: 'linear-gradient(135deg, #fff3e0 0%, #ffe0b2 100%)',
-          borderLeft: '4px solid #ff9800',
-          borderRadius: '8px'
+          border: '2px solid #ff9800',
+          borderRadius: '12px',
+          overflow: 'hidden'
         }}>
+          {/* Header with Minimize Button */}
           <div style={{
-            fontSize: '14px',
-            fontWeight: '600',
-            color: '#e65100',
-            marginBottom: '8px',
+            background: 'linear-gradient(135deg, #fff3e0 0%, #ffe0b2 100%)',
+            padding: '12px 16px',
             display: 'flex',
+            justifyContent: 'space-between',
             alignItems: 'center',
-            gap: '6px'
-          }}>
-            💡 Explanation:
+            cursor: 'pointer'
+          }}
+          onClick={() => setShowExplanation(false)}
+          >
+            <div style={{
+              fontSize: '14px',
+              fontWeight: '700',
+              color: '#e65100',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px'
+            }}>
+              <span>💡</span>
+              <span>Explanation</span>
+            </div>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowExplanation(false);
+              }}
+              style={{
+                background: 'rgba(255,255,255,0.3)',
+                border: 'none',
+                borderRadius: '6px',
+                padding: '4px 12px',
+                color: '#e65100',
+                fontSize: '12px',
+                fontWeight: '600',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease'
+              }}
+              onMouseOver={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.5)'}
+              onMouseOut={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.3)'}
+            >
+              ▼ Hide
+            </button>
           </div>
+          
+          {/* Explanation Content */}
           <div style={{
-            fontSize: '14px',
-            color: '#6d4c41',
-            lineHeight: '1.6'
+            padding: '16px',
+            background: 'white'
           }}>
-            {question.explanation}
+            <div style={{
+              fontSize: '14px',
+              color: '#6d4c41',
+              lineHeight: '1.6'
+            }}>
+              {question.explanation}
+            </div>
           </div>
         </div>
       )}
@@ -265,7 +352,7 @@ const StudentQuestionCard = ({ question, isBookmarked, onToggleBookmark }) => {
           style={{
             padding: '10px 20px',
             borderRadius: '8px',
-            border: showAnswer ? 'none' : '2px solid #667eea',
+            border: '2px solid #667eea',
             background: showAnswer ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' : 'white',
             color: showAnswer ? 'white' : '#667eea',
             fontSize: '14px',
@@ -280,16 +367,20 @@ const StudentQuestionCard = ({ question, isBookmarked, onToggleBookmark }) => {
             if (!showAnswer) {
               e.currentTarget.style.background = '#667eea';
               e.currentTarget.style.color = 'white';
+            } else {
+              e.currentTarget.style.opacity = '0.9';
             }
           }}
           onMouseOut={(e) => {
             if (!showAnswer) {
               e.currentTarget.style.background = 'white';
               e.currentTarget.style.color = '#667eea';
+            } else {
+              e.currentTarget.style.opacity = '1';
             }
           }}
         >
-          {showAnswer ? '✓ Answer Shown' : '👁️ Show Answer'}
+          {showAnswer ? '▼ Hide Answer' : '👁️ Show Answer'}
         </button>
 
         {question.explanation && (
@@ -298,7 +389,7 @@ const StudentQuestionCard = ({ question, isBookmarked, onToggleBookmark }) => {
             style={{
               padding: '10px 20px',
               borderRadius: '8px',
-              border: showExplanation ? 'none' : '2px solid #ff9800',
+              border: '2px solid #ff9800',
               background: showExplanation ? 'linear-gradient(135deg, #ff9800 0%, #f57c00 100%)' : 'white',
               color: showExplanation ? 'white' : '#ff9800',
               fontSize: '14px',
@@ -313,16 +404,20 @@ const StudentQuestionCard = ({ question, isBookmarked, onToggleBookmark }) => {
               if (!showExplanation) {
                 e.currentTarget.style.background = '#ff9800';
                 e.currentTarget.style.color = 'white';
+              } else {
+                e.currentTarget.style.opacity = '0.9';
               }
             }}
             onMouseOut={(e) => {
               if (!showExplanation) {
                 e.currentTarget.style.background = 'white';
                 e.currentTarget.style.color = '#ff9800';
+              } else {
+                e.currentTarget.style.opacity = '1';
               }
             }}
           >
-            {showExplanation ? '✓ Explanation Shown' : '💡 Show Explanation'}
+            {showExplanation ? '▼ Hide Explanation' : '💡 Show Explanation'}
           </button>
         )}
       </div>
