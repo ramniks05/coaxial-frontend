@@ -101,9 +101,9 @@ const RegisterPage = () => {
         addNotification(`✅ Welcome to Coaxial Academy, ${userData.firstName}!`, 'success');
 
         const role = formData.role || 'STUDENT';
-        const dashboardPath = role === 'ADMIN' ? '/admin-dashboard'
-          : role === 'INSTRUCTOR' ? '/instructor-dashboard'
-          : '/student-dashboard';
+        const dashboardPath = role === 'ADMIN' ? '/dashboard/admin'
+          : role === 'INSTRUCTOR' ? '/dashboard/instructor'
+          : '/dashboard/student';
         
         navigate(dashboardPath);
       } else {

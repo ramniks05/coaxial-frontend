@@ -43,9 +43,9 @@ const LoginPage = () => {
   // Redirect if already logged in
   useEffect(() => {
     if (isAuthenticated && user) {
-      const dashboardPath = user.role === 'ADMIN' ? '/admin-dashboard' 
-        : user.role === 'INSTRUCTOR' ? '/instructor-dashboard' 
-        : '/student-dashboard';
+      const dashboardPath = user.role === 'ADMIN' ? '/dashboard/admin' 
+        : user.role === 'INSTRUCTOR' ? '/dashboard/instructor' 
+        : '/dashboard/student';
       navigate(dashboardPath);
     }
   }, [isAuthenticated, user, navigate]);
@@ -167,9 +167,9 @@ const LoginPage = () => {
       } else {
         loginSuccess(data.user, data.token);
         
-        const dashboardPath = data.user.role === 'ADMIN' ? '/admin-dashboard' 
-          : data.user.role === 'INSTRUCTOR' ? '/instructor-dashboard' 
-          : '/student-dashboard';
+        const dashboardPath = data.user.role === 'ADMIN' ? '/dashboard/admin' 
+          : data.user.role === 'INSTRUCTOR' ? '/dashboard/instructor' 
+          : '/dashboard/student';
         
         addNotification(`✅ Welcome back, ${data.user.firstName || data.user.username}!`, 'success');
         navigate(dashboardPath);
