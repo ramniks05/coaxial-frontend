@@ -1,5 +1,5 @@
 // User Management API Service
-const API_BASE = 'http://localhost:8080';
+const API_BASE = process.env.REACT_APP_API_BASE_URL || 'http://localhost:8080';
 
 // Get users (admin only)
 export const getUsers = async (token, role = null, search = null, enabled = null, abortSignal = undefined) => {
