@@ -8,6 +8,7 @@ import {
   submitStudentAnswer,
   submitStudentTest,
   getStudentTestAttempts,
+  checkActiveSession,
   abandonTestSession
 } from '../../services/studentService';
 
@@ -31,6 +32,8 @@ const StudentTestCenter = () => {
   const [attemptId, setAttemptId] = useState(null);
   const [testResult, setTestResult] = useState(null);
   const [showResultModal, setShowResultModal] = useState(false);
+  const [selectedAttempt, setSelectedAttempt] = useState(null);
+  const [showAttemptDetailsModal, setShowAttemptDetailsModal] = useState(false);
   
   const testTimerRef = useRef(null);
 
@@ -74,13 +77,14 @@ const StudentTestCenter = () => {
 
   // Timer effect for test
   useEffect(() => {
-    if (testTimeRemaining > 0 && testStartTime) {
+    if (testTimeRemaining > 0 && testStartTime && selectedTest) {
       testTimerRef.current = setInterval(() => {
         const elapsed = Math.floor((Date.now() - testStartTime) / 1000);
-        const remaining = Math.max(0, selectedTest?.duration * 60 - elapsed);
+        const remaining = Math.max(0, selectedTest.timeLimitMinutes * 60 - elapsed);
         setTestTimeRemaining(remaining);
         
         if (remaining === 0) {
+          addNotification('⏰ Time is up! Auto-submitting test...', 'warning');
           handleSubmitTest();
         }
       }, 1000);
@@ -91,7 +95,8 @@ const StudentTestCenter = () => {
         clearInterval(testTimerRef.current);
       }
     };
-  }, [testTimeRemaining, testStartTime, selectedTest]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [testStartTime, selectedTest]);
 
   const loadAvailableTests = async () => {
     if (!selectedSubscription || !token) return;
@@ -166,20 +171,61 @@ const StudentTestCenter = () => {
     try {
       setLoading(true);
       
-      // Step 1: Start test and get session
-      console.log('Step 1: Starting test and getting session...');
-      const sessionData = await startStudentTest(token, test.id);
+      // Step 1: Check for active session first
+      console.log('Step 1: Checking for active session...');
+      const activeSessionCheck = await checkActiveSession(token, test.id);
       
-      if (!sessionData.sessionId) {
-        throw new Error('Failed to get session ID');
+      console.log('Active session check result:', activeSessionCheck);
+      
+      let sessionData = null;
+      
+      // If active session exists, ask user what to do
+      if (activeSessionCheck.hasActiveSession !== false && activeSessionCheck.sessionId) {
+        console.log('Active session found:', activeSessionCheck.sessionId);
+        
+        const continueSession = window.confirm(
+          '⚠️ You have an active test session in progress.\n\n' +
+          `Started at: ${new Date(activeSessionCheck.startedAt).toLocaleString()}\n` +
+          `Expires at: ${new Date(activeSessionCheck.expiresAt).toLocaleString()}\n\n` +
+          '• Click OK to CONTINUE your existing session\n' +
+          '• Click Cancel to ABANDON and start fresh\n\n' +
+          'Note: Abandoning will count as one attempt.'
+        );
+        
+        if (continueSession) {
+          // Continue with existing session
+          console.log('Continuing with existing session');
+          sessionData = activeSessionCheck;
+        } else {
+          // Abandon and create new session
+          console.log('User chose to abandon session');
+          await abandonTestSession(token, test.id);
+          addNotification('✅ Previous session abandoned. Starting fresh...', 'success');
+          
+          // Start new session
+          sessionData = await startStudentTest(token, test.id);
+        }
+      } else {
+        // No active session, start new one
+        console.log('No active session, starting new test...');
+        sessionData = await startStudentTest(token, test.id);
       }
       
-      console.log('Session created:', sessionData);
+      console.log('Session data:', sessionData);
+      console.log('SessionId:', sessionData.sessionId);
+      console.log('AttemptId:', sessionData.attemptId);
+      
+      if (!sessionData || !sessionData.sessionId) {
+        console.error('Invalid session data:', sessionData);
+        throw new Error('Failed to get session ID from response');
+      }
+      
+      console.log('✅ Session ready:', sessionData.sessionId);
       setSessionId(sessionData.sessionId);
       setAttemptId(sessionData.attemptId);
       
       // Step 2: Fetch test questions with session
-      console.log('Step 2: Fetching questions with sessionId...');
+      console.log('Step 2: Fetching questions with sessionId:', sessionData.sessionId);
       const questionsData = await getStudentTestQuestions(token, test.id, sessionData.sessionId);
       const questions = Array.isArray(questionsData) ? questionsData : questionsData.content || questionsData.data || [];
       
@@ -208,55 +254,56 @@ const StudentTestCenter = () => {
       
     } catch (error) {
       console.error('Error starting test:', error);
-      
-      // Handle specific error for active session
-      if (error.message && error.message.includes('already have an active session')) {
-        const abandonSession = window.confirm(
-          '⚠️ You have an existing test session in progress.\n\n' +
-          'Would you like to abandon the current session and start fresh?\n\n' +
-          '• Click OK to abandon current session (will count as one attempt)\n' +
-          '• Click Cancel to keep the current session\n\n' +
-          'Note: Abandoning will forfeit the current attempt.'
-        );
-        
-        if (abandonSession) {
-          try {
-            // Abandon the existing session
-            await abandonTestSession(token, test.id);
-            addNotification('✅ Previous session abandoned. Starting fresh...', 'success');
-            
-            // Retry starting the test
-            setTimeout(() => startTest(test), 500);
-          } catch (abandonError) {
-            console.error('Error abandoning session:', abandonError);
-            addNotification(`Failed to abandon session: ${abandonError.message}`, 'error');
-          }
-        } else {
-          addNotification('Please complete or submit your current test attempt first', 'info');
-        }
-      } else {
-        addNotification(`Failed to start test: ${error.message}`, 'error');
-      }
+      addNotification(`Failed to start test: ${error.message}`, 'error');
     } finally {
       setLoading(false);
     }
   };
 
   const handleAnswerChange = async (questionId, answer) => {
+    console.log('handleAnswerChange called with:', { questionId, answer });
+    
+    // Validate questionId
+    if (!questionId) {
+      console.error('QuestionId is missing!');
+      return;
+    }
+    
     // Update local state immediately for better UX
     setAnswers(prev => ({
       ...prev,
       [questionId]: answer
     }));
 
+    // Validate sessionId exists
+    if (!sessionId) {
+      console.warn('SessionId not available, skipping backend submission');
+      return;
+    }
+
     // Find the option ID from the selected answer
     const currentQuestion = testQuestions[currentQuestionIndex];
+    console.log('Current question:', currentQuestion);
+    console.log('Current question ID:', currentQuestion?.questionId || currentQuestion?.id);
+    
     const selectedOption = currentQuestion?.options?.find(opt => 
       (opt.optionText || opt) === answer
     );
     
-    if (!selectedOption || !sessionId) {
-      console.warn('Cannot submit answer: missing option or session');
+    console.log('Selected option:', selectedOption);
+    console.log('Selected option optionId:', selectedOption?.optionId);
+    console.log('Selected option id (fallback):', selectedOption?.id);
+    
+    if (!selectedOption) {
+      console.error('Could not find selected option');
+      return;
+    }
+
+    // Get the correct option ID (try optionId first, fallback to id)
+    const optionId = selectedOption.optionId || selectedOption.id;
+    
+    if (!optionId) {
+      console.error('Selected option has no ID:', selectedOption);
       return;
     }
 
@@ -264,26 +311,54 @@ const StudentTestCenter = () => {
     try {
       const answerData = {
         sessionId: sessionId,
-        questionId: questionId,
-        selectedOptionId: selectedOption.id
+        questionId: Number(questionId), // Ensure it's a number
+        selectedOptionId: Number(optionId) // Use optionId from API
       };
       
-      console.log('Submitting answer:', answerData);
-      await submitStudentAnswer(token, selectedTest.id, answerData);
-      console.log('Answer saved to backend');
+      console.log('=== Submitting Answer ===');
+      console.log('Answer data:', JSON.stringify(answerData, null, 2));
+      console.log('Data types:', {
+        sessionId: typeof answerData.sessionId,
+        questionId: typeof answerData.questionId,
+        selectedOptionId: typeof answerData.selectedOptionId
+      });
+      
+      const result = await submitStudentAnswer(token, selectedTest.id, answerData);
+      console.log('✅ Answer saved to backend successfully:', result);
       
     } catch (error) {
-      console.error('Error submitting answer:', error);
-      // Don't show error to user, keep local state
+      console.error('❌ Error submitting answer:', error);
+      console.error('Error message:', error.message);
+      // Don't show error to user, keep local state for better UX
     }
   };
 
-  const clearAnswer = (questionId) => {
+  const clearAnswer = async (questionId) => {
+    // Update local state
     setAnswers(prev => {
       const newAnswers = { ...prev };
       delete newAnswers[questionId];
       return newAnswers;
     });
+
+    // Submit null to backend to mark as skipped
+    if (sessionId) {
+      try {
+        const answerData = {
+          sessionId: sessionId,
+          questionId: Number(questionId),
+          selectedOptionId: null // Mark as skipped
+        };
+        
+        console.log('Clearing answer (marking as skipped):', answerData);
+        await submitStudentAnswer(token, selectedTest.id, answerData);
+        console.log('✅ Answer cleared in backend');
+        
+      } catch (error) {
+        console.error('Error clearing answer:', error);
+        // Don't show error to user
+      }
+    }
   };
 
   const toggleMarkForReview = (questionId) => {
@@ -430,6 +505,16 @@ const StudentTestCenter = () => {
     return `${minutes}:${secs.toString().padStart(2, '0')}`;
   };
 
+  // Handler to close attempt details modal
+  const handleCloseAttemptDetails = (e) => {
+    if (e) {
+      e.stopPropagation();
+    }
+    console.log('Closing attempt details modal');
+    setShowAttemptDetailsModal(false);
+    setSelectedAttempt(null);
+  };
+
   const getSubscriptionDisplayText = (subscription) => {
     let text = subscription.subscriptionLevel || 'Unknown';
     
@@ -533,29 +618,126 @@ const StudentTestCenter = () => {
 
       {/* Test Attempts History */}
       {selectedSubscription && testAttempts.length > 0 && (
-        <div className="attempts-section">
-          <h3>📊 Test Attempts History</h3>
-          <div className="attempts-table">
-            <table>
+        <div className="attempts-section" style={{ marginTop: '32px' }}>
+          <h3 style={{ marginBottom: '20px', fontSize: '22px', fontWeight: '700', color: '#1e293b' }}>
+            📊 Test Attempts History
+          </h3>
+          <div style={{ 
+            background: 'white', 
+            borderRadius: '16px', 
+            boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
+            overflow: 'hidden'
+          }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
-                <tr>
-                  <th>Test Name</th>
-                  <th>Score</th>
-                  <th>Time Spent</th>
-                  <th>Status</th>
-                  <th>Attempted At</th>
+                <tr style={{ background: 'linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)' }}>
+                  <th style={{ padding: '16px 24px', textAlign: 'left', fontWeight: '600', color: '#475569', fontSize: '14px', borderBottom: '2px solid #e2e8f0' }}>
+                    Attempt #
+                  </th>
+                  <th style={{ padding: '16px 24px', textAlign: 'left', fontWeight: '600', color: '#475569', fontSize: '14px', borderBottom: '2px solid #e2e8f0' }}>
+                    Test Name
+                  </th>
+                  <th style={{ padding: '16px 24px', textAlign: 'center', fontWeight: '600', color: '#475569', fontSize: '14px', borderBottom: '2px solid #e2e8f0' }}>
+                    Score
+                  </th>
+                  <th style={{ padding: '16px 24px', textAlign: 'center', fontWeight: '600', color: '#475569', fontSize: '14px', borderBottom: '2px solid #e2e8f0' }}>
+                    Result
+                  </th>
+                  <th style={{ padding: '16px 24px', textAlign: 'center', fontWeight: '600', color: '#475569', fontSize: '14px', borderBottom: '2px solid #e2e8f0' }}>
+                    Date
+                  </th>
+                  <th style={{ padding: '16px 24px', textAlign: 'center', fontWeight: '600', color: '#475569', fontSize: '14px', borderBottom: '2px solid #e2e8f0' }}>
+                    Action
+                  </th>
                 </tr>
               </thead>
               <tbody>
-                {testAttempts.map(attempt => (
-                  <tr key={attempt.id}>
-                    <td>{attempt.testName || 'Unknown Test'}</td>
-                    <td className={getScoreColor(attempt.score)}>
-                      {attempt.score ? `${attempt.score}%` : 'N/A'}
+                {testAttempts.map((attempt, index) => (
+                  <tr 
+                    key={attempt.attemptId || index}
+                    style={{ 
+                      borderBottom: index < testAttempts.length - 1 ? '1px solid #e2e8f0' : 'none',
+                      transition: 'background 0.2s ease'
+                    }}
+                    onMouseOver={(e) => e.currentTarget.style.background = '#f8fafc'}
+                    onMouseOut={(e) => e.currentTarget.style.background = 'white'}
+                  >
+                    <td style={{ padding: '20px 24px', fontSize: '15px', fontWeight: '600', color: '#667eea' }}>
+                      #{attempt.attemptNumber}
                     </td>
-                    <td>{formatTime(attempt.timeSpent || 0)}</td>
-                    <td>{getAttemptStatus(attempt)}</td>
-                    <td>{new Date(attempt.attemptedAt || attempt.createdAt).toLocaleString()}</td>
+                    <td style={{ padding: '20px 24px', fontSize: '15px', color: '#1e293b', fontWeight: '500' }}>
+                      {attempt.testName || 'Unknown Test'}
+                    </td>
+                    <td style={{ padding: '20px 24px', textAlign: 'center' }}>
+                      <span style={{
+                        display: 'inline-block',
+                        padding: '6px 16px',
+                        borderRadius: '8px',
+                        fontSize: '16px',
+                        fontWeight: '700',
+                        background: attempt.percentage >= 80 ? '#dcfce7' : attempt.percentage >= 60 ? '#fef3c7' : '#fee2e2',
+                        color: attempt.percentage >= 80 ? '#166534' : attempt.percentage >= 60 ? '#92400e' : '#991b1b'
+                      }}>
+                        {attempt.percentage ? `${attempt.percentage.toFixed(1)}%` : 'N/A'}
+                      </span>
+                    </td>
+                    <td style={{ padding: '20px 24px', textAlign: 'center' }}>
+                      <span style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        padding: '6px 14px',
+                        borderRadius: '8px',
+                        fontSize: '14px',
+                        fontWeight: '600',
+                        background: attempt.isPassed ? 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)' : 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
+                        color: 'white'
+                      }}>
+                        {attempt.isPassed ? '✓ PASSED' : '✗ FAILED'}
+                      </span>
+                    </td>
+                    <td style={{ padding: '20px 24px', textAlign: 'center', fontSize: '14px', color: '#64748b' }}>
+                      {new Date(attempt.submittedAt || attempt.attemptedAt).toLocaleDateString('en-US', { 
+                        month: 'short', 
+                        day: 'numeric', 
+                        year: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                      })}
+                    </td>
+                    <td style={{ padding: '20px 24px', textAlign: 'center' }}>
+                      <button
+                        onClick={() => {
+                          setSelectedAttempt(attempt);
+                          setShowAttemptDetailsModal(true);
+                        }}
+                        style={{
+                          padding: '8px 20px',
+                          borderRadius: '8px',
+                          border: '2px solid #667eea',
+                          background: 'white',
+                          color: '#667eea',
+                          fontSize: '14px',
+                          fontWeight: '600',
+                          cursor: 'pointer',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                          transition: 'all 0.2s ease'
+                        }}
+                        onMouseOver={(e) => {
+                          e.currentTarget.style.background = '#667eea';
+                          e.currentTarget.style.color = 'white';
+                        }}
+                        onMouseOut={(e) => {
+                          e.currentTarget.style.background = 'white';
+                          e.currentTarget.style.color = '#667eea';
+                        }}
+                      >
+                        <span>👁️</span>
+                        View Details
+                      </button>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -577,73 +759,129 @@ const StudentTestCenter = () => {
           display: 'flex',
           flexDirection: 'column'
         }}>
-          {/* Test Header - Fixed */}
+          {/* Test Header - Fixed - Full Width */}
           <div style={{
             background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
             color: 'white',
-            padding: '16px 32px',
+            padding: '0',
             display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            boxShadow: '0 4px 6px rgba(0,0,0,0.2)',
-            flexShrink: 0
+            boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+            flexShrink: 0,
+            minHeight: '90px',
+            width: '100%'
           }}>
-            <div>
-              <h2 style={{ margin: 0, fontSize: '24px', fontWeight: '600' }}>
-                📝 {selectedTest.testName}
-              </h2>
-              <p style={{ margin: '4px 0 0 0', opacity: 0.9, fontSize: '14px' }}>
-                Question {currentQuestionIndex + 1} of {testQuestions.length}
-              </p>
+            {/* Sidebar space placeholder */}
+            <div style={{ 
+              width: '280px', 
+              background: 'rgba(0,0,0,0.2)',
+              display: 'flex',
+              alignItems: 'center',
+              padding: '20px 24px'
+            }}>
+              <div style={{ fontSize: '13px', opacity: 0.9, fontWeight: '500' }}>
+                Question {currentQuestionIndex + 1} / {testQuestions.length}
+              </div>
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '24px' }}>
-              <div style={{
-                background: testTimeRemaining < 300 ? '#dc2626' : 'rgba(255,255,255,0.2)',
-                padding: '12px 24px',
-                borderRadius: '8px',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px'
-              }}>
-                <span style={{ fontSize: '24px' }}>⏱️</span>
-                <div>
-                  <div style={{ fontSize: '12px', opacity: 0.9 }}>Time Remaining</div>
-                  <div style={{ fontSize: '24px', fontWeight: 'bold' }}>
-                    {formatTime(testTimeRemaining)}
-                  </div>
-                </div>
+            
+            {/* Main header content */}
+            <div style={{ 
+              flex: 1,
+              padding: '20px 40px',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center'
+            }}>
+              <div style={{ flex: '0 0 auto' }}>
+                <h2 style={{ 
+                  margin: 0, 
+                  fontSize: '26px', 
+                  fontWeight: '700',
+                  textShadow: '0 2px 4px rgba(0,0,0,0.2)'
+                }}>
+                  📝 {selectedTest.testName}
+                </h2>
+                <p style={{ 
+                  margin: '8px 0 0 0', 
+                  opacity: 0.95, 
+                  fontSize: '15px',
+                  fontWeight: '500'
+                }}>
+                  {selectedTest.description || 'Test in progress'}
+                </p>
               </div>
-              <div style={{
-                background: 'rgba(255,255,255,0.2)',
-                padding: '12px 24px',
-                borderRadius: '8px',
-                textAlign: 'center'
+              <div style={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: '20px',
+                flex: '0 0 auto'
               }}>
-                <div style={{ fontSize: '12px', opacity: 0.9 }}>Answered</div>
-                <div style={{ fontSize: '24px', fontWeight: 'bold' }}>
-                  {Object.keys(answers).length} / {testQuestions.length}
-                </div>
-              </div>
-              <button
-                onClick={handleExitTest}
-                style={{
-                  background: 'rgba(239, 68, 68, 0.2)',
-                  border: '2px solid rgba(255,255,255,0.3)',
-                  color: 'white',
-                  padding: '10px 20px',
-                  borderRadius: '8px',
-                  fontSize: '14px',
-                  fontWeight: '600',
-                  cursor: 'pointer',
+                <div style={{
+                  background: testTimeRemaining < 300 ? 'linear-gradient(135deg, #dc2626 0%, #b91c1c 100%)' : 'rgba(255,255,255,0.15)',
+                  padding: '14px 28px',
+                  borderRadius: '12px',
                   display: 'flex',
                   alignItems: 'center',
-                  gap: '8px'
-                }}
-              >
-                ❌ Exit Test
-              </button>
+                  gap: '12px',
+                  border: '2px solid rgba(255,255,255,0.2)',
+                  backdropFilter: 'blur(10px)',
+                  boxShadow: testTimeRemaining < 300 ? '0 4px 12px rgba(220, 38, 38, 0.4)' : '0 2px 4px rgba(0,0,0,0.1)',
+                  minWidth: '180px'
+                }}>
+                  <span style={{ fontSize: '28px' }}>⏱️</span>
+                  <div>
+                    <div style={{ fontSize: '11px', opacity: 0.9, fontWeight: '500' }}>Time Remaining</div>
+                    <div style={{ fontSize: '26px', fontWeight: 'bold', lineHeight: '1.2' }}>
+                      {formatTime(testTimeRemaining)}
+                    </div>
+                  </div>
+                </div>
+                <div style={{
+                  background: 'rgba(255,255,255,0.15)',
+                  padding: '14px 28px',
+                  borderRadius: '12px',
+                  textAlign: 'center',
+                  border: '2px solid rgba(255,255,255,0.2)',
+                  backdropFilter: 'blur(10px)',
+                  minWidth: '140px'
+                }}>
+                  <div style={{ fontSize: '11px', opacity: 0.9, fontWeight: '500' }}>Answered</div>
+                  <div style={{ fontSize: '26px', fontWeight: 'bold', lineHeight: '1.2' }}>
+                    {Object.keys(answers).length} / {testQuestions.length}
+                  </div>
+                </div>
+                <button
+                  onClick={handleExitTest}
+                  style={{
+                    background: 'rgba(239, 68, 68, 0.3)',
+                    border: '2px solid rgba(255,255,255,0.4)',
+                    color: 'white',
+                    padding: '14px 24px',
+                    borderRadius: '10px',
+                    fontSize: '15px',
+                    fontWeight: '700',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '10px',
+                    backdropFilter: 'blur(10px)',
+                    boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
+                    transition: 'all 0.2s ease'
+                  }}
+                  onMouseOver={(e) => {
+                    e.currentTarget.style.background = 'rgba(239, 68, 68, 0.5)';
+                    e.currentTarget.style.transform = 'scale(1.05)';
+                  }}
+                  onMouseOut={(e) => {
+                    e.currentTarget.style.background = 'rgba(239, 68, 68, 0.3)';
+                    e.currentTarget.style.transform = 'scale(1)';
+                  }}
+                >
+                  <span style={{ fontSize: '18px' }}>❌</span>
+                  Exit Test
+                </button>
               </div>
             </div>
+          </div>
             
           {/* Test Content Area */}
           <div style={{
@@ -666,12 +904,13 @@ const StudentTestCenter = () => {
               <div style={{
                 display: 'grid',
                 gridTemplateColumns: 'repeat(5, 1fr)',
-                gap: '8px'
+                gap: '10px'
               }}>
                 {testQuestions.map((q, index) => {
-                  const isAnswered = !!answers[q.id];
+                  const qId = q.questionId || q.id;
+                  const isAnswered = !!answers[qId];
                   const isCurrent = index === currentQuestionIndex;
-                  const isMarked = markedForReview.has(q.id);
+                  const isMarked = markedForReview.has(qId);
                   
                   let bgColor = '#475569'; // Not answered
                   if (isAnswered && isMarked) {
@@ -687,23 +926,28 @@ const StudentTestCenter = () => {
                         key={index}
                         onClick={() => goToQuestion(index)}
                       style={{
-                        width: '40px',
-                        height: '40px',
-                        borderRadius: '8px',
-                        border: isCurrent ? '2px solid white' : 'none',
+                        width: '48px',
+                        height: '48px',
+                        borderRadius: '10px',
+                        border: isCurrent ? '3px solid #fbbf24' : 'none',
                         background: bgColor,
                         color: 'white',
-                        fontSize: '14px',
-                        fontWeight: '600',
+                        fontSize: '15px',
+                        fontWeight: '700',
                         cursor: 'pointer',
                         transition: 'all 0.2s ease',
-                        position: 'relative'
+                        position: 'relative',
+                        boxShadow: isCurrent ? '0 0 0 3px rgba(251, 191, 36, 0.3)' : 'none'
                       }}
                       onMouseOver={(e) => {
-                        if (!isCurrent) e.currentTarget.style.transform = 'scale(1.1)';
+                        if (!isCurrent) {
+                          e.currentTarget.style.transform = 'scale(1.1)';
+                          e.currentTarget.style.boxShadow = '0 4px 8px rgba(0,0,0,0.3)';
+                        }
                       }}
                       onMouseOut={(e) => {
                         e.currentTarget.style.transform = 'scale(1)';
+                        e.currentTarget.style.boxShadow = isCurrent ? '0 0 0 3px rgba(251, 191, 36, 0.3)' : 'none';
                       }}
                       title={
                         isAnswered && isMarked ? 'Answered & Marked for Review' :
@@ -716,9 +960,10 @@ const StudentTestCenter = () => {
                       {isMarked && (
                         <span style={{
                           position: 'absolute',
-                          top: '-4px',
-                          right: '-4px',
-                          fontSize: '10px'
+                          top: '-6px',
+                          right: '-6px',
+                          fontSize: '12px',
+                          filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.3))'
                         }}>
                           🚩
                         </span>
@@ -804,7 +1049,7 @@ const StudentTestCenter = () => {
             {/* Main Content Area - Question */}
             <div style={{
               flex: 1,
-              background: '#f8fafc',
+              background: 'linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%)',
               display: 'flex',
               flexDirection: 'column',
               overflow: 'hidden'
@@ -815,195 +1060,276 @@ const StudentTestCenter = () => {
                   <div style={{
                     flex: 1,
                     overflowY: 'auto',
-                    padding: '32px'
+                    padding: '32px',
+                    display: 'flex',
+                    flexDirection: 'column'
                   }}>
                     <div style={{
-                      maxWidth: '900px',
-                      margin: '0 auto',
+                      width: '100%',
+                      height: '100%',
                       background: 'white',
-                      borderRadius: '16px',
-                      padding: '32px',
-                      boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
+                      borderRadius: '20px',
+                      padding: '48px',
+                      boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.15), 0 10px 10px -5px rgba(0, 0, 0, 0.1)',
+                      display: 'flex',
+                      flexDirection: 'column'
                     }}>
                       {/* Question Header */}
                       <div style={{
                         display: 'flex',
                         justifyContent: 'space-between',
-                        alignItems: 'center',
-                        marginBottom: '24px',
-                        paddingBottom: '16px',
-                        borderBottom: '2px solid #e2e8f0'
+                        alignItems: 'flex-start',
+                        marginBottom: '32px',
+                        paddingBottom: '24px',
+                        borderBottom: '3px solid #e2e8f0'
                       }}>
                         <div>
                           <div style={{
                             display: 'inline-block',
                             background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
                             color: 'white',
-                            padding: '8px 20px',
-                            borderRadius: '8px',
-                            fontSize: '18px',
+                            padding: '12px 28px',
+                            borderRadius: '12px',
+                            fontSize: '22px',
                             fontWeight: '700',
-                            marginBottom: '8px'
+                            marginBottom: '12px',
+                            boxShadow: '0 4px 6px rgba(102, 126, 234, 0.3)'
                           }}>
-                            Question {currentQuestionIndex + 1}
+                            Question {currentQuestionIndex + 1} of {testQuestions.length}
                           </div>
-                          <div style={{ fontSize: '14px', color: '#64748b', marginTop: '8px' }}>
-                            Marks: {testQuestions[currentQuestionIndex]?.marks || 1} 
-                            {selectedTest.negativeMarking && testQuestions[currentQuestionIndex]?.negativeMarks > 0 && 
-                              ` | Negative: -${testQuestions[currentQuestionIndex]?.negativeMarks}`
-                            }
+                          <div style={{ fontSize: '16px', color: '#64748b', marginTop: '8px', display: 'flex', gap: '16px' }}>
+                            <span style={{ fontWeight: '600', color: '#1e293b' }}>
+                              📊 Marks: <span style={{ color: '#667eea' }}>{testQuestions[currentQuestionIndex]?.marks || 1}</span>
+                            </span>
+                            {selectedTest.negativeMarking && testQuestions[currentQuestionIndex]?.negativeMarks > 0 && (
+                              <span style={{ fontWeight: '600', color: '#dc2626' }}>
+                                ⚠️ Negative: -{testQuestions[currentQuestionIndex]?.negativeMarks}
+                              </span>
+                            )}
                           </div>
                         </div>
                         <div style={{
-                          background: answers[testQuestions[currentQuestionIndex]?.id] ? '#dcfce7' : '#fee2e2',
-                          color: answers[testQuestions[currentQuestionIndex]?.id] ? '#166534' : '#991b1b',
-                          padding: '8px 16px',
-                          borderRadius: '8px',
-                          fontSize: '14px',
-                          fontWeight: '600'
+                          background: answers[testQuestions[currentQuestionIndex]?.questionId || testQuestions[currentQuestionIndex]?.id] ? 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)' : 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
+                          color: 'white',
+                          padding: '12px 24px',
+                          borderRadius: '12px',
+                          fontSize: '15px',
+                          fontWeight: '700',
+                          boxShadow: '0 4px 6px rgba(0,0,0,0.2)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '8px'
                         }}>
-                          {answers[testQuestions[currentQuestionIndex]?.id] ? '✓ Answered' : '○ Not Answered'}
+                          <span style={{ fontSize: '20px' }}>
+                            {answers[testQuestions[currentQuestionIndex]?.questionId || testQuestions[currentQuestionIndex]?.id] ? '✓' : '○'}
+                          </span>
+                          {answers[testQuestions[currentQuestionIndex]?.questionId || testQuestions[currentQuestionIndex]?.id] ? 'Answered' : 'Not Answered'}
                         </div>
-                  </div>
+                      </div>
 
                       {/* Question Text */}
                       <div style={{
-                        fontSize: '18px',
-                        lineHeight: '1.8',
-                        color: '#1e293b',
-                        marginBottom: '24px',
-                        fontWeight: '500'
+                        background: 'linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)',
+                        padding: '40px',
+                        borderRadius: '20px',
+                        marginBottom: '36px',
+                        borderLeft: '8px solid #667eea',
+                        boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.05)'
                       }}>
+                        <div style={{
+                          fontSize: '14px',
+                          fontWeight: '700',
+                          color: '#667eea',
+                          marginBottom: '16px',
+                          textTransform: 'uppercase',
+                          letterSpacing: '1.5px'
+                        }}>
+                          Question
+                        </div>
+                        <div style={{
+                          fontSize: '22px',
+                          lineHeight: '2',
+                          color: '#1e293b',
+                          fontWeight: '500'
+                        }}>
                       {testQuestions[currentQuestionIndex]?.questionText}
+                        </div>
                     </div>
                     
                       {/* Quick Actions */}
                       <div style={{
                         display: 'flex',
-                        gap: '12px',
-                        marginBottom: '24px'
+                        gap: '20px',
+                        marginBottom: '36px',
+                        justifyContent: 'center'
                       }}>
                         <button
-                          onClick={() => clearAnswer(testQuestions[currentQuestionIndex]?.id)}
-                          disabled={!answers[testQuestions[currentQuestionIndex]?.id]}
+                          onClick={() => {
+                            const qId = testQuestions[currentQuestionIndex]?.questionId || testQuestions[currentQuestionIndex]?.id;
+                            clearAnswer(qId);
+                          }}
+                          disabled={!answers[testQuestions[currentQuestionIndex]?.questionId || testQuestions[currentQuestionIndex]?.id]}
                           style={{
-                            padding: '8px 16px',
-                            borderRadius: '6px',
-                            border: '1px solid #e2e8f0',
+                            padding: '14px 32px',
+                            borderRadius: '12px',
+                            border: '2px solid #fecaca',
                             background: 'white',
                             color: '#dc2626',
-                            fontSize: '14px',
-                            fontWeight: '500',
-                            cursor: answers[testQuestions[currentQuestionIndex]?.id] ? 'pointer' : 'not-allowed',
-                            opacity: answers[testQuestions[currentQuestionIndex]?.id] ? 1 : 0.5,
+                            fontSize: '16px',
+                            fontWeight: '600',
+                            cursor: answers[testQuestions[currentQuestionIndex]?.questionId || testQuestions[currentQuestionIndex]?.id] ? 'pointer' : 'not-allowed',
+                            opacity: answers[testQuestions[currentQuestionIndex]?.questionId || testQuestions[currentQuestionIndex]?.id] ? 1 : 0.4,
                             display: 'flex',
                             alignItems: 'center',
-                            gap: '6px'
+                            gap: '10px',
+                            boxShadow: answers[testQuestions[currentQuestionIndex]?.questionId || testQuestions[currentQuestionIndex]?.id] ? '0 2px 6px rgba(220, 38, 38, 0.25)' : 'none',
+                            minWidth: '180px',
+                            justifyContent: 'center'
                           }}
                         >
-                          🗑️ Clear Answer
+                          <span style={{ fontSize: '20px' }}>🗑️</span>
+                          Clear Answer
                         </button>
                         <button
-                          onClick={() => toggleMarkForReview(testQuestions[currentQuestionIndex]?.id)}
+                          onClick={() => {
+                            const qId = testQuestions[currentQuestionIndex]?.questionId || testQuestions[currentQuestionIndex]?.id;
+                            toggleMarkForReview(qId);
+                          }}
                           style={{
-                            padding: '8px 16px',
-                            borderRadius: '6px',
-                            border: '1px solid #e2e8f0',
-                            background: markedForReview.has(testQuestions[currentQuestionIndex]?.id) ? '#fef3c7' : 'white',
-                            color: markedForReview.has(testQuestions[currentQuestionIndex]?.id) ? '#92400e' : '#64748b',
-                            fontSize: '14px',
-                            fontWeight: '500',
+                            padding: '14px 32px',
+                            borderRadius: '12px',
+                            border: '2px solid ' + (markedForReview.has(testQuestions[currentQuestionIndex]?.questionId || testQuestions[currentQuestionIndex]?.id) ? '#fde047' : '#e2e8f0'),
+                            background: markedForReview.has(testQuestions[currentQuestionIndex]?.questionId || testQuestions[currentQuestionIndex]?.id) ? 'linear-gradient(135deg, #fef3c7 0%, #fde047 100%)' : 'white',
+                            color: markedForReview.has(testQuestions[currentQuestionIndex]?.questionId || testQuestions[currentQuestionIndex]?.id) ? '#92400e' : '#64748b',
+                            fontSize: '16px',
+                            fontWeight: '600',
                             cursor: 'pointer',
                             display: 'flex',
                             alignItems: 'center',
-                            gap: '6px'
+                            gap: '10px',
+                            boxShadow: markedForReview.has(testQuestions[currentQuestionIndex]?.questionId || testQuestions[currentQuestionIndex]?.id) ? '0 2px 6px rgba(245, 158, 11, 0.35)' : 'none',
+                            minWidth: '220px',
+                            justifyContent: 'center'
                           }}
                         >
-                          🚩 {markedForReview.has(testQuestions[currentQuestionIndex]?.id) ? 'Unmark' : 'Mark for Review'}
+                          <span style={{ fontSize: '20px' }}>🚩</span>
+                          {markedForReview.has(testQuestions[currentQuestionIndex]?.questionId || testQuestions[currentQuestionIndex]?.id) ? 'Unmark Review' : 'Mark for Review'}
                         </button>
                     </div>
                     
-                      {/* Options */}
+                      {/* Options Section */}
                       <div style={{
+                        flex: 1,
                         display: 'flex',
-                        flexDirection: 'column',
-                        gap: '16px'
+                        flexDirection: 'column'
                       }}>
+                        <div style={{
+                          fontSize: '13px',
+                          fontWeight: '600',
+                          color: '#475569',
+                          marginBottom: '20px',
+                          textTransform: 'uppercase',
+                          letterSpacing: '1px'
+                        }}>
+                          Choose your answer
+                        </div>
+                        <div style={{
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: '20px',
+                          flex: 1
+                        }}>
                         {testQuestions[currentQuestionIndex]?.options?.map((option, index) => {
                           const optionValue = option.optionText || option;
-                          const isSelected = answers[testQuestions[currentQuestionIndex].id] === optionValue;
+                          const currentQ = testQuestions[currentQuestionIndex];
+                          const currentQuestionId = currentQ.questionId || currentQ.id;
+                          const isSelected = answers[currentQuestionId] === optionValue;
                           
                           return (
                             <label 
                               key={index} 
+                              onClick={() => handleAnswerChange(currentQuestionId, optionValue)}
                               style={{
                                 display: 'flex',
                                 alignItems: 'center',
-                                gap: '16px',
-                                padding: '20px',
-                                background: isSelected ? '#e0e7ff' : 'white',
-                                border: `2px solid ${isSelected ? '#667eea' : '#e2e8f0'}`,
-                                borderRadius: '12px',
+                                gap: '20px',
+                                padding: '24px 28px',
+                                background: isSelected ? 'linear-gradient(135deg, #e0e7ff 0%, #dbeafe 100%)' : 'white',
+                                border: `3px solid ${isSelected ? '#667eea' : '#e2e8f0'}`,
+                                borderRadius: '16px',
                                 cursor: 'pointer',
                                 transition: 'all 0.2s ease',
-                                position: 'relative'
+                                position: 'relative',
+                                boxShadow: isSelected ? '0 4px 12px rgba(102, 126, 234, 0.3)' : '0 2px 4px rgba(0,0,0,0.05)',
+                                width: '100%'
                               }}
                               onMouseOver={(e) => {
                                 if (!isSelected) {
-                                  e.currentTarget.style.background = '#f8fafc';
-                                  e.currentTarget.style.borderColor = '#cbd5e1';
+                                  e.currentTarget.style.background = 'linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)';
+                                  e.currentTarget.style.borderColor = '#667eea';
+                                  e.currentTarget.style.transform = 'translateX(8px)';
+                                  e.currentTarget.style.boxShadow = '0 6px 16px rgba(102, 126, 234, 0.2)';
                                 }
                               }}
                               onMouseOut={(e) => {
                                 if (!isSelected) {
                                   e.currentTarget.style.background = 'white';
                                   e.currentTarget.style.borderColor = '#e2e8f0';
+                                  e.currentTarget.style.transform = 'translateX(0)';
+                                  e.currentTarget.style.boxShadow = '0 2px 4px rgba(0,0,0,0.05)';
                                 }
                               }}
                             >
                           <input
                             type="radio"
-                            name={`question_${testQuestions[currentQuestionIndex].id}`}
+                            name={`question_${currentQuestionId}`}
                                 value={optionValue}
                                 checked={isSelected}
-                            onChange={(e) => handleAnswerChange(testQuestions[currentQuestionIndex].id, e.target.value)}
+                            onChange={(e) => {
+                              e.stopPropagation();
+                              handleAnswerChange(currentQuestionId, e.target.value);
+                            }}
                                 style={{ display: 'none' }}
                               />
                               <div style={{
-                                width: '40px',
-                                height: '40px',
-                                borderRadius: '8px',
-                                background: isSelected ? '#667eea' : '#f1f5f9',
+                                width: '64px',
+                                height: '64px',
+                                borderRadius: '14px',
+                                background: isSelected ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' : '#f1f5f9',
                                 color: isSelected ? 'white' : '#475569',
                                 display: 'flex',
                                 alignItems: 'center',
                                 justifyContent: 'center',
-                                fontSize: '16px',
-                                fontWeight: 'bold',
-                                flexShrink: 0
+                                fontSize: '24px',
+                                fontWeight: '800',
+                                flexShrink: 0,
+                                boxShadow: isSelected ? '0 6px 12px rgba(102, 126, 234, 0.5)' : '0 2px 4px rgba(0,0,0,0.05)',
+                                transition: 'all 0.2s ease'
                               }}>
                                 {option.optionLetter || String.fromCharCode(65 + index)}
                               </div>
                               <span style={{
                                 flex: 1,
-                                fontSize: '16px',
+                                fontSize: '19px',
                                 color: '#1e293b',
-                                lineHeight: '1.6'
+                                lineHeight: '1.8',
+                                fontWeight: '500'
                               }}>
                                 {option.optionText || option}
                               </span>
                               {isSelected && (
                                 <div style={{
-                                  width: '24px',
-                                  height: '24px',
+                                  width: '40px',
+                                  height: '40px',
                                   borderRadius: '50%',
-                                  background: '#22c55e',
+                                  background: 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)',
                                   color: 'white',
                                   display: 'flex',
                                   alignItems: 'center',
                                   justifyContent: 'center',
-                                  fontSize: '14px',
-                                  fontWeight: 'bold'
+                                  fontSize: '22px',
+                                  fontWeight: 'bold',
+                                  boxShadow: '0 4px 8px rgba(34, 197, 94, 0.5)'
                                 }}>
                                   ✓
                                 </div>
@@ -1011,6 +1337,7 @@ const StudentTestCenter = () => {
                         </label>
                           );
                         })}
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -1018,33 +1345,38 @@ const StudentTestCenter = () => {
                   {/* Navigation Footer - Fixed */}
                   <div style={{
                     background: 'white',
-                    padding: '20px 32px',
-                    borderTop: '2px solid #e2e8f0',
+                    padding: '24px 48px',
+                    borderTop: '3px solid #e2e8f0',
                     display: 'flex',
                     justifyContent: 'space-between',
                     alignItems: 'center',
-                    gap: '20px',
-                    flexShrink: 0
+                    gap: '32px',
+                    flexShrink: 0,
+                    boxShadow: '0 -4px 6px rgba(0,0,0,0.05)'
                   }}>
                     <button 
                       className="btn btn-secondary"
                       onClick={previousQuestion}
                       disabled={currentQuestionIndex === 0}
                       style={{
-                        padding: '12px 24px',
-                        borderRadius: '8px',
+                        padding: '16px 32px',
+                        borderRadius: '12px',
                         border: '2px solid #cbd5e1',
                         background: currentQuestionIndex === 0 ? '#e2e8f0' : 'white',
                         color: currentQuestionIndex === 0 ? '#94a3b8' : '#475569',
-                        fontSize: '16px',
-                        fontWeight: '500',
+                        fontSize: '17px',
+                        fontWeight: '600',
                         cursor: currentQuestionIndex === 0 ? 'not-allowed' : 'pointer',
                         display: 'flex',
                         alignItems: 'center',
-                        gap: '8px'
+                        gap: '10px',
+                        minWidth: '160px',
+                        justifyContent: 'center',
+                        boxShadow: currentQuestionIndex === 0 ? 'none' : '0 2px 4px rgba(0,0,0,0.1)'
                       }}
                     >
-                      ⬅️ Previous
+                      <span style={{ fontSize: '20px' }}>⬅️</span>
+                      Previous
                     </button>
 
                     <div style={{ 
@@ -1052,29 +1384,32 @@ const StudentTestCenter = () => {
                       textAlign: 'center',
                       display: 'flex',
                       flexDirection: 'column',
-                      gap: '8px'
+                      gap: '12px'
                     }}>
                       <div style={{ 
-                        fontSize: '14px', 
-                        color: '#64748b',
-                        fontWeight: '500'
+                        fontSize: '16px', 
+                        color: '#1e293b',
+                        fontWeight: '600'
                       }}>
-                        Progress: {Object.keys(answers).length} answered, {testQuestions.length - Object.keys(answers).length} remaining
+                        Progress: <span style={{ color: '#22c55e' }}>{Object.keys(answers).length}</span> answered, 
+                        <span style={{ color: '#ef4444' }}> {testQuestions.length - Object.keys(answers).length}</span> remaining
                       </div>
                       <div style={{
-                        height: '8px',
+                        height: '12px',
                         background: '#e2e8f0',
-                        borderRadius: '4px',
+                        borderRadius: '6px',
                         overflow: 'hidden',
-                        maxWidth: '400px',
+                        maxWidth: '500px',
                         margin: '0 auto',
-                        width: '100%'
+                        width: '100%',
+                        boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.1)'
                       }}>
                         <div style={{
                           height: '100%',
                           background: 'linear-gradient(90deg, #22c55e 0%, #16a34a 100%)',
                           width: `${(Object.keys(answers).length / testQuestions.length) * 100}%`,
-                          transition: 'width 0.3s ease'
+                          transition: 'width 0.3s ease',
+                          boxShadow: '0 2px 4px rgba(34, 197, 94, 0.4)'
                         }}></div>
                       </div>
                     </div>
@@ -1084,20 +1419,24 @@ const StudentTestCenter = () => {
                       className="btn btn-secondary"
                       onClick={nextQuestion}
                         style={{
-                          padding: '12px 24px',
-                          borderRadius: '8px',
+                          padding: '16px 32px',
+                          borderRadius: '12px',
                           border: '2px solid #667eea',
                           background: 'white',
                           color: '#667eea',
-                          fontSize: '16px',
-                          fontWeight: '500',
+                          fontSize: '17px',
+                          fontWeight: '600',
                           cursor: 'pointer',
                           display: 'flex',
                           alignItems: 'center',
-                          gap: '8px'
+                          gap: '10px',
+                          minWidth: '160px',
+                          justifyContent: 'center',
+                          boxShadow: '0 2px 4px rgba(102, 126, 234, 0.2)'
                         }}
-                      >
-                        Next ➡️
+                    >
+                      Next
+                        <span style={{ fontSize: '20px' }}>➡️</span>
                     </button>
                     ) : (
                     <button 
@@ -1105,20 +1444,24 @@ const StudentTestCenter = () => {
                       onClick={handleSubmitTest}
                       disabled={loading}
                         style={{
-                          padding: '12px 32px',
-                          borderRadius: '8px',
+                          padding: '16px 40px',
+                          borderRadius: '12px',
                           background: loading ? '#cbd5e1' : 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)',
                           color: 'white',
                           border: 'none',
-                          fontSize: '16px',
-                          fontWeight: '600',
+                          fontSize: '18px',
+                          fontWeight: '700',
                           cursor: loading ? 'not-allowed' : 'pointer',
                           display: 'flex',
                           alignItems: 'center',
-                          gap: '8px'
+                          gap: '10px',
+                          minWidth: '200px',
+                          justifyContent: 'center',
+                          boxShadow: loading ? 'none' : '0 4px 6px rgba(34, 197, 94, 0.4)'
                         }}
                       >
-                        {loading ? '⏳ Submitting...' : '✅ Submit Test'}
+                        <span style={{ fontSize: '22px' }}>{loading ? '⏳' : '✅'}</span>
+                        {loading ? 'Submitting...' : 'Submit Test'}
                     </button>
                     )}
                   </div>
@@ -1298,6 +1641,306 @@ const StudentTestCenter = () => {
                   fontSize: '16px',
                   fontWeight: '600',
                   cursor: 'pointer'
+                }}
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Attempt Details Modal */}
+      {showAttemptDetailsModal && selectedAttempt && (
+        <div 
+          className="modal-overlay" 
+          onClick={(e) => {
+            console.log('Overlay clicked', e.target, e.currentTarget);
+            if (e.target === e.currentTarget) {
+              console.log('Closing modal via backdrop click');
+              handleCloseAttemptDetails();
+            }
+          }}
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'rgba(0, 0, 0, 0.8)',
+            backdropFilter: 'blur(4px)',
+            zIndex: 10001,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '20px',
+            overflow: 'auto'
+          }}
+        >
+          <div 
+            onClick={(e) => {
+              e.stopPropagation();
+              console.log('Modal content clicked - should not close');
+            }}
+            style={{
+              background: 'white',
+              borderRadius: '20px',
+              maxWidth: '700px',
+              width: '100%',
+              maxHeight: '90vh',
+              overflow: 'auto',
+              boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.3)',
+              position: 'relative'
+            }}
+          >
+            {/* Header */}
+            <div style={{
+              background: selectedAttempt.isPassed 
+                ? 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)' 
+                : 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
+              color: 'white',
+              padding: '32px',
+              borderTopLeftRadius: '20px',
+              borderTopRightRadius: '20px',
+              textAlign: 'center',
+              position: 'relative'
+            }}>
+              <div style={{ fontSize: '72px', marginBottom: '16px' }}>
+                {selectedAttempt.isPassed ? '🎉' : '📚'}
+              </div>
+              <h2 style={{ margin: 0, fontSize: '32px', fontWeight: '700', marginBottom: '8px' }}>
+                {selectedAttempt.isPassed ? 'Test Passed!' : 'Keep Practicing!'}
+              </h2>
+              <p style={{ margin: 0, fontSize: '16px', opacity: 0.95 }}>
+                Attempt #{selectedAttempt.attemptNumber} - {selectedAttempt.testName}
+              </p>
+              <button
+                onClick={handleCloseAttemptDetails}
+                style={{
+                  position: 'absolute',
+                  top: '16px',
+                  right: '16px',
+                  background: 'rgba(255,255,255,0.2)',
+                  border: 'none',
+                  color: 'white',
+                  width: '40px',
+                  height: '40px',
+                  borderRadius: '8px',
+                  fontSize: '24px',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  transition: 'all 0.2s ease',
+                  zIndex: 1
+                }}
+                onMouseOver={(e) => {
+                  e.currentTarget.style.background = 'rgba(255,255,255,0.4)';
+                  e.currentTarget.style.transform = 'scale(1.1)';
+                }}
+                onMouseOut={(e) => {
+                  e.currentTarget.style.background = 'rgba(255,255,255,0.2)';
+                  e.currentTarget.style.transform = 'scale(1)';
+                }}
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Body */}
+            <div style={{ padding: '40px' }}>
+              {/* Score Card */}
+              <div style={{
+                background: 'linear-gradient(135deg, #667eea15 0%, #764ba215 100%)',
+                padding: '32px',
+                borderRadius: '16px',
+                marginBottom: '32px',
+                textAlign: 'center',
+                border: '2px solid #e0e7ff'
+              }}>
+                <div style={{ fontSize: '16px', color: '#64748b', marginBottom: '12px', fontWeight: '500' }}>
+                  Final Score
+                </div>
+                <div style={{ 
+                  fontSize: '56px', 
+                  fontWeight: 'bold', 
+                  color: selectedAttempt.isPassed ? '#22c55e' : '#ef4444',
+                  marginBottom: '12px',
+                  textShadow: '0 2px 4px rgba(0,0,0,0.1)'
+                }}>
+                  {selectedAttempt.percentage.toFixed(1)}%
+                </div>
+                <div style={{ fontSize: '20px', color: '#475569', fontWeight: '600' }}>
+                  {selectedAttempt.totalMarksObtained} / {selectedAttempt.totalMarksAvailable} marks
+                </div>
+                <div style={{ 
+                  marginTop: '16px', 
+                  fontSize: '14px', 
+                  color: '#64748b',
+                  padding: '12px',
+                  background: 'rgba(255,255,255,0.6)',
+                  borderRadius: '8px'
+                }}>
+                  Passing Marks: {selectedAttempt.passingMarks}
+                </div>
+              </div>
+
+              {/* Stats Grid */}
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(3, 1fr)',
+                gap: '20px',
+                marginBottom: '32px'
+              }}>
+                <div style={{
+                  background: '#dcfce7',
+                  padding: '24px',
+                  borderRadius: '12px',
+                  textAlign: 'center',
+                  border: '2px solid #86efac'
+                }}>
+                  <div style={{ fontSize: '36px', fontWeight: 'bold', color: '#166534', marginBottom: '8px' }}>
+                    {selectedAttempt.correctAnswers}
+                  </div>
+                  <div style={{ fontSize: '14px', color: '#166534', fontWeight: '600' }}>
+                    ✓ Correct
+                  </div>
+                </div>
+                
+                <div style={{
+                  background: '#fee2e2',
+                  padding: '24px',
+                  borderRadius: '12px',
+                  textAlign: 'center',
+                  border: '2px solid #fca5a5'
+                }}>
+                  <div style={{ fontSize: '36px', fontWeight: 'bold', color: '#991b1b', marginBottom: '8px' }}>
+                    {selectedAttempt.wrongAnswers}
+                  </div>
+                  <div style={{ fontSize: '14px', color: '#991b1b', fontWeight: '600' }}>
+                    ✗ Wrong
+                  </div>
+                </div>
+                
+                <div style={{
+                  background: '#e0e7ff',
+                  padding: '24px',
+                  borderRadius: '12px',
+                  textAlign: 'center',
+                  border: '2px solid #a5b4fc'
+                }}>
+                  <div style={{ fontSize: '36px', fontWeight: 'bold', color: '#3730a3', marginBottom: '8px' }}>
+                    {selectedAttempt.unansweredQuestions}
+                  </div>
+                  <div style={{ fontSize: '14px', color: '#3730a3', fontWeight: '600' }}>
+                    ○ Skipped
+                  </div>
+                </div>
+              </div>
+
+              {/* Additional Info */}
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(2, 1fr)',
+                gap: '16px'
+              }}>
+                <div style={{
+                  background: '#f8fafc',
+                  padding: '20px',
+                  borderRadius: '12px',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center'
+                }}>
+                  <span style={{ fontSize: '14px', color: '#64748b', fontWeight: '600' }}>
+                    ⏱️ Time Taken:
+                  </span>
+                  <span style={{ fontSize: '18px', color: '#1e293b', fontWeight: '700' }}>
+                    {formatTime(selectedAttempt.timeTakenSeconds)}
+                  </span>
+                </div>
+                
+                <div style={{
+                  background: '#f8fafc',
+                  padding: '20px',
+                  borderRadius: '12px',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center'
+                }}>
+                  <span style={{ fontSize: '14px', color: '#64748b', fontWeight: '600' }}>
+                    📝 Total Questions:
+                  </span>
+                  <span style={{ fontSize: '18px', color: '#1e293b', fontWeight: '700' }}>
+                    {selectedAttempt.totalQuestions}
+                  </span>
+                </div>
+                
+                <div style={{
+                  background: '#f8fafc',
+                  padding: '20px',
+                  borderRadius: '12px',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center'
+                }}>
+                  <span style={{ fontSize: '14px', color: '#64748b', fontWeight: '600' }}>
+                    📅 Started:
+                  </span>
+                  <span style={{ fontSize: '14px', color: '#1e293b', fontWeight: '600' }}>
+                    {new Date(selectedAttempt.startedAt).toLocaleString()}
+                  </span>
+                </div>
+                
+                <div style={{
+                  background: '#f8fafc',
+                  padding: '20px',
+                  borderRadius: '12px',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center'
+                }}>
+                  <span style={{ fontSize: '14px', color: '#64748b', fontWeight: '600' }}>
+                    ✅ Submitted:
+                  </span>
+                  <span style={{ fontSize: '14px', color: '#1e293b', fontWeight: '600' }}>
+                    {new Date(selectedAttempt.submittedAt).toLocaleString()}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div style={{
+              background: '#f8fafc',
+              padding: '24px 40px',
+              borderTop: '1px solid #e2e8f0',
+              borderBottomLeftRadius: '20px',
+              borderBottomRightRadius: '20px',
+              display: 'flex',
+              justifyContent: 'center'
+            }}>
+              <button
+                onClick={handleCloseAttemptDetails}
+                style={{
+                  padding: '14px 48px',
+                  borderRadius: '10px',
+                  background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                  color: 'white',
+                  border: 'none',
+                  fontSize: '16px',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  boxShadow: '0 4px 6px rgba(102, 126, 234, 0.3)',
+                  transition: 'transform 0.2s ease, boxShadow 0.2s ease'
+                }}
+                onMouseOver={(e) => {
+                  e.currentTarget.style.transform = 'translateY(-2px)';
+                  e.currentTarget.style.boxShadow = '0 6px 12px rgba(102, 126, 234, 0.4)';
+                }}
+                onMouseOut={(e) => {
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.boxShadow = '0 4px 6px rgba(102, 126, 234, 0.3)';
                 }}
               >
                 Close
