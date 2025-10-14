@@ -1,171 +1,363 @@
-import React from 'react';
-import { Link } from 'react-router-dom';
+import React, { useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import './HomePage.css';
 
 const HomePage = () => {
+  const navigate = useNavigate();
+  const [activeCategory, setActiveCategory] = useState(0);
+
+  const stats = [
+    { number: '10,000+', label: 'Active Students', icon: '👨‍🎓' },
+    { number: '500+', label: 'Expert Teachers', icon: '👩‍🏫' },
+    { number: '1,000+', label: 'Quality Courses', icon: '📚' },
+    { number: '95%', label: 'Success Rate', icon: '🎯' }
+  ];
+
+  const features = [
+    {
+      icon: '🎓',
+      title: 'Personalized Learning',
+      description: 'AI-powered adaptive learning paths customized to your pace and style',
+      color: '#667eea'
+    },
+    {
+      icon: '📊',
+      title: 'Progress Analytics',
+      description: 'Detailed insights and performance tracking to monitor your growth',
+      color: '#22c55e'
+    },
+    {
+      icon: '🏆',
+      title: 'Certification',
+      description: 'Earn recognized certificates upon completing courses and assessments',
+      color: '#f59e0b'
+    },
+    {
+      icon: '💬',
+      title: 'Live Doubt Sessions',
+      description: 'Interactive sessions with expert instructors for instant clarification',
+      color: '#ef4444'
+    },
+    {
+      icon: '📱',
+      title: 'Mobile Learning',
+      description: 'Learn anytime, anywhere with our responsive platform',
+      color: '#a855f7'
+    },
+    {
+      icon: '🔒',
+      title: 'Secure & Private',
+      description: 'Your data is protected with enterprise-grade security',
+      color: '#06b6d4'
+    }
+  ];
+
+  const courseCategories = [
+    {
+      id: 1,
+      name: 'Academic Courses',
+      description: 'Complete school curriculum from Class 1 to 12',
+      image: '🏫',
+      courses: 450,
+      students: 5000,
+      color: '#667eea'
+    },
+    {
+      id: 2,
+      name: 'Competitive Exams',
+      description: 'Prepare for JEE, NEET, SSC, UPSC and more',
+      image: '🎯',
+      courses: 350,
+      students: 3500,
+      color: '#f59e0b'
+    },
+    {
+      id: 3,
+      name: 'Professional Skills',
+      description: 'Master in-demand skills for career growth',
+      image: '💼',
+      courses: 200,
+      students: 1500,
+      color: '#22c55e'
+    }
+  ];
+
+  const testimonials = [
+    {
+      name: 'Priya Sharma',
+      role: 'JEE Aspirant',
+      image: '👩‍🎓',
+      rating: 5,
+      text: 'Coaxial Academy helped me crack JEE Main with 98.5 percentile! The structured courses and mock tests were game-changers.',
+      achievement: 'JEE Main - 98.5%ile'
+    },
+    {
+      name: 'Rahul Kumar',
+      role: 'Class 10 Student',
+      image: '👨‍🎓',
+      rating: 5,
+      text: 'Scored 95% in boards thanks to the comprehensive study material and practice questions. Best investment ever!',
+      achievement: 'Board Exam - 95%'
+    },
+    {
+      name: 'Anita Desai',
+      role: 'SSC Candidate',
+      image: '👩‍💼',
+      rating: 5,
+      text: 'The question bank and test series are phenomenal. I cleared SSC CGL on my first attempt!',
+      achievement: 'SSC CGL - Cleared'
+    }
+  ];
+
+  const howItWorks = [
+    { step: '1', title: 'Create Account', description: 'Sign up for free in less than 2 minutes', icon: '📝' },
+    { step: '2', title: 'Choose Course', description: 'Browse and select from 1000+ courses', icon: '🎯' },
+    { step: '3', title: 'Start Learning', description: 'Access videos, notes, tests, and more', icon: '📚' },
+    { step: '4', title: 'Track Progress', description: 'Monitor performance and earn certificates', icon: '🏆' }
+  ];
+
   return (
-    <div className="home-page">
+    <div className="public-home-page">
       {/* Hero Section */}
-      <section className="hero-section">
-        <div className="hero-content">
-          <div className="hero-badge animate-fade-in-up">
-            <svg viewBox="0 0 20 20" fill="currentColor">
-              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-            </svg>
-            Trusted by 10,000+ learners worldwide
+      <section className="hero-section-new">
+        <div className="hero-background">
+          <div className="hero-shape-1"></div>
+          <div className="hero-shape-2"></div>
+          <div className="hero-shape-3"></div>
+        </div>
+        
+        <div className="hero-container">
+          <div className="hero-content-new">
+            <div className="hero-badge-new">
+              <span className="badge-icon">✨</span>
+              <span>Trusted by 10,000+ learners worldwide</span>
+            </div>
+            
+            <h1 className="hero-title-new">
+              Transform Your Future with
+              <span className="gradient-text"> World-Class Education</span>
+            </h1>
+            
+            <p className="hero-description">
+              Join India's fastest-growing online learning platform. Master academic subjects, 
+              crack competitive exams, and build professional skills - all in one place.
+            </p>
+            
+            <div className="hero-buttons">
+              <button onClick={() => navigate('/register')} className="btn-hero-primary">
+                <span>Start Free Trial</span>
+                <span className="btn-arrow">→</span>
+              </button>
+              <button onClick={() => navigate('/login')} className="btn-hero-secondary">
+                <span>Sign In</span>
+              </button>
+            </div>
+
+            <div className="hero-trust-badges">
+              <div className="trust-badge">
+                <span className="trust-icon">⭐</span>
+                <span>4.9/5 Rating</span>
+              </div>
+              <div className="trust-badge">
+                <span className="trust-icon">✅</span>
+                <span>Money Back Guarantee</span>
+              </div>
+              <div className="trust-badge">
+                <span className="trust-icon">🔒</span>
+                <span>Secure Payments</span>
+              </div>
+            </div>
           </div>
-          
-          <h1 className="hero-title animate-fade-in-up">
-            Transform Your Learning Journey with Coaxial Academy
-          </h1>
-          
-          <p className="hero-subtitle animate-fade-in-up">
-            Join our comprehensive online learning platform where students, instructors, 
-            and administrators collaborate to create exceptional educational experiences.
-          </p>
-          
-          <div className="hero-actions animate-fade-in-up">
-            <Link to="/register" className="btn btn-primary btn-lg">
-              Start Learning Today
-            </Link>
-            <Link to="/login" className="btn btn-outline btn-lg">
-              Sign In
-            </Link>
+
+          <div className="hero-visual">
+            <div className="visual-card card-1">
+              <div className="card-icon">📊</div>
+              <div className="card-text">95% Success Rate</div>
+            </div>
+            <div className="visual-card card-2">
+              <div className="card-icon">🎓</div>
+              <div className="card-text">Learn from Experts</div>
+            </div>
+            <div className="visual-card card-3">
+              <div className="card-icon">⚡</div>
+              <div className="card-text">Fast-Track Learning</div>
+            </div>
+            <div className="hero-main-visual">
+              <div className="visual-circle"></div>
+              <div className="visual-icon">🚀</div>
+            </div>
           </div>
-          
-          <div className="hero-stats animate-fade-in-scale">
-            <div className="stat-item">
-              <div className="stat-number">10K+</div>
-              <div className="stat-label">Active Students</div>
+        </div>
+      </section>
+
+      {/* Stats Section */}
+      <section className="stats-section">
+        <div className="stats-container">
+          {stats.map((stat, index) => (
+            <div key={index} className="stat-card-new">
+              <div className="stat-icon-new">{stat.icon}</div>
+              <div className="stat-number-new">{stat.number}</div>
+              <div className="stat-label-new">{stat.label}</div>
             </div>
-            <div className="stat-item">
-              <div className="stat-number">500+</div>
-              <div className="stat-label">Expert Instructors</div>
-            </div>
-            <div className="stat-item">
-              <div className="stat-number">1,000+</div>
-              <div className="stat-label">Courses Available</div>
-            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* Course Categories */}
+      <section className="categories-section">
+        <div className="section-container">
+          <div className="section-header-new">
+            <span className="section-tag">Explore</span>
+            <h2 className="section-title-new">Choose Your Learning Path</h2>
+            <p className="section-subtitle-new">
+              Comprehensive courses designed for every learning goal
+            </p>
+          </div>
+
+          <div className="categories-grid">
+            {courseCategories.map((category, index) => (
+              <div 
+                key={category.id}
+                className="category-card"
+                style={{ '--category-color': category.color }}
+              >
+                <div className="category-image">{category.image}</div>
+                <h3 className="category-name">{category.name}</h3>
+                <p className="category-description">{category.description}</p>
+                <div className="category-stats">
+                  <div className="category-stat">
+                    <span className="stat-icon">📚</span>
+                    <span>{category.courses} Courses</span>
+                  </div>
+                  <div className="category-stat">
+                    <span className="stat-icon">👥</span>
+                    <span>{category.students} Students</span>
+                  </div>
+                </div>
+                <button 
+                  className="category-button"
+                  onClick={() => navigate('/register')}
+                >
+                  Explore Now →
+                </button>
+              </div>
+            ))}
           </div>
         </div>
       </section>
 
       {/* Features Section */}
-      <section className="features-section">
-        <div className="features-container">
-          <div className="section-header">
-            <div className="section-badge">Features</div>
-            <h2 className="section-title">Why Choose Coaxial Academy?</h2>
-            <p className="section-subtitle">
-              Discover the powerful features that make Coaxial Academy the perfect platform 
-              for your educational journey.
+      <section className="features-section-new">
+        <div className="section-container">
+          <div className="section-header-new">
+            <span className="section-tag">Features</span>
+            <h2 className="section-title-new">Everything You Need to Succeed</h2>
+            <p className="section-subtitle-new">
+              Powerful tools and features designed to enhance your learning experience
             </p>
           </div>
-          
-          <div className="features-grid">
-            <div className="feature-card animate-fade-in-up">
-              <div className="feature-icon">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M9 12l2 2 4-4"/>
-                  <path d="M21 12c-1 0-3-1-3-3s2-3 3-3 3 1 3 3-2 3-3 3"/>
-                  <path d="M3 12c1 0 3-1 3-3s-2-3-3-3-3 1-3 3 2 3 3 3"/>
-                  <path d="M12 3c0 1-1 3-3 3s-3-2-3-3 1-3 3-3 3 2 3 3"/>
-                  <path d="M12 21c0-1 1-3 3-3s3 2 3 3-1 3-3 3-3-2-3-3"/>
-                </svg>
+
+          <div className="features-grid-new">
+            {features.map((feature, index) => (
+              <div key={index} className="feature-card-new">
+                <div className="feature-icon-new" style={{ color: feature.color }}>
+                  {feature.icon}
+                </div>
+                <h3 className="feature-title-new">{feature.title}</h3>
+                <p className="feature-description-new">{feature.description}</p>
               </div>
-              <h3 className="feature-title">Personalized Learning</h3>
-              <p className="feature-description">
-                Adaptive learning paths tailored to your pace and preferences. 
-                Get personalized recommendations and track your progress.
-              </p>
-              <Link to="/courses" className="feature-link">
-                Explore Courses
-                <svg viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clipRule="evenodd" />
-                </svg>
-              </Link>
-            </div>
-            
-            <div className="feature-card animate-fade-in-up">
-              <div className="feature-icon">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/>
-                  <circle cx="9" cy="7" r="4"/>
-                  <path d="M23 21v-2a4 4 0 00-3-3.87"/>
-                  <path d="M16 3.13a4 4 0 010 7.75"/>
-                </svg>
-              </div>
-              <h3 className="feature-title">Expert Instructors</h3>
-              <p className="feature-description">
-                Learn from industry professionals and academic experts. 
-                Get direct access to mentors and participate in live sessions.
-              </p>
-              <Link to="/instructors" className="feature-link">
-                Meet Instructors
-                <svg viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clipRule="evenodd" />
-                </svg>
-              </Link>
-            </div>
-            
-            <div className="feature-card animate-fade-in-up">
-              <div className="feature-icon">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M18 20V10"/>
-                  <path d="M12 20V4"/>
-                  <path d="M6 20v-6"/>
-                </svg>
-              </div>
-              <h3 className="feature-title">Progress Tracking</h3>
-              <p className="feature-description">
-                Monitor your learning journey with detailed analytics. 
-                Track completion rates, quiz scores, and skill development.
-              </p>
-              <Link to="/dashboard" className="feature-link">
-                View Analytics
-                <svg viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clipRule="evenodd" />
-                </svg>
-              </Link>
-            </div>
-            
-            <div className="feature-card animate-fade-in-up">
-              <div className="feature-icon">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <circle cx="12" cy="12" r="3"/>
-                  <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z"/>
-                </svg>
-              </div>
-              <h3 className="feature-title">Global Community</h3>
-              <p className="feature-description">
-                Connect with learners from around the world. 
-                Join study groups, participate in discussions, and collaborate on projects.
-              </p>
-              <Link to="/community" className="feature-link">
-                Join Community
-                <svg viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clipRule="evenodd" />
-                </svg>
-              </Link>
-            </div>
+            ))}
           </div>
         </div>
       </section>
 
-      {/* Call to Action Section */}
-      <section className="cta-section">
-        <div className="cta-container">
-          <h2 className="cta-title">Ready to Start Your Learning Journey?</h2>
-          <p className="cta-subtitle">
-            Join thousands of students who are already transforming their lives through education.
-          </p>
-          <div className="cta-actions">
-            <Link to="/register" className="btn-cta-primary">
-              Get Started Free
-            </Link>
-            <Link to="/about" className="btn-cta-secondary">
-              Learn More
-            </Link>
+      {/* How It Works */}
+      <section className="how-it-works-section">
+        <div className="section-container">
+          <div className="section-header-new">
+            <span className="section-tag">Process</span>
+            <h2 className="section-title-new">How It Works</h2>
+            <p className="section-subtitle-new">
+              Get started in 4 simple steps
+            </p>
+          </div>
+
+          <div className="steps-grid">
+            {howItWorks.map((step, index) => (
+              <div key={index} className="step-card">
+                <div className="step-number">{step.step}</div>
+                <div className="step-icon">{step.icon}</div>
+                <h4 className="step-title">{step.title}</h4>
+                <p className="step-description">{step.description}</p>
+                {index < howItWorks.length - 1 && (
+                  <div className="step-connector">→</div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Testimonials */}
+      <section className="testimonials-section">
+        <div className="section-container">
+          <div className="section-header-new">
+            <span className="section-tag">Success Stories</span>
+            <h2 className="section-title-new">What Our Students Say</h2>
+            <p className="section-subtitle-new">
+              Real stories from real students who achieved their goals
+            </p>
+          </div>
+
+          <div className="testimonials-grid">
+            {testimonials.map((testimonial, index) => (
+              <div key={index} className="testimonial-card">
+                <div className="testimonial-header">
+                  <div className="testimonial-avatar">{testimonial.image}</div>
+                  <div className="testimonial-info">
+                    <div className="testimonial-name">{testimonial.name}</div>
+                    <div className="testimonial-role">{testimonial.role}</div>
+                  </div>
+                  <div className="testimonial-rating">
+                    {'⭐'.repeat(testimonial.rating)}
+                  </div>
+                </div>
+                <p className="testimonial-text">"{testimonial.text}"</p>
+                <div className="testimonial-achievement">
+                  <span className="achievement-icon">🏆</span>
+                  <span>{testimonial.achievement}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* CTA Section */}
+      <section className="cta-section-new">
+        <div className="cta-background">
+          <div className="cta-shape-1"></div>
+          <div className="cta-shape-2"></div>
+        </div>
+        <div className="cta-container-new">
+          <div className="cta-content-new">
+            <h2 className="cta-title-new">Ready to Transform Your Future?</h2>
+            <p className="cta-subtitle-new">
+              Join thousands of successful students. Start your learning journey today!
+            </p>
+            <div className="cta-buttons">
+              <button onClick={() => navigate('/register')} className="btn-cta-large">
+                Get Started Free
+                <span className="btn-shine"></span>
+              </button>
+              <button onClick={() => navigate('/login')} className="btn-cta-outline">
+                Sign In to Continue
+              </button>
+            </div>
+            <div className="cta-note">
+              <span className="note-icon">✨</span>
+              <span>No credit card required • 7-day free trial</span>
+            </div>
           </div>
         </div>
       </section>

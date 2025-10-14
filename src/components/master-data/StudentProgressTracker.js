@@ -1,245 +1,86 @@
-import React, { useEffect, useRef, useState, useCallback } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useApp } from '../../context/AppContext';
+import { getUserSubscriptions } from '../../services/subscriptionService';
+import './StudentProgressTracker.css';
 
 const StudentProgressTracker = () => {
   const { token, addNotification } = useApp();
-  // Using dummy data for now - will be replaced with actual API calls
-  const courseTypes = [
-    { id: 1, name: "Academic Course", description: "Complete school curriculum courses" },
-    { id: 2, name: "Competitive Exam", description: "Preparation courses for various competitive examinations" },
-    { id: 3, name: "Professional Course", description: "Skill-based professional development courses" }
-  ];
-  
-  const courses = [
-    { id: 1, name: "Academic Course Class 1-10", courseTypeId: 1 },
-    { id: 2, name: "SSC", courseTypeId: 2 },
-    { id: 3, name: "Photography", courseTypeId: 3 }
-  ];
-  
-  const classes = [
-    { id: 6, name: "Grade 1", courseId: 1 },
-    { id: 7, name: "Grade 2", courseId: 1 },
-    { id: 8, name: "Grade 12", courseId: 4 }
-  ];
-  
-  const exams = [
-    { id: 1, name: "SSC MTS", courseId: 2 },
-    { id: 2, name: "SSC GD", courseId: 2 }
-  ];
   
   const [subscriptions, setSubscriptions] = useState([]);
   const [selectedSubscription, setSelectedSubscription] = useState(null);
-  const [progressData, setProgressData] = useState({
-    overall: {},
-    subjects: [],
-    topics: [],
-    modules: [],
-    chapters: []
-  });
-  const [testPerformance, setTestPerformance] = useState([]);
-  const [questionStats, setQuestionStats] = useState({});
-  const [loading, setLoading] = useState(false);
   const [timeRange, setTimeRange] = useState('30'); // days
+  const [loading, setLoading] = useState(false);
   
-  // Removed apiCall - using dummy data for now
+  // Mock data - structured to be easily replaced with real APIs
+  const [dashboardData, setDashboardData] = useState({
+    totalTests: 15,
+    averageScore: 78.5,
+    passRate: 80,
+    totalQuestionsPracticed: 450,
+    totalStudyTime: 14400, // seconds
+    currentStreak: 7,
+    longestStreak: 12,
+    lastActivityDate: new Date().toISOString()
+  });
 
-  // Load course types on mount - using dummy data for now
+  const [testHistory, setTestHistory] = useState([
+    { id: 1, testName: 'Mathematics - Algebra Test', score: 85, totalQuestions: 20, correctAnswers: 17, date: '2025-10-14', timeTaken: 1200, isPassed: true },
+    { id: 2, testName: 'Physics - Motion Test', score: 92, totalQuestions: 15, correctAnswers: 14, date: '2025-10-13', timeTaken: 900, isPassed: true },
+    { id: 3, testName: 'Chemistry - Atoms Test', score: 68, totalQuestions: 25, correctAnswers: 17, date: '2025-10-12', timeTaken: 1500, isPassed: true },
+    { id: 4, testName: 'Mathematics - Geometry Test', score: 55, totalQuestions: 20, correctAnswers: 11, date: '2025-10-11', timeTaken: 1100, isPassed: false },
+    { id: 5, testName: 'English - Grammar Test', score: 88, totalQuestions: 30, correctAnswers: 26, date: '2025-10-10', timeTaken: 1800, isPassed: true }
+  ]);
+
+  const [subjectPerformance, setSubjectPerformance] = useState([
+    { subject: 'Mathematics', testsAttempted: 5, averageScore: 82, questionsAttempted: 120, accuracy: 85, strongTopics: 3, weakTopics: 1 },
+    { subject: 'Physics', testsAttempted: 3, averageScore: 88, questionsAttempted: 90, accuracy: 90, strongTopics: 2, weakTopics: 0 },
+    { subject: 'Chemistry', testsAttempted: 4, averageScore: 72, questionsAttempted: 110, accuracy: 75, strongTopics: 1, weakTopics: 2 },
+    { subject: 'English', testsAttempted: 3, averageScore: 86, questionsAttempted: 85, accuracy: 88, strongTopics: 2, weakTopics: 1 }
+  ]);
+
+  const [recentActivity, setRecentActivity] = useState([
+    { type: 'test', title: 'Completed Mathematics Test', score: 85, date: '2025-10-14T10:30:00' },
+    { type: 'practice', title: 'Practiced 15 Physics questions', date: '2025-10-14T09:00:00' },
+    { type: 'test', title: 'Completed English Test', score: 88, date: '2025-10-13T14:30:00' },
+    { type: 'bookmark', title: 'Bookmarked 5 questions', date: '2025-10-13T11:00:00' },
+    { type: 'test', title: 'Completed Chemistry Test', score: 68, date: '2025-10-12T16:00:00' }
+  ]);
+
+  const [performanceTrend, setPerformanceTrend] = useState([
+    { date: '2025-10-08', avgScore: 65 },
+    { date: '2025-10-09', avgScore: 70 },
+    { date: '2025-10-10', avgScore: 75 },
+    { date: '2025-10-11', avgScore: 68 },
+    { date: '2025-10-12', avgScore: 78 },
+    { date: '2025-10-13', avgScore: 82 },
+    { date: '2025-10-14', avgScore: 85 }
+  ]);
+
+  // Load subscriptions
   useEffect(() => {
-    console.log('Course types loaded:', courseTypes);
-  }, [courseTypes]);
+    if (token) {
+      loadSubscriptions();
+    }
+  }, [token]);
 
-  // Load student subscriptions - using dummy data for now
-  const loadSubscriptions = useCallback(async () => {
+  const loadSubscriptions = async () => {
     try {
       setLoading(true);
-      // Using dummy data for now
-      const dummySubscriptions = [
-        {
-          id: 1,
-          courseTypeId: 1,
-          courseId: 1,
-          classId: 6,
-          examId: null,
-          subscriptionType: 'class',
-          startDate: '2024-01-01',
-          endDate: '2024-12-31',
-          isActive: true
-        }
-      ];
+      const data = await getUserSubscriptions(token);
+      const activeSubscriptions = (data || []).filter(
+        sub => sub.status === 'ACTIVE' && sub.paymentStatus === 'PAID'
+      );
+      setSubscriptions(activeSubscriptions);
       
-      setSubscriptions(dummySubscriptions);
+      if (activeSubscriptions.length > 0) {
+        setSelectedSubscription(activeSubscriptions[0]);
+      }
     } catch (error) {
       console.error('Error loading subscriptions:', error);
-      addNotification('Failed to load subscriptions', 'error');
+      addNotification('❌ Failed to load subscriptions', 'error');
     } finally {
       setLoading(false);
     }
-  }, []);
-
-  // Load subscriptions on mount
-  useEffect(() => {
-    loadSubscriptions();
-  }, [loadSubscriptions]);
-
-  // Load progress data when subscription changes
-  useEffect(() => {
-    if (selectedSubscription) {
-      loadProgressData();
-      loadTestPerformance();
-      loadQuestionStats();
-    }
-  }, [selectedSubscription, timeRange]);
-
-  const loadProgressData = async () => {
-    if (!selectedSubscription) return;
-
-    try {
-      setLoading(true);
-      
-      // Using dummy data for now
-      const dummyProgressData = {
-        overall: {
-          chaptersCompleted: 25,
-          totalChapters: 360,
-          questionsAttempted: 150,
-          correctAnswers: 120,
-          timeSpent: 7200
-        },
-        subjects: [
-          {
-            id: 1,
-            name: 'Mathematics',
-            chaptersCompleted: 10,
-            totalChapters: 120,
-            questionsAttempted: 80,
-            accuracy: 85,
-            progressPercentage: 8
-          },
-          {
-            id: 2,
-            name: 'Hindi',
-            chaptersCompleted: 8,
-            totalChapters: 96,
-            questionsAttempted: 45,
-            accuracy: 78,
-            progressPercentage: 8
-          }
-        ],
-        topics: [
-          {
-            id: 1,
-            name: 'Basic Addition',
-            subjectName: 'Mathematics',
-            chaptersCompleted: 5,
-            totalChapters: 15,
-            accuracy: 90,
-            progressPercentage: 33
-          }
-        ]
-      };
-      
-      setProgressData(dummyProgressData);
-    } catch (error) {
-      console.error('Error loading progress data:', error);
-      addNotification('Failed to load progress data', 'error');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const loadTestPerformance = async () => {
-    if (!selectedSubscription) return;
-
-    try {
-      // Using dummy data for now
-      const dummyTestPerformance = [
-        {
-          id: 1,
-          testId: 1,
-          testName: 'Mathematics Chapter 1 Test',
-          score: 85,
-          totalQuestions: 20,
-          correctAnswers: 17,
-          timeSpent: 1800,
-          attemptedAt: '2024-01-15T10:30:00.000Z',
-          completedAt: '2024-01-15T11:00:00.000Z',
-          isCompleted: true
-        },
-        {
-          id: 2,
-          testId: 2,
-          testName: 'Hindi Vocabulary Test',
-          score: 92,
-          totalQuestions: 15,
-          correctAnswers: 14,
-          timeSpent: 1200,
-          attemptedAt: '2024-01-14T14:00:00.000Z',
-          completedAt: '2024-01-14T14:20:00.000Z',
-          isCompleted: true
-        }
-      ];
-      
-      setTestPerformance(dummyTestPerformance);
-    } catch (error) {
-      console.error('Error loading test performance:', error);
-    }
-  };
-
-  const loadQuestionStats = async () => {
-    if (!selectedSubscription) return;
-
-    try {
-      // Using dummy data for now
-      const dummyQuestionStats = {
-        totalAttempted: 150,
-        correctAnswers: 120,
-        accuracy: 80,
-        timeSpent: 7200,
-        currentStreak: 5,
-        longestStreak: 15,
-        totalStudyTime: 18000
-      };
-      
-      setQuestionStats(dummyQuestionStats);
-    } catch (error) {
-      console.error('Error loading question stats:', error);
-    }
-  };
-
-  const getSubscriptionDisplayText = (subscription) => {
-    const courseType = courseTypes.find(ct => ct.id === subscription.courseTypeId);
-    const course = courses.find(c => c.id === subscription.courseId);
-    
-    let text = `${courseType?.name || 'Unknown'} - ${course?.name || 'Unknown'}`;
-    
-    if (subscription.classId) {
-      const classItem = classes.find(c => c.id === subscription.classId);
-      text += ` - ${classItem?.name || 'Unknown Class'}`;
-    } else if (subscription.examId) {
-      const exam = exams.find(e => e.id === subscription.examId);
-      text += ` - ${exam?.name || 'Unknown Exam'}`;
-    }
-    
-    return text;
-  };
-
-  const calculateProgressPercentage = (completed, total) => {
-    if (total === 0) return 0;
-    return Math.round((completed / total) * 100);
-  };
-
-  const getProgressColor = (percentage) => {
-    if (percentage >= 80) return 'progress-success';
-    if (percentage >= 60) return 'progress-warning';
-    if (percentage >= 40) return 'progress-info';
-    return 'progress-danger';
-  };
-
-  const getScoreColor = (score) => {
-    if (score >= 80) return 'text-success';
-    if (score >= 60) return 'text-warning';
-    if (score >= 40) return 'text-info';
-    return 'text-danger';
   };
 
   const formatTime = (seconds) => {
@@ -252,304 +93,361 @@ const StudentProgressTracker = () => {
     return `${minutes}m`;
   };
 
-  const getTimeRangeLabel = (days) => {
-    switch (days) {
-      case '7': return 'Last 7 days';
-      case '30': return 'Last 30 days';
-      case '90': return 'Last 90 days';
-      case '365': return 'Last year';
-      default: return 'All time';
+  const getScoreColor = (score) => {
+    if (score >= 80) return '#22c55e';
+    if (score >= 60) return '#f59e0b';
+    return '#ef4444';
+  };
+
+  const getActivityIcon = (type) => {
+    switch (type) {
+      case 'test': return '📝';
+      case 'practice': return '💡';
+      case 'bookmark': return '❤️';
+      default: return '📚';
     }
   };
 
   return (
     <div className="student-progress-tracker">
-      <div className="page-header">
-        <h2>Progress Tracker</h2>
-        <div className="time-range-selector">
-          <select
-            value={timeRange}
-            onChange={(e) => setTimeRange(e.target.value)}
-            className="form-input"
-          >
-            <option value="7">Last 7 days</option>
-            <option value="30">Last 30 days</option>
-            <option value="90">Last 90 days</option>
-            <option value="365">Last year</option>
-            <option value="all">All time</option>
-          </select>
+      {/* Header */}
+      <div className="tracker-header">
+        <div>
+          <h1 className="tracker-title">📊 Progress Tracker</h1>
+          <p className="tracker-subtitle">Track your learning journey and performance</p>
         </div>
+        <select
+          value={timeRange}
+          onChange={(e) => setTimeRange(e.target.value)}
+          className="time-range-selector"
+        >
+          <option value="7">Last 7 days</option>
+          <option value="30">Last 30 days</option>
+          <option value="90">Last 90 days</option>
+          <option value="365">Last year</option>
+          <option value="all">All time</option>
+        </select>
       </div>
 
-      {/* Subscription Selection */}
-      <div className="subscription-section">
-        <h3>Select Subscription</h3>
-        {loading && subscriptions.length === 0 ? (
-          <div className="loading">Loading subscriptions...</div>
-        ) : subscriptions.length === 0 ? (
-          <div className="empty-state">
-            <p>No active subscriptions found. Please create a subscription first.</p>
-          </div>
-        ) : (
-          <div className="subscription-cards">
-            {subscriptions
-              .filter(sub => sub.isActive)
-              .map(subscription => (
-                <div 
-                  key={subscription.id} 
-                  className={`subscription-card ${selectedSubscription?.id === subscription.id ? 'selected' : ''}`}
-                  onClick={() => setSelectedSubscription(subscription)}
-                >
-                  <h4>{getSubscriptionDisplayText(subscription)}</h4>
-                  <p className="subscription-details">
-                    <span>Type: {subscription.subscriptionType}</span>
-                    <span>Start: {new Date(subscription.startDate).toLocaleDateString()}</span>
-                  </p>
-                </div>
-              ))}
-          </div>
-        )}
-      </div>
-
-      {/* Overall Progress */}
-      {selectedSubscription && progressData.overall && (
-        <div className="progress-section">
-          <h3>Overall Progress ({getTimeRangeLabel(timeRange)})</h3>
-          
-          <div className="progress-cards">
-            <div className="progress-card">
-              <h4>Learning Progress</h4>
-              <div className="progress-stats">
-                <div className="stat">
-                  <span className="stat-label">Chapters Completed</span>
-                  <span className="stat-value">
-                    {progressData.overall.chaptersCompleted || 0} / {progressData.overall.totalChapters || 0}
-                  </span>
-                  <div className="progress-bar">
-                    <div 
-                      className={`progress-fill ${getProgressColor(calculateProgressPercentage(
-                        progressData.overall.chaptersCompleted || 0,
-                        progressData.overall.totalChapters || 0
-                      ))}`}
-                      style={{ 
-                        width: `${calculateProgressPercentage(
-                          progressData.overall.chaptersCompleted || 0,
-                          progressData.overall.totalChapters || 0
-                        )}%` 
-                      }}
-                    ></div>
-                  </div>
-                  <span className="progress-percentage">
-                    {calculateProgressPercentage(
-                      progressData.overall.chaptersCompleted || 0,
-                      progressData.overall.totalChapters || 0
-                    )}%
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            <div className="progress-card">
-              <h4>Question Practice</h4>
-              <div className="progress-stats">
-                <div className="stat">
-                  <span className="stat-label">Questions Attempted</span>
-                  <span className="stat-value">{questionStats.totalAttempted || 0}</span>
-                </div>
-                <div className="stat">
-                  <span className="stat-label">Correct Answers</span>
-                  <span className={`stat-value ${getScoreColor(questionStats.accuracy || 0)}`}>
-                    {questionStats.correctAnswers || 0} ({questionStats.accuracy || 0}%)
-                  </span>
-                </div>
-                <div className="stat">
-                  <span className="stat-label">Time Spent</span>
-                  <span className="stat-value">{formatTime(questionStats.timeSpent || 0)}</span>
-                </div>
-              </div>
-            </div>
-
-            <div className="progress-card">
-              <h4>Test Performance</h4>
-              <div className="progress-stats">
-                <div className="stat">
-                  <span className="stat-label">Tests Taken</span>
-                  <span className="stat-value">{testPerformance.length}</span>
-                </div>
-                <div className="stat">
-                  <span className="stat-label">Average Score</span>
-                  <span className={`stat-value ${getScoreColor(testPerformance.reduce((acc, t) => acc + (t.score || 0), 0) / Math.max(testPerformance.length, 1))}`}>
-                    {testPerformance.length > 0 
-                      ? Math.round(testPerformance.reduce((acc, t) => acc + (t.score || 0), 0) / testPerformance.length)
-                      : 0}%
-                  </span>
-                </div>
-                <div className="stat">
-                  <span className="stat-label">Best Score</span>
-                  <span className={`stat-value ${getScoreColor(Math.max(...testPerformance.map(t => t.score || 0), 0))}`}>
-                    {testPerformance.length > 0 
-                      ? Math.max(...testPerformance.map(t => t.score || 0))
-                      : 0}%
-                  </span>
-                </div>
-              </div>
-            </div>
-          </div>
+      {/* Subscription Tabs */}
+      {subscriptions.length > 0 && (
+        <div className="subscription-tabs">
+          {subscriptions.map(sub => (
+            <button
+              key={sub.id}
+              onClick={() => setSelectedSubscription(sub)}
+              className={`subscription-tab ${selectedSubscription?.id === sub.id ? 'active' : ''}`}
+            >
+              <span className="tab-icon">
+                {sub.subscriptionLevel === 'CLASS' ? '🎓' : sub.subscriptionLevel === 'EXAM' ? '📝' : '📚'}
+              </span>
+              <span className="tab-text">
+                {sub.subscriptionLevel} - {sub.entityName}
+              </span>
+            </button>
+          ))}
         </div>
       )}
 
-      {/* Subject-wise Progress */}
-      {selectedSubscription && progressData.subjects.length > 0 && (
-        <div className="progress-section">
-          <h3>Subject-wise Progress</h3>
-          
-          <div className="subject-progress-table">
-            <table>
-              <thead>
-                <tr>
-                  <th>Subject</th>
-                  <th>Chapters</th>
-                  <th>Progress</th>
-                  <th>Questions</th>
-                  <th>Accuracy</th>
-                </tr>
-              </thead>
-              <tbody>
-                {progressData.subjects.map(subject => (
-                  <tr key={subject.id}>
-                    <td>{subject.name}</td>
-                    <td>
-                      {subject.chaptersCompleted} / {subject.totalChapters}
-                    </td>
-                    <td>
-                      <div className="progress-bar">
-                        <div 
-                          className={`progress-fill ${getProgressColor(subject.progressPercentage)}`}
-                          style={{ width: `${subject.progressPercentage}%` }}
-                        ></div>
+      {/* Dashboard Overview */}
+      <div className="dashboard-overview">
+        <div className="stat-card primary">
+          <div className="stat-icon">🎯</div>
+          <div className="stat-content">
+            <div className="stat-value">{dashboardData.totalTests}</div>
+            <div className="stat-label">Tests Completed</div>
+          </div>
+        </div>
+
+        <div className="stat-card success">
+          <div className="stat-icon">📈</div>
+          <div className="stat-content">
+            <div className="stat-value">{dashboardData.averageScore}%</div>
+            <div className="stat-label">Average Score</div>
+          </div>
+        </div>
+
+        <div className="stat-card info">
+          <div className="stat-icon">✅</div>
+          <div className="stat-content">
+            <div className="stat-value">{dashboardData.passRate}%</div>
+            <div className="stat-label">Pass Rate</div>
+          </div>
+        </div>
+
+        <div className="stat-card warning">
+          <div className="stat-icon">💡</div>
+          <div className="stat-content">
+            <div className="stat-value">{dashboardData.totalQuestionsPracticed}</div>
+            <div className="stat-label">Questions Practiced</div>
+          </div>
+        </div>
+
+        <div className="stat-card purple">
+          <div className="stat-icon">⏱️</div>
+          <div className="stat-content">
+            <div className="stat-value">{formatTime(dashboardData.totalStudyTime)}</div>
+            <div className="stat-label">Total Study Time</div>
+          </div>
+        </div>
+
+        <div className="stat-card streak">
+          <div className="stat-icon">🔥</div>
+          <div className="stat-content">
+            <div className="stat-value">{dashboardData.currentStreak}</div>
+            <div className="stat-label">Day Streak</div>
+          </div>
+        </div>
+      </div>
+
+      <div className="tracker-grid">
+        {/* Performance Trend Chart */}
+        <div className="tracker-section full-width">
+          <div className="section-header">
+            <h3>📈 Performance Trend</h3>
+            <span className="section-subtitle">Your score progression over time</span>
+          </div>
+          <div className="chart-container">
+            <div className="trend-chart">
+              {performanceTrend.map((point, index) => {
+                const maxScore = Math.max(...performanceTrend.map(p => p.avgScore));
+                const height = (point.avgScore / maxScore) * 100;
+                
+                return (
+                  <div key={index} className="chart-bar-wrapper">
+                    <div className="chart-bar-container">
+                      <div 
+                        className="chart-bar"
+                        style={{ 
+                          height: `${height}%`,
+                          background: `linear-gradient(to top, ${getScoreColor(point.avgScore)}, ${getScoreColor(point.avgScore)}dd)`
+                        }}
+                      >
+                        <span className="bar-value">{point.avgScore}%</span>
                       </div>
-                      <span className="progress-text">{subject.progressPercentage}%</span>
-                    </td>
-                    <td>{subject.questionsAttempted}</td>
-                    <td className={getScoreColor(subject.accuracy)}>
-                      {subject.accuracy}%
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                    </div>
+                    <div className="chart-label">
+                      {new Date(point.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         </div>
-      )}
 
-      {/* Test Performance Details */}
-      {selectedSubscription && testPerformance.length > 0 && (
-        <div className="progress-section">
-          <h3>Test Performance Details</h3>
-          
-          <div className="test-performance-table">
-            <table>
-              <thead>
-                <tr>
-                  <th>Test Name</th>
-                  <th>Date</th>
-                  <th>Score</th>
-                  <th>Time Spent</th>
-                  <th>Questions</th>
-                  <th>Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {testPerformance.map(test => (
-                  <tr key={test.id}>
-                    <td>{test.testName}</td>
-                    <td>{new Date(test.attemptedAt).toLocaleDateString()}</td>
-                    <td className={getScoreColor(test.score)}>
-                      {test.score}%
-                    </td>
-                    <td>{formatTime(test.timeSpent)}</td>
-                    <td>{test.totalQuestions}</td>
-                    <td>
-                      <span className={`status ${test.isCompleted ? 'completed' : 'incomplete'}`}>
-                        {test.isCompleted ? 'Completed' : 'Incomplete'}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+        {/* Subject Performance */}
+        <div className="tracker-section">
+          <div className="section-header">
+            <h3>📚 Subject Performance</h3>
+            <span className="section-subtitle">Your performance across subjects</span>
           </div>
-        </div>
-      )}
-
-      {/* Topic-wise Progress */}
-      {selectedSubscription && progressData.topics.length > 0 && (
-        <div className="progress-section">
-          <h3>Topic-wise Progress</h3>
-          
-          <div className="topics-grid">
-            {progressData.topics.map(topic => (
-              <div key={topic.id} className="topic-progress-card">
-                <div className="topic-header">
-                  <h4>{topic.name}</h4>
-                  <span className="topic-subject">{topic.subjectName}</span>
+          <div className="subject-performance-list">
+            {subjectPerformance.map((subject, index) => (
+              <div key={index} className="subject-card">
+                <div className="subject-header">
+                  <h4>{subject.subject}</h4>
+                  <span className="subject-score" style={{ color: getScoreColor(subject.averageScore) }}>
+                    {subject.averageScore}%
+                  </span>
                 </div>
-                
-                <div className="topic-stats">
-                  <div className="stat">
-                    <span className="stat-label">Chapters</span>
-                    <span className="stat-value">
-                      {topic.chaptersCompleted} / {topic.totalChapters}
-                    </span>
+                <div className="subject-stats">
+                  <div className="stat-row">
+                    <span>Tests: {subject.testsAttempted}</span>
+                    <span>Questions: {subject.questionsAttempted}</span>
                   </div>
-                  <div className="stat">
-                    <span className="stat-label">Progress</span>
-                    <span className="stat-value">{topic.progressPercentage}%</span>
-                  </div>
-                  <div className="stat">
-                    <span className="stat-label">Accuracy</span>
-                    <span className={`stat-value ${getScoreColor(topic.accuracy)}`}>
-                      {topic.accuracy}%
+                  <div className="stat-row">
+                    <span>Accuracy: {subject.accuracy}%</span>
+                    <span className="topics-info">
+                      <span className="strong">💪 {subject.strongTopics}</span>
+                      <span className="weak">📉 {subject.weakTopics}</span>
                     </span>
                   </div>
                 </div>
-                
                 <div className="progress-bar">
                   <div 
-                    className={`progress-fill ${getProgressColor(topic.progressPercentage)}`}
-                    style={{ width: `${topic.progressPercentage}%` }}
+                    className="progress-fill"
+                    style={{ 
+                      width: `${subject.averageScore}%`,
+                      background: getScoreColor(subject.averageScore)
+                    }}
                   ></div>
                 </div>
               </div>
             ))}
           </div>
         </div>
-      )}
 
-      {/* Learning Streak */}
-      {selectedSubscription && (
-        <div className="progress-section">
-          <h3>Learning Streak</h3>
-          
-          <div className="streak-cards">
-            <div className="streak-card">
-              <h4>Current Streak</h4>
-              <div className="streak-number">{questionStats.currentStreak || 0}</div>
-              <p>days</p>
-            </div>
-            
-            <div className="streak-card">
-              <h4>Longest Streak</h4>
-              <div className="streak-number">{questionStats.longestStreak || 0}</div>
-              <p>days</p>
-            </div>
-            
-            <div className="streak-card">
-              <h4>Total Study Time</h4>
-              <div className="streak-number">{formatTime(questionStats.totalStudyTime || 0)}</div>
-              <p>this period</p>
-            </div>
+        {/* Recent Activity */}
+        <div className="tracker-section">
+          <div className="section-header">
+            <h3>🕒 Recent Activity</h3>
+            <span className="section-subtitle">Your latest learning activities</span>
           </div>
+          <div className="activity-timeline">
+            {recentActivity.map((activity, index) => (
+              <div key={index} className="activity-item">
+                <div className="activity-icon">
+                  {getActivityIcon(activity.type)}
+                </div>
+                <div className="activity-content">
+                  <div className="activity-title">{activity.title}</div>
+                  {activity.score && (
+                    <span className="activity-score" style={{ color: getScoreColor(activity.score) }}>
+                      Score: {activity.score}%
+                    </span>
+                  )}
+                  <div className="activity-date">
+                    {new Date(activity.date).toLocaleString('en-US', {
+                      month: 'short',
+                      day: 'numeric',
+                      hour: '2-digit',
+                      minute: '2-digit'
+                    })}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Test History Table */}
+      <div className="tracker-section full-width">
+        <div className="section-header">
+          <h3>📝 Test History</h3>
+          <span className="section-subtitle">All your completed tests</span>
+        </div>
+        <div className="table-container">
+          <table className="test-history-table">
+            <thead>
+              <tr>
+                <th>Test Name</th>
+                <th>Date</th>
+                <th>Score</th>
+                <th>Questions</th>
+                <th>Accuracy</th>
+                <th>Time</th>
+                <th>Result</th>
+              </tr>
+            </thead>
+            <tbody>
+              {testHistory.map(test => {
+                const accuracy = Math.round((test.correctAnswers / test.totalQuestions) * 100);
+                return (
+                  <tr key={test.id}>
+                    <td className="test-name">{test.testName}</td>
+                    <td>{new Date(test.date).toLocaleDateString()}</td>
+                    <td>
+                      <span className="score-badge" style={{ background: getScoreColor(test.score) }}>
+                        {test.score}%
+                      </span>
+                    </td>
+                    <td>{test.correctAnswers}/{test.totalQuestions}</td>
+                    <td>
+                      <div className="mini-progress">
+                        <div 
+                          className="mini-progress-bar"
+                          style={{ 
+                            width: `${accuracy}%`,
+                            background: getScoreColor(accuracy)
+                          }}
+                        ></div>
+                      </div>
+                      <span className="accuracy-text">{accuracy}%</span>
+                    </td>
+                    <td>{formatTime(test.timeTaken)}</td>
+                    <td>
+                      <span className={`result-badge ${test.isPassed ? 'passed' : 'failed'}`}>
+                        {test.isPassed ? '✓ Passed' : '✗ Failed'}
+                      </span>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Learning Insights */}
+      <div className="tracker-grid insights-grid">
+        <div className="insight-card">
+          <div className="insight-header">
+            <span className="insight-icon">🎯</span>
+            <h4>Strong Areas</h4>
+          </div>
+          <ul className="insight-list">
+            <li>Physics - Motion (92% avg)</li>
+            <li>English - Grammar (88% avg)</li>
+            <li>Mathematics - Algebra (85% avg)</li>
+          </ul>
+        </div>
+
+        <div className="insight-card">
+          <div className="insight-header">
+            <span className="insight-icon">📈</span>
+            <h4>Areas to Improve</h4>
+          </div>
+          <ul className="insight-list">
+            <li>Mathematics - Geometry (55% avg)</li>
+            <li>Chemistry - Atoms (68% avg)</li>
+            <li>Physics - Electricity (needs practice)</li>
+          </ul>
+        </div>
+
+        <div className="insight-card">
+          <div className="insight-header">
+            <span className="insight-icon">💪</span>
+            <h4>Recommendations</h4>
+          </div>
+          <ul className="insight-list">
+            <li>Practice more Geometry questions</li>
+            <li>Retake Chemistry - Atoms test</li>
+            <li>Focus on weak topics daily</li>
+          </ul>
+        </div>
+
+        <div className="insight-card">
+          <div className="insight-header">
+            <span className="insight-icon">🏆</span>
+            <h4>Achievements</h4>
+          </div>
+          <ul className="insight-list">
+            <li>🔥 7-day study streak</li>
+            <li>⭐ 80% overall pass rate</li>
+            <li>🎯 450+ questions practiced</li>
+          </ul>
+        </div>
+      </div>
+
+      {/* Study Pattern */}
+      <div className="tracker-section full-width">
+        <div className="section-header">
+          <h3>📅 Study Pattern</h3>
+          <span className="section-subtitle">Your weekly study activity</span>
+        </div>
+        <div className="study-pattern">
+          {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((day, index) => {
+            const activity = Math.floor(Math.random() * 5); // 0-4 activity level
+            return (
+              <div key={day} className="day-column">
+                <div className="day-label">{day}</div>
+                <div className={`activity-bar activity-level-${activity}`}>
+                  <span className="activity-count">{activity > 0 ? activity : ''}</span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Empty State */}
+      {subscriptions.length === 0 && !loading && (
+        <div className="empty-state">
+          <div className="empty-icon">📊</div>
+          <h2>No Progress Data</h2>
+          <p>Subscribe to courses and start taking tests to track your progress.</p>
         </div>
       )}
     </div>
