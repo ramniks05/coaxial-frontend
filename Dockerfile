@@ -15,9 +15,12 @@ RUN npm install
 # Copy source code
 COPY . .
 
-# Build argument for API URL
-ARG REACT_APP_API_BASE_URL
+# Build argument for API URL (with default production URL)
+ARG REACT_APP_API_BASE_URL=https://coaxial-backend-production.up.railway.app
 ENV REACT_APP_API_BASE_URL=$REACT_APP_API_BASE_URL
+
+# Verify the API URL being used
+RUN echo "Building with API URL: $REACT_APP_API_BASE_URL"
 
 # Build the application
 RUN npm run build
