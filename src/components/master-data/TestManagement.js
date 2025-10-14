@@ -295,7 +295,8 @@ const TestManagement = ({ onBackToDashboard }) => {
       console.error('Error fetching master exams:', error);
       addNotification('Failed to fetch master exams', 'error');
     }
-  }, [token, executeApiCall, addNotification]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token]); // Removed executeApiCall and addNotification
 
   // Load course types from API
   const loadCourseTypes = useCallback(async () => {
@@ -330,7 +331,8 @@ const TestManagement = ({ onBackToDashboard }) => {
       console.error('Error loading course types:', error);
       addNotification('Failed to load course types', 'error');
     }
-  }, [token, addNotification]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token]); // Removed addNotification
 
   // Load courses based on courseTypeId
   const loadCourses = useCallback(async (courseTypeId) => {
@@ -550,9 +552,12 @@ const TestManagement = ({ onBackToDashboard }) => {
 
   // Initialize master exams and course types on component mount
   useEffect(() => {
-    fetchMasterExams();
-    loadCourseTypes();
-  }, [fetchMasterExams, loadCourseTypes]);
+    if (token) {
+      fetchMasterExams();
+      loadCourseTypes();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token]); // Only run when token changes
 
   // Cascading: Load courses when courseTypeId changes
   useEffect(() => {
@@ -612,49 +617,45 @@ const TestManagement = ({ onBackToDashboard }) => {
     console.log('executeApiCall available:', !!executeApiCall);
     console.log('addNotification available:', !!addNotification);
     
-    if (token) { // Only fetch if we have a token
-      console.log('Token is available, proceeding with API call...');
-      
-      const fetchData = async () => {
-        setLoading(true);
-        try {
-          const filters = {
-            active: showActiveOnly,
-            masterExamId: selectedMasterExam || undefined,
-            status: selectedStatus || undefined,
-            search: searchTerm || undefined
-          };
-
-          console.log('About to call getTests API with:', { token: !!token, filters });
-          console.log('API endpoint will be: /api/admin/master-data/tests');
-          
-          const result = await executeApiCall(
-            () => {
-              console.log('Inside executeApiCall, calling getTests...');
-              return getTests(token, filters);
-            },
-            'Failed to fetch tests'
-          );
-
-          console.log('Tests API result:', result);
-          if (result) {
-            const testsArray = Array.isArray(result) ? result : result.data || [];
-            console.log('Setting tests array:', testsArray);
-            setTests(testsArray);
-          }
-        } catch (error) {
-          console.error('Error fetching tests:', error);
-          addNotification('Failed to fetch tests', 'error');
-        } finally {
-          setLoading(false);
-        }
-      };
-
-      fetchData();
-    } else {
+    if (!token) {
       console.log('No token available, skipping fetchTestsData');
+      return;
     }
-  }, [token, selectedMasterExam, selectedStatus, searchTerm, showActiveOnly, executeApiCall, addNotification]); // Direct filter dependencies
+    
+    console.log('Token is available, proceeding with API call...');
+    
+    const fetchData = async () => {
+      setLoading(true);
+      try {
+        const filters = {
+          active: showActiveOnly,
+          masterExamId: selectedMasterExam || undefined,
+          status: selectedStatus || undefined,
+          search: searchTerm || undefined
+        };
+
+        console.log('About to call getTests API with:', { token: !!token, filters });
+        console.log('API endpoint will be: /api/admin/master-data/tests');
+        
+        const result = await executeApiCall(getTests, token, filters);
+
+        console.log('Tests API result:', result);
+        if (result) {
+          const testsArray = Array.isArray(result) ? result : result.data || [];
+          console.log('Setting tests array:', testsArray);
+          setTests(testsArray);
+        }
+      } catch (error) {
+        console.error('Error fetching tests:', error);
+        addNotification('Failed to fetch tests', 'error');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token, selectedMasterExam, selectedStatus, searchTerm, showActiveOnly]); // Removed executeApiCall and addNotification to prevent infinite loops
 
   // Function to manually trigger data refresh
   const refreshTests = useCallback(async () => {
@@ -671,10 +672,7 @@ const TestManagement = ({ onBackToDashboard }) => {
       };
 
       console.log('Manually fetching tests with filters:', filters);
-      const result = await executeApiCall(
-        () => getTests(token, filters),
-        'Failed to fetch tests'
-      );
+      const result = await executeApiCall(getTests, token, filters);
 
       if (result) {
         const testsArray = Array.isArray(result) ? result : result.data || [];
@@ -686,7 +684,8 @@ const TestManagement = ({ onBackToDashboard }) => {
     } finally {
       setLoading(false);
     }
-  }, [token, selectedMasterExam, selectedStatus, searchTerm, showActiveOnly, executeApiCall, addNotification]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token, selectedMasterExam, selectedStatus, searchTerm, showActiveOnly]); // Removed executeApiCall and addNotification
 
   // Handle form submission
   const handleSubmit = async (e) => {
@@ -778,20 +777,14 @@ const TestManagement = ({ onBackToDashboard }) => {
       console.log('Submitting test payload:', basePayload);
 
       if (editingId) {
-        const result = await executeApiCall(
-          () => updateTest(token, editingId, basePayload),
-          'Failed to update test'
-        );
+        const result = await executeApiCall(updateTest, token, editingId, basePayload);
         if (result) {
           addNotification('Test updated successfully', 'success');
           handleCancel();
           refreshTests();
         }
       } else {
-        const result = await executeApiCall(
-          () => createTest(token, basePayload),
-          'Failed to create test'
-        );
+        const result = await executeApiCall(createTest, token, basePayload);
         if (result) {
           addNotification('Test created successfully', 'success');
           handleCancel();
@@ -854,10 +847,7 @@ const TestManagement = ({ onBackToDashboard }) => {
 
     setLoading(true);
     try {
-      const result = await executeApiCall(
-        () => deleteTest(token, testId),
-        'Failed to delete test'
-      );
+      const result = await executeApiCall(deleteTest, token, testId);
       if (result) {
         addNotification('Test deleted successfully', 'success');
         refreshTests();
@@ -875,14 +865,8 @@ const TestManagement = ({ onBackToDashboard }) => {
     setLoading(true);
     try {
       const result = test.isPublished 
-        ? await executeApiCall(
-            () => unpublishTest(token, test.id),
-            'Failed to unpublish test'
-          )
-        : await executeApiCall(
-            () => publishTest(token, test.id),
-            'Failed to publish test'
-          );
+        ? await executeApiCall(unpublishTest, token, test.id)
+        : await executeApiCall(publishTest, token, test.id);
       
       if (result) {
         addNotification(

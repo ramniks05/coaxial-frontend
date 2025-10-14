@@ -350,7 +350,7 @@ const QuestionManagement = ({ onBackToDashboard }) => {
     
     setQuestionsLoading(true);
     try {
-      const response = await executeApiCall(() => getQuestions(token));
+      const response = await executeApiCall(getQuestions, token);
       console.log('Questions API response:', response);
       
       // Handle different response structures

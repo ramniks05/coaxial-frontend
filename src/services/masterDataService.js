@@ -2311,14 +2311,15 @@ export const deleteMasterExam = async (token, examId) => {
 // Get all tests with optional filtering
 export const getTests = async (token, filters = {}) => {
   const params = new URLSearchParams();
-  if (filters.active !== null) params.append('active', filters.active);
+  if (filters.active !== undefined && filters.active !== null) params.append('active', filters.active);
   if (filters.masterExamId) params.append('masterExamId', filters.masterExamId);
   if (filters.status) params.append('status', filters.status);
   if (filters.search) params.append('search', filters.search);
   
-  const endpoint = `${API_BASE}/api/admin/master-data/tests${params.toString() ? `?${params.toString()}` : ''}`;
+  const endpoint = `/api/admin/master-data/tests${params.toString() ? `?${params.toString()}` : ''}`;
   
-  console.log('Fetching tests from:', endpoint);
+  console.log('Fetching tests from endpoint:', endpoint);
+  console.log('Full URL will be: http://localhost:8080' + endpoint);
   
   try {
     const response = await apiGet(endpoint, token);
@@ -2335,7 +2336,7 @@ export const getTests = async (token, filters = {}) => {
 export const createTest = async (token, testData) => {
   console.log('Creating test with data:', testData);
   
-  const endpoint = `${API_BASE}/api/admin/master-data/tests`;
+  const endpoint = `/api/admin/master-data/tests`;
   
   console.log('Creating test at endpoint:', endpoint);
   
@@ -2354,7 +2355,7 @@ export const createTest = async (token, testData) => {
 export const updateTest = async (token, id, testData) => {
   console.log('Updating test:', id, testData);
   
-  const endpoint = `${API_BASE}/api/admin/master-data/tests/${id}`;
+  const endpoint = `/api/admin/master-data/tests/${id}`;
   
   console.log('Updating test at endpoint:', endpoint);
   
@@ -2373,7 +2374,7 @@ export const updateTest = async (token, id, testData) => {
 export const deleteTest = async (token, id) => {
   console.log('Deleting test:', id);
   
-  const endpoint = `${API_BASE}/api/admin/master-data/tests/${id}`;
+  const endpoint = `/api/admin/master-data/tests/${id}`;
   
   console.log('Deleting test at endpoint:', endpoint);
   
@@ -2392,7 +2393,7 @@ export const deleteTest = async (token, id) => {
 export const getTestQuestions = async (token, testId) => {
   console.log('Fetching test questions for test:', testId);
   
-  const endpoint = `${API_BASE}/api/admin/master-data/tests/${testId}/questions`;
+  const endpoint = `/api/admin/master-data/tests/${testId}/questions`;
   
   console.log('Fetching test questions from:', endpoint);
   
@@ -2411,7 +2412,7 @@ export const getTestQuestions = async (token, testId) => {
 export const addQuestionToTest = async (token, testId, questionData) => {
   console.log('Adding question to test:', testId, questionData);
   
-  const endpoint = `${API_BASE}/api/admin/master-data/tests/${testId}/questions`;
+  const endpoint = `/api/admin/master-data/tests/${testId}/questions`;
   
   console.log('Adding question to test at endpoint:', endpoint);
   
@@ -2430,7 +2431,7 @@ export const addQuestionToTest = async (token, testId, questionData) => {
 export const removeQuestionFromTest = async (token, testId, questionId) => {
   console.log('Removing question from test:', testId, questionId);
   
-  const endpoint = `${API_BASE}/api/admin/master-data/tests/${testId}/questions/${questionId}`;
+  const endpoint = `/api/admin/master-data/tests/${testId}/questions/${questionId}`;
   
   console.log('Removing question from test at endpoint:', endpoint);
   
