@@ -230,12 +230,20 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
+  width: 100%;
+  position: relative;
 }
 
 .form-row-modern {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   gap: 16px;
+  width: 100%;
+}
+
+.form-row-modern > .form-field-modern {
+  min-width: 0;
+  width: 100%;
 }
 
 .field-label-modern {
@@ -252,6 +260,8 @@
   color: #1f2937;
   transition: all 0.3s ease;
   background: white;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .field-input-modern:focus {
@@ -277,11 +287,22 @@
   position: relative;
   display: flex;
   align-items: center;
+  width: 100%;
 }
 
 .password-field-wrapper .field-input-modern {
-  padding-right: 50px;
+  padding-right: 52px !important;
   flex: 1;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.form-row-modern .form-field-modern .password-field-wrapper {
+  width: 100%;
+}
+
+.form-row-modern .form-field-modern .password-field-wrapper .field-input-modern {
+  width: 100%;
 }
 
 .password-toggle-modern {
