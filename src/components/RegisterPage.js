@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import { extractErrorInfo, getErrorSeverity } from '../utils/errorHandler';
+import { API_BASE } from '../utils/apiUtils';
 import './AuthPage.css';
 
 const RegisterPage = () => {
