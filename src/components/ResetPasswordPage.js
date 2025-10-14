@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
+import { API_BASE } from '../utils/apiUtils';
 import './AuthPage.css';
 
 const ResetPasswordPage = () => {
@@ -125,7 +126,7 @@ const ResetPasswordPage = () => {
         return;
       }
 
-      const response = await fetch('http://localhost:8080/api/auth/reset-password', {
+      const response = await fetch(`${API_BASE}/api/auth/reset-password`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

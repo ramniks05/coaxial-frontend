@@ -250,7 +250,7 @@ export const abandonTestSession = async (token, testId) => {
   console.log('Abandoning test session for test:', testId);
   
   try {
-    const response = await fetch(`http://localhost:8080${endpoint}`, {
+    const response = await fetch(`${API_BASE}${endpoint}`, {
       method: 'DELETE',
       headers: {
         'Authorization': `Bearer ${token}`,

@@ -1,6 +1,7 @@
 import React, { useCallback, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
+import { API_BASE } from '../utils/apiUtils';
 import './AuthPage.css';
 
 const ForgotPasswordPage = () => {
@@ -27,7 +28,7 @@ const ForgotPasswordPage = () => {
     setError('');
 
     try {
-      const response = await fetch('http://localhost:8080/api/auth/forgot-password', {
+      const response = await fetch(`${API_BASE}/api/auth/forgot-password`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

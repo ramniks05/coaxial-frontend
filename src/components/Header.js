@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
+import { API_BASE } from '../utils/apiUtils';
 import './Header.css';
 
 const Header = () => {
@@ -19,7 +20,7 @@ const Header = () => {
 
     try {
       // Call backend logout API
-      await fetch('http://localhost:8080/api/auth/logout', {
+      await fetch(`${API_BASE}/api/auth/logout`, {
         method: 'POST',
         headers: {
           'accept': '*/*'
