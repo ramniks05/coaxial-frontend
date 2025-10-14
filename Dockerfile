@@ -28,25 +28,8 @@ FROM nginx:alpine
 # Copy built files from builder stage
 COPY --from=builder /app/build /usr/share/nginx/html
 
-# Create nginx configuration for SPA routing
-RUN echo 'server { \n\
-    listen 80; \n\
-    server_name _; \n\
-    root /usr/share/nginx/html; \n\
-    index index.html; \n\
-    \n\
-    location / { \n\
-        try_files $uri $uri/ /index.html; \n\
-    } \n\
-    \n\
-    gzip on; \n\
-    gzip_types text/plain text/css application/json application/javascript text/xml application/xml application/xml+rss text/javascript; \n\
-    \n\
-    location ~* \\.(jpg|jpeg|png|gif|ico|css|js|svg|woff|woff2)$ { \n\
-        expires 1y; \n\
-        add_header Cache-Control "public, immutable"; \n\
-    } \n\
-}' > /etc/nginx/conf.d/default.conf
+# Copy nginx configuration for SPA routing
+COPY nginx.conf /etc/nginx/conf.d/default.conf
 
 # Expose port 80
 EXPOSE 80
