@@ -1,5 +1,6 @@
 // API Utility Functions
-const API_BASE = 'http://localhost:8080';
+// Use environment variable for API base URL, fallback to localhost for development
+const API_BASE = process.env.REACT_APP_API_BASE_URL || 'http://localhost:8080';
 
 /**
  * Creates appropriate headers for API requests
