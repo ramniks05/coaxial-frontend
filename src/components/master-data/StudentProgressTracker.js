@@ -219,8 +219,8 @@ const StudentProgressTracker = () => {
                       <div 
                         className="chart-bar"
                         style={{ 
-                          height: `${height}%`,
-                          background: `linear-gradient(to top, ${getScoreColor(point.avgScore)}, ${getScoreColor(point.avgScore)}dd)`
+                          '--bar-height': `${height}%`,
+                          '--bar-color': getScoreColor(point.avgScore)
                         }}
                       >
                         <span className="bar-value">{point.avgScore}%</span>
@@ -247,7 +247,7 @@ const StudentProgressTracker = () => {
               <div key={index} className="subject-card">
                 <div className="subject-header">
                   <h4>{subject.subject}</h4>
-                  <span className="subject-score" style={{ color: getScoreColor(subject.averageScore) }}>
+                  <span className="subject-score" style={{ '--score-color': getScoreColor(subject.averageScore) }}>
                     {subject.averageScore}%
                   </span>
                 </div>
@@ -268,8 +268,8 @@ const StudentProgressTracker = () => {
                   <div 
                     className="progress-fill"
                     style={{ 
-                      width: `${subject.averageScore}%`,
-                      background: getScoreColor(subject.averageScore)
+                      '--progress-width': `${subject.averageScore}%`,
+                      '--progress-color': getScoreColor(subject.averageScore)
                     }}
                   ></div>
                 </div>
@@ -293,7 +293,7 @@ const StudentProgressTracker = () => {
                 <div className="activity-content">
                   <div className="activity-title">{activity.title}</div>
                   {activity.score && (
-                    <span className="activity-score" style={{ color: getScoreColor(activity.score) }}>
+                    <span className="activity-score" style={{ '--score-color': getScoreColor(activity.score) }}>
                       Score: {activity.score}%
                     </span>
                   )}
@@ -339,7 +339,7 @@ const StudentProgressTracker = () => {
                     <td className="test-name">{test.testName}</td>
                     <td>{new Date(test.date).toLocaleDateString()}</td>
                     <td>
-                      <span className="score-badge" style={{ background: getScoreColor(test.score) }}>
+                      <span className="score-badge" style={{ '--badge-bg': getScoreColor(test.score) }}>
                         {test.score}%
                       </span>
                     </td>
@@ -349,8 +349,8 @@ const StudentProgressTracker = () => {
                         <div 
                           className="mini-progress-bar"
                           style={{ 
-                            width: `${accuracy}%`,
-                            background: getScoreColor(accuracy)
+                            '--progress-width': `${accuracy}%`,
+                            '--progress-color': getScoreColor(accuracy)
                           }}
                         ></div>
                       </div>

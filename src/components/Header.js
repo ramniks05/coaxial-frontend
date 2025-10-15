@@ -90,10 +90,14 @@ const Header = () => {
   return (
     <header className="header">
       <div className="header-container">
+        {/* Logo - Always visible */}
         <Link 
           to="/" 
           className="header-logo"
-          onClick={() => setCurrentPage('home')}
+          onClick={() => {
+            setCurrentPage('home');
+            setIsMobileMenuOpen(false);
+          }}
         >
           <div className="logo-icon">
             <svg viewBox="0 0 24 24" fill="currentColor">
@@ -103,20 +107,16 @@ const Header = () => {
           <span className="logo-text">Coaxial Academy</span>
         </Link>
 
-        <nav className="header-nav">
-          {/* Simple connectivity indicator */}
-          <div style={{
-            marginRight: '16px',
-            fontSize: '12px',
-            fontWeight: '500',
-            color: backendConnected ? '#10b981' : '#ef4444',
-            cursor: 'pointer'
-          }}
-          onClick={() => {
-            console.log('Manual connectivity check triggered');
-            checkBackendConnectivity();
-          }}
-          title={`Backend is ${backendConnected ? 'connected' : 'disconnected'}`}
+        {/* Desktop Navigation - Hidden on mobile */}
+        <nav className="header-nav desktop-only">
+          {/* Connectivity indicator */}
+          <div 
+            className={`connectivity-indicator ${backendConnected ? 'online' : 'offline'}`}
+            onClick={() => {
+              console.log('Manual connectivity check triggered');
+              checkBackendConnectivity();
+            }}
+            title={`Backend is ${backendConnected ? 'connected' : 'disconnected'}`}
           >
             {backendConnected ? 'Online' : 'Offline'}
           </div>
@@ -201,22 +201,56 @@ const Header = () => {
           )}
         </nav>
 
+        {/* Mobile Menu Button - Visible only on mobile */}
         <button 
           className="mobile-menu-button"
           onClick={toggleMobileMenu}
           aria-label="Toggle mobile menu"
+          aria-expanded={isMobileMenuOpen}
         >
-          <svg className="mobile-menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <line x1="3" y1="6" x2="21" y2="6"></line>
-            <line x1="3" y1="12" x2="21" y2="12"></line>
-            <line x1="3" y1="18" x2="21" y2="18"></line>
-          </svg>
+          {isMobileMenuOpen ? (
+            <svg className="mobile-menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          ) : (
+            <svg className="mobile-menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <line x1="3" y1="6" x2="21" y2="6"></line>
+              <line x1="3" y1="12" x2="21" y2="12"></line>
+              <line x1="3" y1="18" x2="21" y2="18"></line>
+            </svg>
+          )}
         </button>
       </div>
 
-      {/* Mobile Navigation */}
+      {/* Mobile Navigation Panel */}
       {isMobileMenuOpen && (
-        <div className="mobile-nav">
+        <div className="mobile-nav open">
+          {/* User Info Section - At Top for authenticated users */}
+          {isAuthenticated && (
+            <div className="mobile-user-section">
+              <div className="mobile-user-info">
+                <div className="mobile-user-avatar">
+                  {getUserInitials()}
+                </div>
+                <div className="mobile-user-details">
+                  <div className="mobile-user-name">
+                    {user?.firstName && user?.lastName 
+                      ? `${user.firstName} ${user.lastName}`
+                      : user?.username || 'User'}
+                  </div>
+                  <div className="mobile-user-email">
+                    {user?.email || ''}
+                  </div>
+                  <div className="mobile-user-role">
+                    {user?.role || 'Student'}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Navigation Links */}
           <ul className="mobile-nav-links">
             <li>
               <Link 
@@ -224,47 +258,29 @@ const Header = () => {
                 className="mobile-nav-link"
                 onClick={() => handleNavigation('/', 'home')}
               >
+                <svg className="nav-icon" viewBox="0 0 20 20" fill="currentColor">
+                  <path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z" />
+                </svg>
                 Home
               </Link>
             </li>
-            <li>
-              <Link 
-                to="/courses" 
-                className="mobile-nav-link"
-                onClick={() => handleNavigation('/courses', 'courses')}
-              >
-                Courses
-              </Link>
-            </li>
-            <li>
-              <Link 
-                to="/about" 
-                className="mobile-nav-link"
-                onClick={() => handleNavigation('/about', 'about')}
-              >
-                About
-              </Link>
-            </li>
-            <li>
-              <Link 
-                to="/contact" 
-                className="mobile-nav-link"
-                onClick={() => handleNavigation('/contact', 'contact')}
-              >
-                Contact
-              </Link>
-            </li>
-            <li>
-              <Link 
-                to="/subject-filter" 
-                className="mobile-nav-link"
-                onClick={() => handleNavigation('/subject-filter', 'subject-filter')}
-              >
-                Subject Filter
-              </Link>
-            </li>
+            {isAuthenticated && (
+              <li>
+                <Link 
+                  to={`/dashboard/${user?.role?.toLowerCase() || 'student'}`}
+                  className="mobile-nav-link"
+                  onClick={() => handleNavigation(`/dashboard/${user?.role?.toLowerCase() || 'student'}`, 'dashboard')}
+                >
+                  <svg className="nav-icon" viewBox="0 0 20 20" fill="currentColor">
+                    <path d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z" />
+                  </svg>
+                  Dashboard
+                </Link>
+              </li>
+            )}
           </ul>
           
+          {/* Account Actions */}
           {!isAuthenticated ? (
             <div className="mobile-auth-buttons">
               <Link 
@@ -283,44 +299,40 @@ const Header = () => {
               </Link>
             </div>
           ) : (
-            <div className="mobile-user-actions">
-              <div className="mobile-user-info">
-                <div className="mobile-user-avatar">
-                  {getUserInitials()}
-                </div>
-                <div className="mobile-user-details">
-                  <div className="mobile-user-name">
-                    {user?.firstName || user?.username || 'User'}
-                  </div>
-                  <div className="mobile-user-role">
-                    {user?.role || 'Student'}
-                  </div>
-                </div>
-              </div>
-              <div className="mobile-user-buttons">
-                <button 
-                  className="btn btn-outline btn-full"
-                  onClick={() => {
-                    handleLogout();
-                    setIsMobileMenuOpen(false);
-                  }}
-                >
-                  Logout
-                </button>
-              </div>
+            <div className="mobile-user-menu">
+              <Link 
+                to="/profile" 
+                className="mobile-menu-item"
+                onClick={() => setIsMobileMenuOpen(false)}
+              >
+                <svg className="mobile-menu-icon" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
+                </svg>
+                My Profile
+              </Link>
+              <Link 
+                to="/settings" 
+                className="mobile-menu-item"
+                onClick={() => setIsMobileMenuOpen(false)}
+              >
+                <svg className="mobile-menu-icon" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z" clipRule="evenodd" />
+                </svg>
+                Settings
+              </Link>
+              <button 
+                className="mobile-menu-item danger"
+                onClick={handleLogout}
+              >
+                <svg className="mobile-menu-icon" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M3 3a1 1 0 00-1 1v12a1 1 0 102 0V4a1 1 0 00-1-1zm10.293 9.293a1 1 0 001.414 1.414l3-3a1 1 0 000-1.414l-3-3a1 1 0 10-1.414 1.414L14.586 9H7a1 1 0 100 2h7.586l-1.293 1.293z" clipRule="evenodd" />
+                </svg>
+                Logout
+              </button>
             </div>
           )}
         </div>
       )}
-      
-      <style>
-        {`
-          @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.5; }
-          }
-        `}
-      </style>
     </header>
   );
 };

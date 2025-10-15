@@ -1,8 +1,18 @@
 /* User Management Styles */
 .user-management {
+  width: 100%;
+  max-width: 100%;
+  position: relative;
+  z-index: var(--z-base);
+  box-sizing: border-box;
+}
+
+.user-management-content {
   padding: var(--spacing-6);
   max-width: 1200px;
   margin: 0 auto;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .user-management-header {
@@ -31,8 +41,25 @@
 /* User Statistics Section */
 .user-stats-section {
   margin-top: var(--spacing-6);
-  padding-top: var(--spacing-6);
-  border-top: 1px solid var(--gray-200);
+  margin-bottom: var(--spacing-6);
+  padding: var(--spacing-6);
+  background: var(--white);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--gray-200);
+  box-shadow: var(--shadow-sm);
+}
+
+.user-stats-section .section-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: #111827;
+  margin: 0 0 20px 0;
+  padding: 0 0 12px 0;
+  border-bottom: 2px solid #d1d5db;
+  display: block;
+  width: 100%;
+  line-height: 1.4;
+  text-align: left;
 }
 
 .user-stats {
@@ -427,7 +454,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 1000;
+  z-index: var(--z-modal-backdrop);
   padding: var(--spacing-4);
 }
 
@@ -558,6 +585,12 @@
 /* Responsive Design */
 @media (max-width: 768px) {
   .user-management {
+    width: 100%;
+    max-width: 100vw;
+    overflow-x: hidden;
+  }
+
+  .user-management-content {
     padding: var(--spacing-4);
   }
   
@@ -576,6 +609,7 @@
   
   .users-table-container {
     overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
   }
   
   .users-table {
@@ -594,6 +628,12 @@
 
 @media (max-width: 480px) {
   .user-management {
+    width: 100%;
+    max-width: 100vw;
+    overflow-x: hidden;
+  }
+
+  .user-management-content {
     padding: var(--spacing-3);
   }
   
@@ -616,5 +656,20 @@
     width: 32px;
     height: 32px;
     font-size: var(--font-size-xs);
+  }
+
+  .user-stats-section {
+    margin-top: var(--spacing-4);
+    padding: var(--spacing-4);
+  }
+
+  .user-stats-section .section-title {
+    font-size: 18px;
+    margin-bottom: 16px;
+    padding-bottom: 8px;
+    display: block !important;
+    width: 100%;
+    visibility: visible !important;
+    opacity: 1 !important;
   }
 }

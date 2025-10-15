@@ -16,8 +16,8 @@
   border-color: #9ca3af;
 }
 .tab-button.active { 
-  background: #3b82f6; 
-  border-color: #3b82f6; 
+  background: var(--primary-blue); 
+  border-color: var(--primary-blue); 
   color: #fff;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
@@ -44,8 +44,8 @@
 }
 .btn:hover { opacity: 0.9; }
 .btn-primary { 
-  background: #3b82f6; 
-  border-color: #3b82f6; 
+  background: var(--primary-blue); 
+  border-color: var(--primary-blue); 
   color: #fff; 
 }
 .btn-secondary { 
@@ -69,3 +69,51 @@
 }
 .btn-sm { padding: 0.375rem 0.75rem; font-size: 0.875rem; }
 .btn-xs { padding: 0.25rem 0.5rem; font-size: 0.75rem; }
+
+/* Responsive Design for Pricing */
+@media (max-width: 768px) {
+  .pricing-tabs {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    flex-wrap: nowrap;
+  }
+  
+  .tab-button {
+    flex-shrink: 0;
+    padding: 0.75rem 1rem;
+    font-size: 0.875rem;
+    min-height: 44px;
+  }
+  
+  .plan-row {
+    grid-template-columns: 1fr;
+    gap: 0.75rem;
+    padding: 1rem;
+  }
+  
+  .plans-table {
+    font-size: 0.875rem;
+  }
+  
+  .plans-table th,
+  .plans-table td {
+    padding: 0.75rem 0.5rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .pricing-header {
+    flex-direction: column;
+    gap: 1rem;
+    align-items: stretch;
+  }
+  
+  .pricing-tabs {
+    flex-direction: column;
+  }
+  
+  .tab-button {
+    width: 100%;
+    justify-content: center;
+  }
+}

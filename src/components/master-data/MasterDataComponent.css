@@ -172,7 +172,7 @@
   left: 0;
   right: 0;
   height: 4px;
-  background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(90deg, var(--primary-blue) 0%, var(--primary-blue-dark) 100%);
 }
 
 .test-form .form-section {
@@ -197,7 +197,7 @@
 
 .test-form .section-title .icon {
   font-size: 1.3rem;
-  color: #667eea;
+  color: var(--primary-blue);
 }
 
 .test-form .form-row {
@@ -245,7 +245,7 @@
 
 .test-form .form-control:focus {
   outline: none;
-  border-color: #667eea;
+  border-color: var(--primary-blue);
   box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
   transform: translateY(-1px);
 }
@@ -285,14 +285,14 @@
 }
 
 .test-form .checkbox-label:hover {
-  color: #667eea;
+  color: var(--primary-blue);
 }
 
 .test-form .checkbox-label input[type="checkbox"] {
   width: 18px;
   height: 18px;
   margin: 0;
-  accent-color: #667eea;
+  accent-color: var(--primary-blue);
   cursor: pointer;
 }
 
@@ -325,7 +325,7 @@
 }
 
 .test-form .form-actions .btn-primary {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, var(--primary-blue) 0%, var(--primary-blue-dark) 100%);
   color: white;
 }
 
@@ -621,7 +621,7 @@
 }
 
 /* Modal Styles */
-.modal-overlay {
+.master-data-modal-overlay {
   position: fixed;
   top: 0;
   left: 0;
@@ -631,7 +631,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 1000;
+  z-index: var(--z-modal-backdrop);
   padding: 20px;
 }
 
@@ -4191,7 +4191,7 @@
 
 /* Selection Summary */
 .selection-summary {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, var(--primary-blue) 0%, var(--primary-blue-dark) 100%);
   color: white;
   padding: 20px;
   border-radius: 12px;
@@ -4295,7 +4295,7 @@
 }
 
 .question-card:hover {
-  border-color: #667eea;
+  border-color: var(--primary-blue);
   box-shadow: 0 4px 20px rgba(102, 126, 234, 0.15);
   transform: translateY(-2px);
 }
@@ -4446,12 +4446,12 @@
 }
 
 .test-question-card:hover {
-  border-color: #667eea;
+  border-color: var(--primary-blue);
   box-shadow: 0 2px 12px rgba(102, 126, 234, 0.1);
 }
 
 .question-number {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, var(--primary-blue) 0%, var(--primary-blue-dark) 100%);
   color: white;
   width: 32px;
   height: 32px;
@@ -4501,7 +4501,7 @@
 
 .loading-spinner {
   font-size: 1.125rem;
-  color: #667eea;
+  color: var(--primary-blue);
 }
 
 .empty-icon {
@@ -5322,7 +5322,7 @@
 
 /* Question Preview Modal */
 .preview-overlay {
-  z-index: 1100;
+  z-index: var(--z-modal);
 }
 
 .preview-modal-content {

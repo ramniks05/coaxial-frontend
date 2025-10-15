@@ -11,6 +11,7 @@ import {
 } from '../../services/masterDataService';
 import { getMasterExamsKV, getYearsKV } from '../../services/questionTaggingService';
 import '../../styles/design-system.css';
+import AdminPageHeader from '../common/AdminPageHeader';
 import QuestionListCard from './QuestionListCard';
 import QuestionFilters from './filters/QuestionFilters';
 
@@ -1078,20 +1079,12 @@ const QuestionManagement = ({ onBackToDashboard }) => {
 
   return (
     <div className="master-data-component">
-      {/* Header */}
-      <div className="component-header">
-        <div className="header-info">
-          <h2>Question Management</h2>
-          <p>Create and manage questions with exam tagging and hierarchical organization</p>
-        </div>
-        <div className="header-actions">
-          <button 
-            className="btn btn-secondary"
-            onClick={onBackToDashboard}
-            disabled={loading}
-          >
-            ← Back to Dashboard
-          </button>
+      <AdminPageHeader
+        title="Question Management"
+        subtitle="Create and manage questions with exam tagging and hierarchical organization"
+        onBackToDashboard={onBackToDashboard}
+        actions={(
+          <>
           {!useEnhancedFilters && (
             <button 
               className="btn btn-secondary"
@@ -1114,8 +1107,9 @@ const QuestionManagement = ({ onBackToDashboard }) => {
           >
             Add Question
           </button>
-        </div>
-      </div>
+          </>
+        )}
+      />
 
       {/* Enhanced Filters or Standard Filters */}
       {useEnhancedFilters ? (

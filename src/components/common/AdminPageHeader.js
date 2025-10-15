@@ -10,9 +10,8 @@ const AdminPageHeader = ({ title, subtitle, onBackToDashboard, showAdminBadge = 
       <div className="header-actions">
         {onBackToDashboard && (
           <button 
-            className="btn btn-primary"
+            className="btn btn-primary btn-success"
             onClick={onBackToDashboard}
-            style={{ backgroundColor: '#10b981', borderColor: '#10b981', color: 'white' }}
           >
             ← Back to Dashboard
           </button>

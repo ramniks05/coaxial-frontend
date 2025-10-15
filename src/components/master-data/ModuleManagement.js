@@ -13,6 +13,7 @@ import {
   getTopicsByLinkage,
   updateModule
 } from '../../services/masterDataService';
+import AdminPageHeader from '../common/AdminPageHeader';
 import './MasterDataComponent.css';
 
 // Reusable DataCard Component
@@ -1126,13 +1127,11 @@ const ModuleManagement = () => {
 
   return (
     <div className="master-data-component">
-      <div className="component-header">
-        <div className="header-info">
-          <h2>Module Management</h2>
-          <p>Manage modules with hierarchical filtering and linking to subjects and topics</p>
-        </div>
-        
-        <div className="header-actions">
+      <AdminPageHeader
+        title="Module Management"
+        subtitle="Manage modules with hierarchical filtering and linking to subjects and topics"
+        showAdminBadge={false}
+        actions={(
           <button 
             className="btn btn-primary"
             onClick={() => {
@@ -1143,8 +1142,8 @@ const ModuleManagement = () => {
           >
             Add Module
           </button>
-        </div>
-      </div>
+        )}
+      />
 
       {/* Filter Section */}
       <div className="filter-section">

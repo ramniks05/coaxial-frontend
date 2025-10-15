@@ -12,6 +12,7 @@ import {
     getTopicsCombinedFilter,
     updateTopic
 } from '../../services/masterDataService';
+import AdminPageHeader from '../common/AdminPageHeader';
 import './MasterDataComponent.css';
 
 // Reusable DataCard Component
@@ -978,13 +979,11 @@ const TopicManagement = () => {
 
   return (
     <div className="master-data-component">
-      <div className="component-header">
-        <div className="header-info">
-          <h2>Topic Management</h2>
-          <p>Manage topics with optimized filtering and shared cache</p>
-        </div>
-        
-        <div className="header-actions">
+      <AdminPageHeader
+        title="Topic Management"
+        subtitle="Manage topics with optimized filtering and shared cache"
+        showAdminBadge={false}
+        actions={(
           <button 
             className="btn btn-primary"
             onClick={() => {
@@ -995,8 +994,8 @@ const TopicManagement = () => {
           >
             Add Topic
           </button>
-        </div>
-      </div>
+        )}
+      />
 
       {/* Optimized Filters using shared hook */}
       <div className="filter-section">

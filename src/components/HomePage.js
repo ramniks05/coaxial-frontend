@@ -18,37 +18,37 @@ const HomePage = () => {
       icon: '🎓',
       title: 'Personalized Learning',
       description: 'AI-powered adaptive learning paths customized to your pace and style',
-      color: '#667eea'
+      color: '#1976D2'  // Primary Blue
     },
     {
       icon: '📊',
       title: 'Progress Analytics',
       description: 'Detailed insights and performance tracking to monitor your growth',
-      color: '#22c55e'
+      color: '#10b981'  // Success Green
     },
     {
       icon: '🏆',
       title: 'Certification',
       description: 'Earn recognized certificates upon completing courses and assessments',
-      color: '#f59e0b'
+      color: '#FF9800'  // Accent Orange
     },
     {
       icon: '💬',
       title: 'Live Doubt Sessions',
       description: 'Interactive sessions with expert instructors for instant clarification',
-      color: '#ef4444'
+      color: '#ef4444'  // Error Red
     },
     {
       icon: '📱',
       title: 'Mobile Learning',
       description: 'Learn anytime, anywhere with our responsive platform',
-      color: '#a855f7'
+      color: '#42A5F5'  // Primary Blue Light
     },
     {
       icon: '🔒',
       title: 'Secure & Private',
       description: 'Your data is protected with enterprise-grade security',
-      color: '#06b6d4'
+      color: '#1565C0'  // Primary Blue Dark
     }
   ];
 
@@ -60,7 +60,7 @@ const HomePage = () => {
       image: '🏫',
       courses: 450,
       students: 5000,
-      color: '#667eea'
+      color: '#1976D2'  // Primary Blue
     },
     {
       id: 2,
@@ -69,7 +69,7 @@ const HomePage = () => {
       image: '🎯',
       courses: 350,
       students: 3500,
-      color: '#f59e0b'
+      color: '#FF9800'  // Accent Orange
     },
     {
       id: 3,
@@ -78,7 +78,7 @@ const HomePage = () => {
       image: '💼',
       courses: 200,
       students: 1500,
-      color: '#22c55e'
+      color: '#10b981'  // Success Green
     }
   ];
 

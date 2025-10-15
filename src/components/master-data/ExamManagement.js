@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import { createExam, deleteExam, getCourses, getExams, updateExam } from '../../services/masterDataService';
+import AdminPageHeader from '../common/AdminPageHeader';
 import './MasterDataComponent.css';
 
 // Reusable DataCard Component
@@ -544,20 +545,19 @@ const ExamManagement = () => {
 
   return (
     <div className="master-data-component">
-      <div className="component-header">
-        <div className="header-info">
-          <h2>Exam Management</h2>
-          <p>Manage exams for all course types (e.g., JEE, NEET, UPSC, Mid-term, Final)</p>
-        </div>
-        <div style={{ display: 'flex', gap: '10px' }}>
+      <AdminPageHeader
+        title="Exam Management"
+        subtitle="Manage exams for all course types (e.g., JEE, NEET, UPSC, Mid-term, Final)"
+        showAdminBadge={false}
+        actions={(
           <button 
             className="btn btn-primary"
             onClick={() => setShowForm(true)}
           >
             Add Exam
           </button>
-        </div>
-      </div>
+        )}
+      />
 
       {/* Filters */}
       <div className="filter-section">

@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import { clearCoursesCache, getCourseTypesCached, getCoursesCached } from '../../services/globalApiCache';
 import { createCourse, deleteCourse, updateCourse } from '../../services/masterDataService';
+import AdminPageHeader from '../common/AdminPageHeader';
 import './MasterDataComponent.css';
 
 // Reusable DataCard Component
@@ -517,20 +518,19 @@ const CourseManagement = () => {
 
   return (
     <div className="master-data-component">
-      <div className="component-header">
-        <div className="header-info">
-          <h2>Course Management</h2>
-          <p>Manage courses for different course types (e.g., Mathematics, Science, English)</p>
-        </div>
-        <div style={{ display: 'flex', gap: '10px' }}>
+      <AdminPageHeader
+        title="Course Management"
+        subtitle="Manage courses for different course types (e.g., Mathematics, Science, English)"
+        showAdminBadge={false}
+        actions={(
           <button 
             className="btn btn-primary"
             onClick={() => setShowForm(true)}
           >
             Add Course
           </button>
-        </div>
-      </div>
+        )}
+      />
 
       {/* Course Type Filter */}
       <div className="filter-section">

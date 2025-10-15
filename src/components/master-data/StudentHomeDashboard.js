@@ -200,9 +200,8 @@ const StudentHomeDashboard = ({ onNavigate }) => {
                         <div 
                           className="chart-bar"
                           style={{ 
-                            height: `${height}%`,
-                            background: `linear-gradient(to top, ${getScoreColor(test.percentage)}, ${getScoreColor(test.percentage)}dd)`,
-                            boxShadow: `0 -4px 12px ${getScoreColor(test.percentage)}33`
+                            '--bar-height': `${height}%`,
+                            '--bar-color': getScoreColor(test.percentage)
                           }}
                         >
                           <span className="bar-score">{test.percentage}%</span>
@@ -292,14 +291,13 @@ const StudentHomeDashboard = ({ onNavigate }) => {
                   <div key={index} className="activity-day">
                     <div className="activity-bar-wrapper">
                       <div 
-                        className="activity-bar"
+                        className={`activity-bar ${
+                          activityHeight > 70 ? 'activity-high' : 
+                          activityHeight > 40 ? 'activity-medium' : 
+                          'activity-low'
+                        }`}
                         style={{ 
-                          height: `${activityHeight}%`,
-                          background: activityHeight > 70 
-                            ? 'linear-gradient(to top, #22c55e, #10b981)' 
-                            : activityHeight > 40
-                            ? 'linear-gradient(to top, #f59e0b, #f97316)'
-                            : 'linear-gradient(to top, #e5e7eb, #d1d5db)'
+                          '--activity-height': `${activityHeight}%`
                         }}
                       >
                         <div className="activity-tooltip">
@@ -327,14 +325,14 @@ const StudentHomeDashboard = ({ onNavigate }) => {
               key={action.id}
               className="quick-action-card"
               onClick={() => onNavigate(action.id)}
-              style={{ borderTopColor: action.color }}
+              style={{ '--action-color': action.color }}
             >
-              <div className="action-icon" style={{ color: action.color }}>
+              <div className="action-icon">
                 {action.icon}
               </div>
               <h4 className="action-title">{action.title}</h4>
               <p className="action-description">{action.description}</p>
-              <div className="action-arrow" style={{ color: action.color }}>→</div>
+              <div className="action-arrow">→</div>
             </div>
           ))}
         </div>

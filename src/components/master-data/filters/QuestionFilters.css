@@ -29,8 +29,8 @@
   --filter-shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1);
   
   --filter-transition: all 0.2s ease-in-out;
-  --filter-z-index: 1000;
-  --filter-z-index-modal: 9999;
+  --filter-z-index: var(--z-dropdown);
+  --filter-z-index-modal: var(--z-modal);
 }
 
 /* Main Container */
