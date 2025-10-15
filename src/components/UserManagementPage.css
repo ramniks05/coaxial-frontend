@@ -1,8 +1,19 @@
 /* Combined User Management Page Styles */
 .user-management-page {
+  width: 100%;
+  max-width: 100%;
+  position: relative;
+  box-sizing: border-box;
+}
+
+.user-management-page-content {
   padding: var(--spacing-6);
+  padding-top: 0;
   max-width: 1200px;
   margin: 0 auto;
+  box-sizing: border-box;
+  width: 100%;
+  overflow-x: hidden;
 }
 
 /* Page Header */
@@ -37,15 +48,29 @@
 }
 
 /* Statistics Section */
-.stats-section {
+.user-management-page .stats-section {
+  margin-top: 0;
   margin-bottom: var(--spacing-8);
+  padding: var(--spacing-6);
+  background: var(--white);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--gray-200);
+  box-shadow: var(--shadow-sm);
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  overflow-x: hidden;
+  clear: both;
+  position: relative;
 }
 
-.stats-section h2 {
+.user-management-page .stats-section h2 {
   font-size: var(--font-size-xl);
-  font-weight: 600;
+  font-weight: 700;
   color: var(--gray-900);
-  margin-bottom: var(--spacing-6);
+  margin: 0 0 var(--spacing-6) 0;
+  padding-bottom: var(--spacing-3);
+  border-bottom: 2px solid var(--gray-300);
 }
 
 /* Loading State */
@@ -86,13 +111,17 @@
 }
 
 /* Stats Grid */
-.stats-grid {
+.user-management-page .stats-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: var(--spacing-6);
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 20px;
+  margin-bottom: 19px;
+  margin-top: 20px;
+  width: 100%;
+  box-sizing: border-box;
 }
 
-.stat-card {
+.user-management-page .stat-card {
   background: var(--white);
   border-radius: var(--radius-lg);
   padding: var(--spacing-6);
@@ -104,47 +133,51 @@
   transition: all 0.2s ease;
   position: relative;
   overflow: hidden;
+  width: 100%;
+  box-sizing: border-box;
+  z-index: 1;
 }
 
-.stat-card::before {
+.user-management-page .stat-card::before {
   content: '';
   position: absolute;
   top: 0;
   left: 0;
   right: 0;
   height: 4px;
+  z-index: 0;
 }
 
-.stat-card:hover {
+.user-management-page .stat-card:hover {
   transform: translateY(-2px);
   box-shadow: var(--shadow-md);
 }
 
-.stat-card.total::before {
+.user-management-page .stat-card.total::before {
   background: linear-gradient(135deg, var(--primary-blue) 0%, var(--accent-orange) 100%);
 }
 
-.stat-card.active::before {
+.user-management-page .stat-card.active::before {
   background: var(--success);
 }
 
-.stat-card.inactive::before {
+.user-management-page .stat-card.inactive::before {
   background: var(--error);
 }
 
-.stat-card.admin::before {
+.user-management-page .stat-card.admin::before {
   background: var(--error);
 }
 
-.stat-card.instructor::before {
+.user-management-page .stat-card.instructor::before {
   background: var(--success);
 }
 
-.stat-card.student::before {
+.user-management-page .stat-card.student::before {
   background: var(--primary-blue);
 }
 
-.stat-icon {
+.user-management-page .stat-icon {
   width: 60px;
   height: 60px;
   border-radius: var(--radius-xl);
@@ -152,9 +185,11 @@
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  position: relative;
+  z-index: 1;
 }
 
-.stat-icon svg {
+.user-management-page .stat-icon svg {
   width: 32px;
   height: 32px;
 }
@@ -192,6 +227,8 @@
 .stat-content {
   flex: 1;
   min-width: 0;
+  position: relative;
+  z-index: 1;
 }
 
 .stat-number {
@@ -524,7 +561,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 1000;
+  z-index: var(--z-modal-backdrop);
   padding: var(--spacing-4);
 }
 
@@ -592,7 +629,14 @@
 /* Responsive Design */
 @media (max-width: 768px) {
   .user-management-page {
+    width: 100%;
+    max-width: 100vw;
+    overflow-x: hidden;
+  }
+
+  .user-management-page-content {
     padding: var(--spacing-4);
+    padding-top: 0;
   }
   
   .header-content {
@@ -607,10 +651,13 @@
   .stats-grid {
     grid-template-columns: 1fr;
     gap: var(--spacing-4);
+    width: 100%;
   }
   
   .stat-card {
     padding: var(--spacing-4);
+    width: 100%;
+    max-width: 100%;
   }
   
   .stat-icon {
@@ -660,17 +707,33 @@
 
 @media (max-width: 480px) {
   .user-management-page {
+    width: 100%;
+    max-width: 100vw;
+    overflow-x: hidden;
+  }
+
+  .user-management-page-content {
     padding: var(--spacing-3);
+    padding-top: 0;
+  }
+
+  .user-management-page .stats-section {
+    margin-top: 0;
+    padding: var(--spacing-4);
   }
   
   .stats-grid {
+    grid-template-columns: 1fr;
     gap: var(--spacing-3);
+    width: 100%;
   }
   
   .stat-card {
     padding: var(--spacing-3);
     flex-direction: column;
     text-align: center;
+    width: 100%;
+    max-width: 100%;
   }
   
   .stat-icon {

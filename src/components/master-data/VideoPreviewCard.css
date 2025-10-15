@@ -21,7 +21,7 @@
 .video-preview-card.dragging {
   opacity: 0.5;
   transform: rotate(5deg);
-  z-index: 1000;
+  z-index: var(--z-dropdown);
 }
 
 .video-preview-card.error {

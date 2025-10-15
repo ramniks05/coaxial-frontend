@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import './StudentQuestionCard.css';
 
 const StudentQuestionCard = ({ question, isBookmarked, onToggleBookmark }) => {
   const [showAnswer, setShowAnswer] = useState(false);
@@ -30,18 +31,7 @@ const StudentQuestionCard = ({ question, isBookmarked, onToggleBookmark }) => {
   const isLongQuestion = questionText.length > 150;
 
   return (
-    <div style={{
-      background: 'white',
-      borderRadius: '16px',
-      padding: '24px',
-      boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-      transition: 'all 0.3s ease',
-      border: '1px solid #e5e7eb',
-      position: 'relative'
-    }}
-    onMouseOver={(e) => e.currentTarget.style.boxShadow = '0 8px 24px rgba(0,0,0,0.15)'}
-    onMouseOut={(e) => e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.1)'}
-    >
+    <div className="student-question-card">
       {/* Header with badges and bookmark */}
       <div style={{ 
         display: 'flex', 

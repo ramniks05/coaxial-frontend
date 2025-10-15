@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import { clearCourseTypesCache, getCourseTypesCached } from '../../services/globalApiCache';
 import { createCourseType, deleteCourseType, updateCourseType } from '../../services/masterDataService';
+import AdminPageHeader from '../common/AdminPageHeader';
 import './MasterDataComponent.css';
 
 // Reusable DataCard Component
@@ -460,12 +461,11 @@ const CourseTypeManagement = () => {
 
   return (
     <div className="master-data-component">
-      <div className="component-header">
-        <div className="header-info">
-          <h2>Course Type Management</h2>
-          <p>Manage different types of courses with their hierarchical structures (Academic, Competitive, Professional, Custom)</p>
-        </div>
-        <div className="header-actions">
+      <AdminPageHeader
+        title="Course Type Management"
+        subtitle="Manage different types of courses with their hierarchical structures (Academic, Competitive, Professional, Custom)"
+        showAdminBadge={false}
+        actions={(
           <button 
             className="btn btn-primary"
             onClick={() => setShowForm(true)}
@@ -473,8 +473,8 @@ const CourseTypeManagement = () => {
           >
             Add Course Type
           </button>
-        </div>
-      </div>
+        )}
+      />
 
       {showForm && (
         <div className="form-section">

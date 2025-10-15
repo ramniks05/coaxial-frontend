@@ -1,12 +1,16 @@
 .student-home-dashboard {
   min-height: 100vh;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  width: 100%;
+  max-width: 100vw;
+  background: linear-gradient(135deg, var(--primary-blue) 0%, var(--primary-blue-dark) 100%);
   padding: 0;
+  overflow-x: hidden;
+  box-sizing: border-box;
 }
 
 /* Hero Section */
 .hero-section {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, var(--primary-blue) 0%, var(--primary-blue-dark) 100%);
   padding: 60px 40px;
   margin-bottom: 40px;
   position: relative;
@@ -131,6 +135,7 @@
 /* Stats Grid */
 .stats-grid {
   max-width: 1400px;
+  width: 100%;
   margin: -60px auto 40px auto;
   padding: 0 40px;
   display: grid;
@@ -138,6 +143,7 @@
   gap: 24px;
   position: relative;
   z-index: 10;
+  box-sizing: border-box;
 }
 
 .stat-card {
@@ -148,6 +154,8 @@
   transition: all 0.3s ease;
   position: relative;
   overflow: hidden;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .stat-card::before {
@@ -160,19 +168,19 @@
 }
 
 .stat-card.primary-gradient::before {
-  background: linear-gradient(to right, #667eea, #764ba2);
+  background: linear-gradient(to right, var(--primary-blue), var(--primary-blue-dark));
 }
 
 .stat-card.success-gradient::before {
-  background: linear-gradient(to right, #22c55e, #16a34a);
+  background: linear-gradient(to right, var(--success), #16a34a);
 }
 
 .stat-card.warning-gradient::before {
-  background: linear-gradient(to right, #f59e0b, #f97316);
+  background: linear-gradient(to right, var(--accent-orange), var(--accent-orange-dark));
 }
 
-.stat-card.purple-gradient::before {
-  background: linear-gradient(to right, #a855f7, #9333ea);
+.stat-card.info-gradient::before {
+  background: linear-gradient(to right, var(--primary-blue-light), var(--primary-blue));
 }
 
 .stat-card:hover {
@@ -214,11 +222,13 @@
 /* Dashboard Grid */
 .dashboard-grid {
   max-width: 1400px;
+  width: 100%;
   margin: 0 auto;
   padding: 0 40px 40px 40px;
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   gap: 24px;
+  box-sizing: border-box;
 }
 
 .dashboard-card {
@@ -228,6 +238,8 @@
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
   transition: all 0.3s ease;
   overflow: hidden;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .dashboard-card.full-width {
@@ -291,6 +303,7 @@
 
 .chart-bar {
   width: 100%;
+  height: var(--bar-height, 0);
   border-radius: 12px 12px 0 0;
   position: relative;
   transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
@@ -299,6 +312,8 @@
   justify-content: center;
   padding-top: 12px;
   cursor: pointer;
+  background: linear-gradient(to top, var(--bar-color), var(--bar-color)dd);
+  box-shadow: 0 -4px 12px color-mix(in srgb, var(--bar-color) 20%, transparent);
 }
 
 .chart-bar:hover {
@@ -487,10 +502,23 @@
 .activity-bar {
   width: 100%;
   max-width: 60px;
+  height: var(--activity-height, 0);
   border-radius: 8px 8px 0 0;
   position: relative;
   transition: all 0.3s ease;
   box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.activity-bar.activity-high {
+  background: linear-gradient(to top, var(--success), #059669);
+}
+
+.activity-bar.activity-medium {
+  background: linear-gradient(to top, var(--warning), var(--accent-orange));
+}
+
+.activity-bar.activity-low {
+  background: linear-gradient(to top, var(--gray-200), var(--gray-300));
 }
 
 .activity-bar:hover {
@@ -528,8 +556,10 @@
 /* Quick Actions Section */
 .quick-actions-section {
   max-width: 1400px;
+  width: 100%;
   margin: 0 auto 40px auto;
   padding: 0 40px;
+  box-sizing: border-box;
 }
 
 .section-title {
@@ -544,6 +574,7 @@
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 20px;
+  width: 100%;
 }
 
 .quick-action-card {
@@ -553,23 +584,35 @@
   cursor: pointer;
   transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
   position: relative;
-  border-top: 4px solid transparent;
+  border-top: 4px solid var(--action-color, var(--primary-blue));
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
 }
 
 .quick-action-card:hover {
   transform: translateY(-8px) scale(1.02);
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 12px 32px color-mix(in srgb, var(--action-color) 15%, rgba(0, 0, 0, 0.1));
 }
 
 .action-icon {
   font-size: 56px;
   margin-bottom: 16px;
   transition: transform 0.3s ease;
+  color: var(--action-color, var(--primary-blue));
 }
 
 .quick-action-card:hover .action-icon {
   transform: scale(1.15);
+}
+
+.action-arrow {
+  position: absolute;
+  bottom: 24px;
+  right: 24px;
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--action-color, var(--primary-blue));
+  transition: transform 0.3s ease;
+  display: inline-block;
 }
 
 .action-title {
@@ -670,8 +713,14 @@
 }
 
 @media (max-width: 768px) {
+  .student-home-dashboard {
+    width: 100%;
+    max-width: 100vw;
+    overflow-x: hidden;
+  }
+
   .hero-section {
-    padding: 40px 20px;
+    padding: 40px 16px;
   }
 
   .hero-title {
@@ -701,17 +750,26 @@
 
   .stats-grid {
     margin-top: -40px;
-    padding: 0 20px;
+    padding: 0 16px;
     grid-template-columns: 1fr;
+    gap: 16px;
+    width: 100%;
   }
 
   .dashboard-grid {
-    padding: 0 20px 40px 20px;
+    padding: 0 16px 40px 16px;
     grid-template-columns: 1fr;
+    gap: 16px;
+    width: 100%;
+  }
+  
+  .dashboard-card {
+    width: 100%;
+    box-sizing: border-box;
   }
 
   .quick-actions-section {
-    padding: 0 20px;
+    padding: 0 16px;
   }
 
   .section-title {
@@ -755,46 +813,112 @@
 }
 
 @media (max-width: 480px) {
+  .hero-section {
+    padding: 30px 12px;
+  }
+
   .hero-title {
-    font-size: 28px;
+    font-size: 24px;
+  }
+
+  .hero-subtitle {
+    font-size: 14px;
   }
 
   .hero-stats-inline {
     flex-direction: column;
     width: 100%;
+    gap: 10px;
   }
 
   .inline-stat {
     width: 100%;
+    padding: 12px 16px;
+  }
+
+  .stats-grid {
+    padding: 0 12px;
+    margin-top: -30px;
+    gap: 12px;
   }
 
   .stat-card {
-    padding: 20px;
+    padding: 16px;
   }
 
   .stat-card-value {
     font-size: 24px;
   }
 
+  .stat-card-icon {
+    font-size: 32px;
+  }
+
+  .dashboard-grid {
+    padding: 0 12px 30px 12px;
+    gap: 12px;
+  }
+
+  .dashboard-card {
+    border-radius: 16px;
+  }
+
+  .card-header {
+    padding: 16px;
+  }
+
+  .card-content {
+    padding: 16px;
+  }
+
+  .quick-actions-section {
+    padding: 0 12px;
+  }
+
+  .section-title {
+    font-size: 18px;
+  }
+
+  .quick-actions-grid {
+    gap: 12px;
+  }
+
   .quick-action-card {
-    padding: 20px;
+    padding: 20px 16px;
   }
 
   .action-icon {
-    font-size: 48px;
+    font-size: 42px;
+  }
+
+  .action-title {
+    font-size: 16px;
   }
 
   .performance-chart {
-    height: 200px;
-    padding: 8px;
+    height: 180px;
+    padding: 12px;
   }
 
   .chart-bar {
-    max-width: 30px;
+    max-width: 28px;
   }
 
   .bar-score {
-    font-size: 10px;
+    font-size: 9px;
+  }
+
+  .tips-card {
+    margin: 0 12px 20px 12px;
+    padding: 16px;
+  }
+
+  .tips-grid {
+    gap: 12px;
+  }
+
+  .tip-item {
+    padding: 12px;
   }
 }
 

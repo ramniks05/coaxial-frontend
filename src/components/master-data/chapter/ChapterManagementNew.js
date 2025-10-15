@@ -8,6 +8,7 @@ import {
     getChaptersByModule,
     updateChapter
 } from '../../../services/masterDataService';
+import AdminPageHeader from '../../common/AdminPageHeader';
 import DocumentPreviewModal from '../DocumentPreviewModal';
 import '../MasterDataComponent.css';
 import VideoPreviewModal from '../VideoPreviewModal';
@@ -268,12 +269,11 @@ const ChapterManagementNew = () => {
 
   return (
     <div className="chapter-management">
-      <div className="component-header">
-        <div className="header-content">
-          <h2>Chapter Management</h2>
-          <p>Manage chapters for your courses, organized by modules</p>
-        </div>
-        <div className="header-actions">
+      <AdminPageHeader
+        title="Chapter Management"
+        subtitle="Manage chapters for your courses, organized by modules"
+        showAdminBadge={false}
+        actions={(
           <button 
             className="btn btn-primary"
             onClick={handleCreateNew}
@@ -281,8 +281,8 @@ const ChapterManagementNew = () => {
           >
             Create Chapter
           </button>
-        </div>
-      </div>
+        )}
+      />
 
       {/* Filters Section */}
       <ChapterFilters 

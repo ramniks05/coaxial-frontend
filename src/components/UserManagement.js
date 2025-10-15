@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { activateUser, deactivateUser, deleteUser, getUserCounts, getUsers, updateUser } from '../services/userService';
+import AdminPageHeader from './common/AdminPageHeader';
 import './UserManagement.css';
 
 const UserManagement = ({ onBackToDashboard }) => {
@@ -249,23 +250,13 @@ const UserManagement = ({ onBackToDashboard }) => {
 
   return (
     <div className="user-management">
-      <div className="user-management-header">
-        <div className="header-content">
-          <div className="header-text">
-            <h2>User Management</h2>
-            <p>Manage all users in the system</p>
-          </div>
-          {onBackToDashboard && (
-            <button 
-              className="btn btn-primary btn-sm"
-              onClick={onBackToDashboard}
-              style={{ backgroundColor: '#10b981', borderColor: '#10b981' }}
-            >
-              ← Back to Dashboard
-            </button>
-          )}
-        </div>
-        
+      <AdminPageHeader
+        title="User Management"
+        subtitle="Manage all users in the system"
+        onBackToDashboard={onBackToDashboard}
+      />
+
+      <div className="user-management-content">
         {/* User Statistics Section */}
         {userCounts && (
           <div className="user-stats-section">
@@ -308,9 +299,8 @@ const UserManagement = ({ onBackToDashboard }) => {
             </div>
           </div>
         )}
-      </div>
 
-      {/* Filters */}
+        {/* Filters */}
       <div className="filters-section">
         <div className="filters-row">
           <div className="filter-group">
@@ -472,6 +462,7 @@ const UserManagement = ({ onBackToDashboard }) => {
             )}
           </tbody>
         </table>
+      </div>
       </div>
 
       {/* Delete Confirmation Modal */}

@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import { getCourseTypesCached } from '../../services/globalApiCache';
 import { createSubjectWithAutoLink, deleteSubject, getAllSubjectLinkages, getClassesByCourse, getCourses, getExamsByCourse, getMasterSubjectsByCourseType, updateSubject } from '../../services/masterDataService';
+import AdminPageHeader from '../common/AdminPageHeader';
 import './MasterDataComponent.css';
 
 // Reusable DataCard Component
@@ -1115,20 +1116,19 @@ const SubjectManagement = () => {
 
   return (
     <div className="master-data-component">
-      <div className="component-header">
-        <div className="header-info">
-          <h2>Subject Management</h2>
-          <p>Create subjects once per course type. Subjects are shared across all classes within a course type.</p>
-        </div>
-        <div className="header-actions">
+      <AdminPageHeader
+        title="Subject Management"
+        subtitle="Create subjects once per course type. Subjects are shared across all classes within a course type."
+        showAdminBadge={false}
+        actions={(
           <button 
             className="btn btn-primary"
             onClick={() => setShowForm(true)}
           >
             Add Subject
           </button>
-        </div>
-      </div>
+        )}
+      />
 
        {/* Drill-down Filters */}
        <div className="filter-section">

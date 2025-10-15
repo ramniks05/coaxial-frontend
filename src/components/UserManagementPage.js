@@ -360,8 +360,9 @@ const UserManagementPage = ({ onBackToDashboard }) => {
         )}
       />
 
-      {/* User Statistics */}
-      <div className="stats-section">
+      <div className="user-management-page-content">
+        {/* User Statistics */}
+        <div className="stats-section">
         <h2>User Statistics</h2>
         {loading ? (
           <div className="loading-container">
@@ -693,6 +694,7 @@ const UserManagementPage = ({ onBackToDashboard }) => {
           </div>
         </div>
       )}
+      </div>
     </div>
   );
 };

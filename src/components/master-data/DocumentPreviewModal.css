@@ -9,7 +9,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 9999;
+  z-index: var(--z-modal-backdrop);
   padding: 20px;
   backdrop-filter: blur(4px);
 }
@@ -24,7 +24,7 @@
   bottom: 0 !important;
   width: 100vw !important;
   height: 100vh !important;
-  z-index: 99999 !important;
+  z-index: var(--z-modal) !important;
 }
 
 .document-preview-modal {
@@ -170,12 +170,12 @@
   border: none !important;
   background: #ffffff !important;
   position: fixed !important;
-  top: 0 !important;
+  top: 60px !important;
   left: 0 !important;
-  z-index: 99997 !important;
+  z-index: calc(var(--z-modal) - 2) !important;
 }
 
-/* Hide modal header in fullscreen to give PDF more space */
+/* Modal header in fullscreen */
 .document-preview-modal.fullscreen .modal-header {
   position: fixed !important;
   top: 0 !important;
@@ -183,10 +183,11 @@
   right: 0 !important;
   width: 100vw !important;
   height: 60px !important;
-  background: rgba(255, 255, 255, 0.95) !important;
+  background: rgba(255, 255, 255, 0.98) !important;
   backdrop-filter: blur(10px) !important;
-  z-index: 99998 !important;
+  z-index: calc(var(--z-modal) - 1) !important;
   border-bottom: 1px solid rgba(0, 0, 0, 0.1) !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1) !important;
 }
 
 /* Adjust PDF iframe to account for header */
