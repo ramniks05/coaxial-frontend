@@ -4,7 +4,10 @@
 export const createSubscription = async (token, subscriptionData) => {
   const endpoint = `${API_BASE}/api/student/subscriptions`;
   
-  console.log('Creating subscription:', subscriptionData);
+  console.log('🔵 Creating subscription...');
+  console.log('📍 Endpoint:', endpoint);
+  console.log('📦 Subscription data:', subscriptionData);
+  console.log('🔑 Has token:', !!token);
   
   const headers = {
     'Content-Type': 'application/json',
@@ -15,38 +18,53 @@ export const createSubscription = async (token, subscriptionData) => {
     headers['Authorization'] = `Bearer ${token}`;
   }
   
-  const response = await fetch(endpoint, {
-    method: 'POST',
-    headers,
-    body: JSON.stringify(subscriptionData)
-  });
-  
-  console.log('Create subscription response status:', response.status);
-  
-  if (!response.ok) {
-    // Clone response to allow multiple reads
-    const clonedResponse = response.clone();
+  try {
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(subscriptionData)
+    });
     
-    // Try to parse JSON error first
-    try {
-      const errorData = await response.json();
-      const errorMessage = errorData.error || errorData.message || 'Failed to create subscription';
-      throw new Error(errorMessage);
-    } catch (jsonError) {
-      // If JSON parsing fails, use cloned response for text
+    console.log('📊 Response status:', response.status, response.statusText);
+    console.log('📊 Response headers:', Object.fromEntries(response.headers.entries()));
+    
+    if (!response.ok) {
+      // Handle 503 Service Unavailable specifically
+      if (response.status === 503) {
+        console.error('❌ Backend service unavailable (503)');
+        throw new Error('Backend service is currently unavailable. Please try again later or contact support.');
+      }
+      
+      // Clone response to allow multiple reads
+      const clonedResponse = response.clone();
+      
+      // Try to parse JSON error first
       try {
-        const errorText = await clonedResponse.text();
-        console.error('Create subscription error:', errorText);
-        throw new Error(errorText || `Failed to create subscription: ${response.status} ${response.statusText}`);
-      } catch (textError) {
-        throw new Error(`Failed to create subscription: ${response.status} ${response.statusText}`);
+        const errorData = await response.json();
+        const errorMessage = errorData.error || errorData.message || 'Failed to create subscription';
+        console.error('❌ Subscription error (JSON):', errorData);
+        throw new Error(errorMessage);
+      } catch (jsonError) {
+        // If JSON parsing fails, use cloned response for text
+        try {
+          const errorText = await clonedResponse.text();
+          console.error('❌ Subscription error (text):', errorText);
+          throw new Error(errorText || `Failed to create subscription: ${response.status} ${response.statusText}`);
+        } catch (textError) {
+          console.error('❌ Subscription error (unknown):', textError);
+          throw new Error(`Failed to create subscription: ${response.status} ${response.statusText}`);
+        }
       }
     }
+    
+    const data = await response.json();
+    console.log('✅ Subscription created successfully:', data);
+    return data;
+  } catch (error) {
+    console.error('❌ Create subscription failed:', error);
+    console.error('❌ Error stack:', error.stack);
+    throw error;
   }
-  
-  const data = await response.json();
-  console.log('Subscription created successfully:', data);
-  return data;
 };
 
 // Verify Payment after Razorpay completion
