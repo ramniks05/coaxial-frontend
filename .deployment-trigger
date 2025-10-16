@@ -1,0 +1,8 @@
+# Deployment Trigger
+# This file is used to force Railway redeployment when needed
+# Last deployment: 2025-10-16 23:30:00
+
+DEPLOYMENT_TIMESTAMP=2025-10-16T23:30:00Z
+BUILD_NUMBER=1
+REASON=Fix live deployment issues
+
