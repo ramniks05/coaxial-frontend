@@ -81,19 +81,37 @@ const UnifiedPricingForm = () => {
         const data = await getCourseTypes(token);
         const arr = Array.isArray(data) ? data : (data?.content || data?.data || []);
         
+        console.log('UnifiedPricingForm - All course types:', arr);
+        console.log('UnifiedPricingForm - Current level:', level);
+        
         // Filter course types based on level
         let filteredArr = arr;
         if (level === 'CLASS') {
           // Only show Academic Course type for classes
-          filteredArr = arr.filter(ct => ct.name === 'Academic Course');
+          filteredArr = arr.filter(ct => 
+            ct.name?.toLowerCase().includes('academic') || 
+            ct.courseTypeName?.toLowerCase().includes('academic')
+          );
+          console.log('UnifiedPricingForm - Filtered for CLASS:', filteredArr);
         } else if (level === 'EXAM') {
           // Only show Competitive Course type for exams
-          filteredArr = arr.filter(ct => ct.name === 'Competitive Course');
+          filteredArr = arr.filter(ct => 
+            ct.name?.toLowerCase().includes('competitive') || 
+            ct.courseTypeName?.toLowerCase().includes('competitive')
+          );
+          console.log('UnifiedPricingForm - Filtered for EXAM:', filteredArr);
         }
         // For COURSE level, show all course types
         
+        // If no course types match the filter, show all and warn
+        if (filteredArr.length === 0 && arr.length > 0 && level !== 'COURSE') {
+          console.warn(`No course types found for ${level}, showing all course types`);
+          filteredArr = arr;
+        }
+        
         if (!cancelled) setCourseTypes(filteredArr);
       } catch (e) {
+        console.error('UnifiedPricingForm - Error loading course types:', e);
         addNotification({ type: 'error', message: `Failed to load course types: ${e.message}`, duration: 6000 });
       } finally {
         if (!cancelled) setLoadingCT(false);
