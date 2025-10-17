@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useApp } from '../../context/AppContext';
+import { API_BASE } from '../../utils/apiUtils';
 import {
     getActiveSubscriptions,
     getChaptersForModule,
@@ -95,7 +96,10 @@ const StudentContentBrowser = () => {
       
     } catch (error) {
       console.error('❌ Error loading subscriptions:', error);
-      addNotification('Failed to load subscriptions: ' + error.message, 'error');
+      addNotification({ 
+        message: 'Failed to load subscriptions: ' + error.message, 
+        type: 'error' 
+      });
       // Set empty array on error
       setSubscriptions([]);
     } finally {
@@ -164,7 +168,10 @@ const StudentContentBrowser = () => {
 
     } catch (error) {
       console.error('❌ Error loading subjects:', error);
-      addNotification('Failed to load subjects: ' + error.message, 'error');
+      addNotification({ 
+        message: 'Failed to load subjects: ' + error.message, 
+        type: 'error' 
+      });
       // Set empty subjects on error
       setContentData(prev => ({
         ...prev,
@@ -223,7 +230,10 @@ const StudentContentBrowser = () => {
       }, 100);
     } catch (error) {
       console.error('❌ Error loading topics:', error);
-      addNotification('Failed to load topics: ' + error.message, 'error');
+      addNotification({ 
+        message: 'Failed to load topics: ' + error.message, 
+        type: 'error' 
+      });
       setContentData(prev => ({
         ...prev,
         topics: []
@@ -275,7 +285,10 @@ const StudentContentBrowser = () => {
       }, 100);
     } catch (error) {
       console.error('❌ Error loading modules:', error);
-      addNotification('Failed to load modules: ' + error.message, 'error');
+      addNotification({ 
+        message: 'Failed to load modules: ' + error.message, 
+        type: 'error' 
+      });
       setContentData(prev => ({
         ...prev,
         modules: []
@@ -352,7 +365,10 @@ const StudentContentBrowser = () => {
       }, 100);
     } catch (error) {
       console.error('❌ Error loading chapters:', error);
-      addNotification('Failed to load chapters: ' + error.message, 'error');
+      addNotification({ 
+        message: 'Failed to load chapters: ' + error.message, 
+        type: 'error' 
+      });
       setContentData(prev => ({
         ...prev,
         chapters: []
@@ -407,7 +423,7 @@ const StudentContentBrowser = () => {
         
         const pdfUrl = currentDocument.filePath.startsWith('http') 
           ? currentDocument.filePath 
-          : `http://localhost:8080${currentDocument.filePath}`;
+          : `${API_BASE}${currentDocument.filePath}`;
         
         const response = await fetch(pdfUrl);
         if (!response.ok) {
@@ -429,7 +445,10 @@ const StudentContentBrowser = () => {
         
       } catch (error) {
         console.error('❌ Error fetching PDF:', error);
-        addNotification('Failed to load PDF: ' + error.message, 'error');
+        addNotification({ 
+          message: 'Failed to load PDF: ' + error.message, 
+          type: 'error' 
+        });
         setPdfBlobUrl(null);
       } finally {
         setPdfLoading(false);
@@ -1187,7 +1206,7 @@ const StudentContentBrowser = () => {
                         {isPdfFullscreen ? '🗗 Exit Fullscreen' : '⛶ Fullscreen'}
                       </button>
                       <a 
-                        href={pdfBlobUrl || `http://localhost:8080${selectedChapter.documents[currentDocumentIndex]?.filePath}`}
+                        href={pdfBlobUrl || `${API_BASE}${selectedChapter.documents[currentDocumentIndex]?.filePath}`}
                         download={selectedChapter.documents[currentDocumentIndex]?.fileName || 'document.pdf'}
                         className="btn btn-sm btn-primary"
                         target="_blank"

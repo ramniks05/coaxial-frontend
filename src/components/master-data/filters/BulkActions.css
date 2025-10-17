@@ -3,7 +3,7 @@
 .bulk-actions-bar {
   position: sticky;
   top: 0;
-  z-index: 100;
+  z-index: var(--z-dropdown);
   background: var(--filter-primary);
   color: white;
   box-shadow: var(--filter-shadow-md);

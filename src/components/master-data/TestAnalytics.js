@@ -371,7 +371,7 @@ const TestAnalytics = ({ tests, onClose }) => {
             </button>
             <button 
               className="btn btn-primary"
-              onClick={() => addNotification('Export feature coming soon!', 'info')}
+              onClick={() => addNotification({ message: 'Export feature coming soon!', type: 'info' })}
             >
               📊 Export Data
             </button>

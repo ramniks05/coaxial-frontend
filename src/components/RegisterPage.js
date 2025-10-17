@@ -98,7 +98,10 @@ const RegisterPage = () => {
         const token = responseData.token;
 
         loginSuccess(userData, token);
-        addNotification(`✅ Welcome to Coaxial Academy, ${userData.firstName}!`, 'success');
+        addNotification({ 
+          message: `✅ Welcome to Coaxial Academy, ${userData.firstName}!`, 
+          type: 'success' 
+        });
 
         const role = formData.role || 'STUDENT';
         const dashboardPath = role === 'ADMIN' ? '/dashboard/admin'
@@ -116,7 +119,10 @@ const RegisterPage = () => {
 
         const errorInfo = extractErrorInfo(response, errorData);
         setError(errorInfo.message);
-        addNotification(errorInfo.message, getErrorSeverity(errorInfo.code));
+        addNotification({ 
+          message: errorInfo.message, 
+          type: getErrorSeverity(errorInfo.code) 
+        });
 
         // Handle field-specific errors
         if (errorInfo.code === 'VALIDATION_ERROR' && errorData.fieldErrors) {
@@ -140,7 +146,10 @@ const RegisterPage = () => {
     } catch (err) {
       console.error('Registration error:', err);
       setError('Network error. Please try again.');
-      addNotification('Network error. Please try again.', 'error');
+      addNotification({ 
+        message: 'Network error. Please try again.', 
+        type: 'error' 
+      });
     } finally {
       setLoading(false);
     }

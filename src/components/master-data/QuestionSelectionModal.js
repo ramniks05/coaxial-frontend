@@ -132,7 +132,10 @@ const QuestionSelectionModal = ({ test, onClose, onComplete }) => {
       }
     } catch (error) {
       console.error('Error fetching questions:', error);
-      addNotification('Failed to fetch questions', 'error');
+      addNotification({ 
+        message: 'Failed to fetch questions', 
+        type: 'error' 
+      });
     } finally {
       setLoading(false);
     }
@@ -207,7 +210,10 @@ const QuestionSelectionModal = ({ test, onClose, onComplete }) => {
     
     setFilters(newFilters);
     setPage(0);
-    addNotification(`Filter preset applied: ${presetType}`, 'success');
+    addNotification({ 
+      message: `Filter preset applied: ${presetType}`, 
+      type: 'success' 
+    });
   };
   
   // Bulk selection functions
@@ -217,7 +223,10 @@ const QuestionSelectionModal = ({ test, onClose, onComplete }) => {
       !selectedQuestions.some(selected => selected.id === q.id)
     );
     setSelectedQuestions(prev => [...prev, ...newSelections]);
-    addNotification(`Selected ${newSelections.length} ${difficulty} questions`, 'success');
+    addNotification({ 
+      message: `Selected ${newSelections.length} ${difficulty} questions`, 
+      type: 'success' 
+    });
   };
   
   const selectByMarks = (marks) => {
@@ -226,7 +235,10 @@ const QuestionSelectionModal = ({ test, onClose, onComplete }) => {
       !selectedQuestions.some(selected => selected.id === q.id)
     );
     setSelectedQuestions(prev => [...prev, ...newSelections]);
-    addNotification(`Selected ${newSelections.length} questions with ${marks} marks`, 'success');
+    addNotification({ 
+      message: `Selected ${newSelections.length} questions with ${marks} marks`, 
+      type: 'success' 
+    });
   };
   
   const selectRandom = (count) => {
@@ -238,7 +250,10 @@ const QuestionSelectionModal = ({ test, onClose, onComplete }) => {
     const randomSelections = shuffled.slice(0, count);
     
     setSelectedQuestions(prev => [...prev, ...randomSelections]);
-    addNotification(`Randomly selected ${randomSelections.length} questions`, 'success');
+    addNotification({ 
+      message: `Randomly selected ${randomSelections.length} questions`, 
+      type: 'success' 
+    });
   };
   
   const selectFirst = (count) => {
@@ -246,7 +261,10 @@ const QuestionSelectionModal = ({ test, onClose, onComplete }) => {
       !selectedQuestions.some(selected => selected.id === q.id)
     );
     setSelectedQuestions(prev => [...prev, ...questionsToSelect]);
-    addNotification(`Selected first ${questionsToSelect.length} questions`, 'success');
+    addNotification({ 
+      message: `Selected first ${questionsToSelect.length} questions`, 
+      type: 'success' 
+    });
   };
   
   // Handle question selection
@@ -386,7 +404,10 @@ const QuestionSelectionModal = ({ test, onClose, onComplete }) => {
   // Handle complete selection
   const handleComplete = () => {
     if (selectedQuestions.length === 0) {
-      addNotification('Please select at least one question', 'warning');
+      addNotification({ 
+        message: 'Please select at least one question', 
+        type: 'warning' 
+      });
       return;
     }
     

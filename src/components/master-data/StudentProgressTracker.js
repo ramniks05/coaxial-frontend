@@ -77,7 +77,10 @@ const StudentProgressTracker = () => {
       }
     } catch (error) {
       console.error('Error loading subscriptions:', error);
-      addNotification('❌ Failed to load subscriptions', 'error');
+      addNotification({ 
+        message: '❌ Failed to load subscriptions', 
+        type: 'error' 
+      });
     } finally {
       setLoading(false);
     }

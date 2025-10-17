@@ -91,6 +91,7 @@
   --z-popover: 1060;
   --z-tooltip: 1070;
   --z-toast: 1080;
+  --z-payment: 2000; /* Razorpay and payment modals - highest priority */
   
   /* Header Heights */
   --header-height: 64px;
@@ -1368,7 +1369,7 @@ select.form-input,
   color: var(--white);
   padding: var(--spacing-2) var(--spacing-4);
   text-decoration: none;
-  z-index: 100;
+  z-index: var(--z-dropdown);
 }
 
 .skip-to-content:focus {

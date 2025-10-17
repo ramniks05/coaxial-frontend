@@ -40,18 +40,14 @@
 .notification-content {
   display: flex;
   align-items: center;
-  gap: 10px;
   flex: 1;
-}
-
-.notification-icon {
-  font-size: 18px;
 }
 
 .notification-message {
   color: #333;
   font-size: 14px;
   font-weight: 500;
+  line-height: 1.5;
 }
 
 .notification-close {

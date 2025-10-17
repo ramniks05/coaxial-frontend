@@ -118,7 +118,10 @@ const LoginPage = () => {
     e.preventDefault();
     
     if (isLocked) {
-      addNotification(`Account locked. Try again in ${formatRemainingTime(getRemainingLockoutTime())}`, 'error');
+      addNotification({ 
+        message: `Account locked. Try again in ${formatRemainingTime(getRemainingLockoutTime())}`, 
+        type: 'error' 
+      });
       return;
     }
     
@@ -158,12 +161,18 @@ const LoginPage = () => {
         if (newAttempts >= MAX_LOGIN_ATTEMPTS) {
           setIsLocked(true);
           setLockoutTime(Date.now());
-          addNotification(`Too many failed attempts. Account locked for ${LOCKOUT_DURATION / 60000} minutes.`, 'error');
+          addNotification({ 
+            message: `Too many failed attempts. Account locked for ${LOCKOUT_DURATION / 60000} minutes.`, 
+            type: 'error' 
+          });
         }
         
         const errorInfo = extractErrorInfo(data);
         setError(errorInfo.message || 'Login failed');
-        addNotification(errorInfo.message || 'Login failed', 'error');
+        addNotification({ 
+          message: errorInfo.message || 'Login failed', 
+          type: 'error' 
+        });
       } else {
         loginSuccess(data.user, data.token);
         
@@ -171,13 +180,19 @@ const LoginPage = () => {
           : data.user.role === 'INSTRUCTOR' ? '/dashboard/instructor' 
           : '/dashboard/student';
         
-        addNotification(`✅ Welcome back, ${data.user.firstName || data.user.username}!`, 'success');
+        addNotification({ 
+          message: `✅ Welcome back, ${data.user.firstName || data.user.username}!`, 
+          type: 'success' 
+        });
         navigate(dashboardPath);
       }
     } catch (err) {
       console.error('Login error:', err);
       setError('Network error. Please check your connection.');
-      addNotification('Network error. Please try again.', 'error');
+      addNotification({ 
+        message: 'Network error. Please try again.', 
+        type: 'error' 
+      });
     } finally {
       setIsSubmitting(false);
       setLoading(false);

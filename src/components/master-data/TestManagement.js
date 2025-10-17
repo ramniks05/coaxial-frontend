@@ -293,7 +293,10 @@ const TestManagement = ({ onBackToDashboard }) => {
       }
     } catch (error) {
       console.error('Error fetching master exams:', error);
-      addNotification('Failed to fetch master exams', 'error');
+      addNotification({ 
+        message: 'Failed to fetch master exams', 
+        type: 'error' 
+      });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]); // Removed executeApiCall and addNotification
@@ -329,7 +332,10 @@ const TestManagement = ({ onBackToDashboard }) => {
       setCourseTypes(courseTypesArray);
     } catch (error) {
       console.error('Error loading course types:', error);
-      addNotification('Failed to load course types', 'error');
+      addNotification({ 
+        message: 'Failed to load course types', 
+        type: 'error' 
+      });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]); // Removed addNotification
@@ -358,7 +364,10 @@ const TestManagement = ({ onBackToDashboard }) => {
       setCourses(coursesArray);
     } catch (error) {
       console.error('Error loading courses:', error);
-      addNotification('Failed to load courses', 'error');
+      addNotification({ 
+        message: 'Failed to load courses', 
+        type: 'error' 
+      });
     }
   }, [token, addNotification]);
 
@@ -386,7 +395,10 @@ const TestManagement = ({ onBackToDashboard }) => {
       setClasses(classesArray);
     } catch (error) {
       console.error('Error loading classes:', error);
-      addNotification('Failed to load classes', 'error');
+      addNotification({ 
+        message: 'Failed to load classes', 
+        type: 'error' 
+      });
     }
   }, [token, addNotification]);
 
@@ -414,7 +426,10 @@ const TestManagement = ({ onBackToDashboard }) => {
       setExams(examsArray);
     } catch (error) {
       console.error('Error loading exams:', error);
-      addNotification('Failed to load exams', 'error');
+      addNotification({ 
+        message: 'Failed to load exams', 
+        type: 'error' 
+      });
     }
   }, [token, addNotification]);
 
@@ -443,7 +458,10 @@ const TestManagement = ({ onBackToDashboard }) => {
       setSubjects(subjectsArray);
     } catch (error) {
       console.error('Error loading subjects:', error);
-      addNotification('Failed to load subjects', 'error');
+      addNotification({ 
+        message: 'Failed to load subjects', 
+        type: 'error' 
+      });
     }
   }, [token, addNotification]);
 
@@ -477,7 +495,10 @@ const TestManagement = ({ onBackToDashboard }) => {
       setTopics(mappedTopics);
     } catch (error) {
       console.error('Error loading topics:', error);
-      addNotification('Failed to load topics', 'error');
+      addNotification({ 
+        message: 'Failed to load topics', 
+        type: 'error' 
+      });
     }
   }, [token, addNotification]);
 
@@ -511,7 +532,10 @@ const TestManagement = ({ onBackToDashboard }) => {
       setModules(mappedModules);
     } catch (error) {
       console.error('Error loading modules:', error);
-      addNotification('Failed to load modules', 'error');
+      addNotification({ 
+        message: 'Failed to load modules', 
+        type: 'error' 
+      });
     }
   }, [token, addNotification]);
 
@@ -545,7 +569,10 @@ const TestManagement = ({ onBackToDashboard }) => {
       setChapters(mappedChapters);
     } catch (error) {
       console.error('Error loading chapters:', error);
-      addNotification('Failed to load chapters', 'error');
+      addNotification({ 
+        message: 'Failed to load chapters', 
+        type: 'error' 
+      });
     }
   }, [token, addNotification]);
 
@@ -647,7 +674,10 @@ const TestManagement = ({ onBackToDashboard }) => {
         }
       } catch (error) {
         console.error('Error fetching tests:', error);
-        addNotification('Failed to fetch tests', 'error');
+        addNotification({ 
+          message: 'Failed to fetch tests', 
+          type: 'error' 
+        });
       } finally {
         setLoading(false);
       }
@@ -680,7 +710,10 @@ const TestManagement = ({ onBackToDashboard }) => {
       }
     } catch (error) {
       console.error('Error refreshing tests:', error);
-      addNotification('Failed to refresh tests', 'error');
+      addNotification({ 
+        message: 'Failed to refresh tests', 
+        type: 'error' 
+      });
     } finally {
       setLoading(false);
     }
@@ -692,7 +725,10 @@ const TestManagement = ({ onBackToDashboard }) => {
     e.preventDefault();
     
     if (!validateForm()) {
-      addNotification('Please fix the validation errors', 'error');
+      addNotification({ 
+        message: 'Please fix the validation errors', 
+        type: 'error' 
+      });
       return;
     }
 
@@ -779,21 +815,30 @@ const TestManagement = ({ onBackToDashboard }) => {
       if (editingId) {
         const result = await executeApiCall(updateTest, token, editingId, basePayload);
         if (result) {
-          addNotification('Test updated successfully', 'success');
+          addNotification({ 
+            message: 'Test updated successfully', 
+            type: 'success' 
+          });
           handleCancel();
           refreshTests();
         }
       } else {
         const result = await executeApiCall(createTest, token, basePayload);
         if (result) {
-          addNotification('Test created successfully', 'success');
+          addNotification({ 
+            message: 'Test created successfully', 
+            type: 'success' 
+          });
           handleCancel();
           refreshTests();
         }
       }
     } catch (error) {
       console.error('Error saving test:', error);
-      addNotification('Failed to save test', 'error');
+      addNotification({ 
+        message: 'Failed to save test', 
+        type: 'error' 
+      });
     } finally {
       setLoading(false);
     }
@@ -849,12 +894,18 @@ const TestManagement = ({ onBackToDashboard }) => {
     try {
       const result = await executeApiCall(deleteTest, token, testId);
       if (result) {
-        addNotification('Test deleted successfully', 'success');
+        addNotification({ 
+          message: 'Test deleted successfully', 
+          type: 'success' 
+        });
         refreshTests();
       }
     } catch (error) {
       console.error('Error deleting test:', error);
-      addNotification('Failed to delete test', 'error');
+      addNotification({ 
+        message: 'Failed to delete test', 
+        type: 'error' 
+      });
     } finally {
       setLoading(false);
     }
@@ -877,7 +928,10 @@ const TestManagement = ({ onBackToDashboard }) => {
       }
     } catch (error) {
       console.error('Error toggling test status:', error);
-      addNotification('Failed to update test status', 'error');
+      addNotification({ 
+        message: 'Failed to update test status', 
+        type: 'error' 
+      });
     } finally {
       setLoading(false);
     }
@@ -907,13 +961,19 @@ const TestManagement = ({ onBackToDashboard }) => {
         await addQuestionToTest(token, selectedTest.id, testQuestionData);
       }
 
-      addNotification(`Added ${selectedQuestions.length} questions to test`, 'success');
+      addNotification({ 
+        message: `Added ${selectedQuestions.length} questions to test`, 
+        type: 'success' 
+      });
       setShowQuestionSelection(false);
       setSelectedTest(null);
       refreshTests();
     } catch (error) {
       console.error('Error adding questions to test:', error);
-      addNotification('Failed to add questions to test', 'error');
+      addNotification({ 
+        message: 'Failed to add questions to test', 
+        type: 'error' 
+      });
     } finally {
       setLoading(false);
     }
@@ -922,7 +982,10 @@ const TestManagement = ({ onBackToDashboard }) => {
   // Bulk operations
   const handleBulkOperation = async (operation) => {
     if (selectedTests.length === 0) {
-      addNotification('Please select tests to perform bulk operation', 'warning');
+      addNotification({ 
+        message: 'Please select tests to perform bulk operation', 
+        type: 'warning' 
+      });
       return;
     }
 
@@ -945,13 +1008,19 @@ const TestManagement = ({ onBackToDashboard }) => {
       });
 
       await Promise.all(promises);
-      addNotification(`Bulk ${operation.toLowerCase()} completed successfully`, 'success');
+      addNotification({ 
+        message: `Bulk ${operation.toLowerCase()} completed successfully`, 
+        type: 'success' 
+      });
       setSelectedTests([]);
       setShowBulkActions(false);
       refreshTests();
     } catch (error) {
       console.error('Error in bulk operation:', error);
-      addNotification('Bulk operation failed', 'error');
+      addNotification({ 
+        message: 'Bulk operation failed', 
+        type: 'error' 
+      });
     } finally {
       setLoading(false);
     }

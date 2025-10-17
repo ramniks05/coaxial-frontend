@@ -23,7 +23,7 @@
   margin: 0 auto;
   padding: 0 var(--spacing-4);
   position: relative;
-  z-index: 1;
+  /* No z-index needed for footer - it's not sticky/fixed */
 }
 
 .footer-content {

@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { API_BASE } from '../../utils/apiUtils';
 import './DocumentPreviewModal.css';
 
 const DocumentPreviewModal = ({ 
@@ -88,11 +89,11 @@ const DocumentPreviewModal = ({
           // Construct the server URL
           let serverUrl;
           if (filePath.startsWith('/uploads/')) {
-            serverUrl = `http://localhost:8080${filePath}`;
+            serverUrl = `${API_BASE}${filePath}`;
           } else if (filePath.startsWith('http://') || filePath.startsWith('https://')) {
             serverUrl = filePath;
           } else {
-            serverUrl = `http://localhost:8080${filePath}`;
+            serverUrl = `${API_BASE}${filePath}`;
           }
           
           console.log('Fetching server file from:', serverUrl);
@@ -168,11 +169,11 @@ const DocumentPreviewModal = ({
       if (filePath) {
         console.log('Using direct server URL for preview (fallback)');
         if (filePath.startsWith('/uploads/')) {
-          return `http://localhost:8080${filePath}`;
+          return `${API_BASE}${filePath}`;
         } else if (filePath.startsWith('http://') || filePath.startsWith('https://')) {
           return filePath;
         } else {
-          return `http://localhost:8080${filePath}`;
+          return `${API_BASE}${filePath}`;
         }
       }
       
@@ -232,9 +233,9 @@ const DocumentPreviewModal = ({
                 onClick={() => {
                   let testUrl;
                   if (filePath && filePath.startsWith('/uploads/')) {
-                    testUrl = `http://localhost:8080${filePath}`;
+                    testUrl = `${API_BASE}${filePath}`;
                   } else {
-                    testUrl = `http://localhost:8080/api/admin/master-data/chapters/files/${encodeURIComponent(fileName)}`;
+                    testUrl = `${API_BASE}/api/admin/master-data/chapters/files/${encodeURIComponent(fileName)}`;
                   }
                   window.open(testUrl, '_blank');
                 }}
@@ -311,10 +312,10 @@ const DocumentPreviewModal = ({
                   let testUrl;
                   if (filePath && filePath.startsWith('/uploads/')) {
                     // Use the actual file path from API
-                    testUrl = `http://localhost:8080${filePath}`;
+                    testUrl = `${API_BASE}${filePath}`;
                   } else {
                     // Fallback to API endpoint
-                    testUrl = `http://localhost:8080/api/admin/master-data/chapters/files/${encodeURIComponent(fileName)}`;
+                    testUrl = `${API_BASE}/api/admin/master-data/chapters/files/${encodeURIComponent(fileName)}`;
                   }
                   console.log('Testing file URL in new tab:', testUrl);
                   window.open(testUrl, '_blank');
@@ -329,10 +330,10 @@ const DocumentPreviewModal = ({
                   let downloadUrl;
                   if (filePath && filePath.startsWith('/uploads/')) {
                     // Use the actual file path from API
-                    downloadUrl = `http://localhost:8080${filePath}`;
+                    downloadUrl = `${API_BASE}${filePath}`;
                   } else {
                     // Fallback to API endpoint
-                    downloadUrl = `http://localhost:8080/api/admin/master-data/chapters/files/${encodeURIComponent(fileName)}`;
+                    downloadUrl = `${API_BASE}/api/admin/master-data/chapters/files/${encodeURIComponent(fileName)}`;
                   }
                   console.log('Attempting download from URL:', downloadUrl);
                   window.open(downloadUrl, '_blank');

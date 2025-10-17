@@ -79,7 +79,7 @@
   border-top: none;
   border-radius: 0 0 var(--filter-radius-md) var(--filter-radius-md);
   box-shadow: var(--filter-shadow-lg);
-  z-index: 100;
+  z-index: var(--z-dropdown);
   max-height: 200px;
   overflow-y: auto;
 }

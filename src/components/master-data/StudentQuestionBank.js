@@ -78,14 +78,23 @@ const StudentQuestionBank = ({ onBackToDashboard = null }) => {
       
       if (questions?.totalElements === 0) {
         if (hasActiveFilters()) {
-          addNotification('ℹ️ No questions found with the selected filters', 'info');
+          addNotification({ 
+            message: 'ℹ️ No questions found with the selected filters', 
+            type: 'info' 
+          });
         } else {
-          addNotification('ℹ️ No questions available. Please check your subscriptions.', 'info');
+          addNotification({ 
+            message: 'ℹ️ No questions available. Please check your subscriptions.', 
+            type: 'info' 
+          });
         }
       }
     } catch (error) {
       console.error('Error loading questions:', error);
-      addNotification(`❌ Failed to load questions: ${error.message}`, 'error');
+      addNotification({ 
+        message: `❌ Failed to load questions: ${error.message}`, 
+        type: 'error' 
+      });
     } finally {
       setLoading(false);
     }
@@ -129,10 +138,16 @@ const StudentQuestionBank = ({ onBackToDashboard = null }) => {
       const newBookmarks = new Set(prev);
       if (newBookmarks.has(questionId)) {
         newBookmarks.delete(questionId);
-        addNotification('🤍 Bookmark removed', 'info');
+        addNotification({ 
+          message: '🤍 Bookmark removed', 
+          type: 'info' 
+        });
       } else {
         newBookmarks.add(questionId);
-        addNotification('❤️ Question bookmarked', 'success');
+        addNotification({ 
+          message: '❤️ Question bookmarked', 
+          type: 'success' 
+        });
       }
       localStorage.setItem('questionBookmarks', JSON.stringify([...newBookmarks]));
       return newBookmarks;
@@ -146,7 +161,10 @@ const StudentQuestionBank = ({ onBackToDashboard = null }) => {
       setShowDetailModal(true);
     } catch (error) {
       console.error('Error loading question details:', error);
-      addNotification(`❌ Failed to load question details: ${error.message}`, 'error');
+      addNotification({ 
+        message: `❌ Failed to load question details: ${error.message}`, 
+        type: 'error' 
+      });
     }
   };
 

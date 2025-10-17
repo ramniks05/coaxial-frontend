@@ -54,7 +54,10 @@ const StudentTestCenter = () => {
       }
     } catch (error) {
       console.error('Error loading subscriptions:', error);
-      addNotification('Failed to load subscriptions', 'error');
+      addNotification({ 
+        message: 'Failed to load subscriptions', 
+        type: 'error' 
+      });
     } finally {
       setLoading(false);
     }
@@ -84,7 +87,10 @@ const StudentTestCenter = () => {
         setTestTimeRemaining(remaining);
         
         if (remaining === 0) {
-          addNotification('⏰ Time is up! Auto-submitting test...', 'warning');
+          addNotification({ 
+            message: '⏰ Time is up! Auto-submitting test...', 
+            type: 'warning' 
+          });
           handleSubmitTest();
         }
       }, 1000);
@@ -125,7 +131,10 @@ const StudentTestCenter = () => {
       
       if (!filters.classId && !filters.examId && !filters.courseId) {
         console.warn('No classId, examId, or courseId found in subscription');
-        addNotification('Invalid subscription data', 'warning');
+        addNotification({ 
+          message: 'Invalid subscription data', 
+          type: 'warning' 
+        });
         setAvailableTests([]);
         return;
       }
@@ -141,13 +150,22 @@ const StudentTestCenter = () => {
       setAvailableTests(testsArray);
       
       if (testsArray.length > 0) {
-        addNotification(`✅ ${testsArray.length} test(s) available`, 'success');
+        addNotification({ 
+          message: `✅ ${testsArray.length} test(s) available`, 
+          type: 'success' 
+        });
       } else {
-        addNotification('No tests available for this subscription', 'info');
+        addNotification({ 
+          message: 'No tests available for this subscription', 
+          type: 'info' 
+        });
       }
     } catch (error) {
       console.error('Error loading tests:', error);
-      addNotification('Failed to load available tests', 'error');
+      addNotification({ 
+        message: 'Failed to load available tests', 
+        type: 'error' 
+      });
       setAvailableTests([]);
     } finally {
       setLoading(false);
@@ -200,7 +218,10 @@ const StudentTestCenter = () => {
           // Abandon and create new session
           console.log('User chose to abandon session');
           await abandonTestSession(token, test.id);
-          addNotification('✅ Previous session abandoned. Starting fresh...', 'success');
+          addNotification({ 
+            message: '✅ Previous session abandoned. Starting fresh...', 
+            type: 'success' 
+          });
           
           // Start new session
           sessionData = await startStudentTest(token, test.id);
@@ -230,7 +251,10 @@ const StudentTestCenter = () => {
       const questions = Array.isArray(questionsData) ? questionsData : questionsData.content || questionsData.data || [];
       
       if (questions.length === 0) {
-        addNotification('This test has no questions', 'warning');
+        addNotification({ 
+          message: 'This test has no questions', 
+          type: 'warning' 
+        });
         return;
       }
       
@@ -250,11 +274,17 @@ const StudentTestCenter = () => {
       setTestTimeRemaining(test.timeLimitMinutes * 60); // Convert minutes to seconds
       setShowTestModal(true);
       
-      addNotification('✅ Test started! Good luck!', 'success');
+      addNotification({ 
+        message: '✅ Test started! Good luck!', 
+        type: 'success' 
+      });
       
     } catch (error) {
       console.error('Error starting test:', error);
-      addNotification(`Failed to start test: ${error.message}`, 'error');
+      addNotification({ 
+        message: `Failed to start test: ${error.message}`, 
+        type: 'error' 
+      });
     } finally {
       setLoading(false);
     }
@@ -410,7 +440,10 @@ const StudentTestCenter = () => {
         clearInterval(testTimerRef.current);
       }
       
-      addNotification('Test exited - Your answers have been saved', 'info');
+      addNotification({ 
+        message: 'Test exited - Your answers have been saved', 
+        type: 'info' 
+      });
     }
   };
 
@@ -484,11 +517,17 @@ const StudentTestCenter = () => {
       // Reload test attempts
       loadTestAttempts();
       
-      addNotification('✅ Test submitted successfully!', 'success');
+      addNotification({ 
+        message: '✅ Test submitted successfully!', 
+        type: 'success' 
+      });
       
     } catch (error) {
       console.error('Error submitting test:', error);
-      addNotification(`❌ Failed to submit test: ${error.message}`, 'error');
+      addNotification({ 
+        message: `❌ Failed to submit test: ${error.message}`, 
+        type: 'error' 
+      });
     } finally {
       setLoading(false);
     }

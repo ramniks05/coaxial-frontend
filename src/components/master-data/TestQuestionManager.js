@@ -37,7 +37,10 @@ const TestQuestionManager = ({ test, onClose }) => {
       }
     } catch (error) {
       console.error('Error fetching test questions:', error);
-      addNotification('Failed to fetch test questions', 'error');
+      addNotification({ 
+        message: 'Failed to fetch test questions', 
+        type: 'error' 
+      });
     } finally {
       setLoading(false);
     }
@@ -58,12 +61,18 @@ const TestQuestionManager = ({ test, onClose }) => {
       const result = await executeApiCall(updateTestQuestion, token, test.id, questionId, updatedData);
       
       if (result) {
-        addNotification('Question order updated successfully', 'success');
+        addNotification({ 
+          message: 'Question order updated successfully', 
+          type: 'success' 
+        });
         fetchTestQuestions(); // Refresh the list
       }
     } catch (error) {
       console.error('Error updating question order:', error);
-      addNotification('Failed to update question order', 'error');
+      addNotification({ 
+        message: 'Failed to update question order', 
+        type: 'error' 
+      });
     }
   };
   
@@ -81,12 +90,18 @@ const TestQuestionManager = ({ test, onClose }) => {
       const result = await executeApiCall(updateTestQuestion, token, test.id, questionId, updatedData);
       
       if (result) {
-        addNotification('Question marks updated successfully', 'success');
+        addNotification({ 
+          message: 'Question marks updated successfully', 
+          type: 'success' 
+        });
         fetchTestQuestions(); // Refresh the list
       }
     } catch (error) {
       console.error('Error updating question marks:', error);
-      addNotification('Failed to update question marks', 'error');
+      addNotification({ 
+        message: 'Failed to update question marks', 
+        type: 'error' 
+      });
     }
   };
   
@@ -104,12 +119,18 @@ const TestQuestionManager = ({ test, onClose }) => {
       const result = await executeApiCall(updateTestQuestion, token, test.id, questionId, updatedData);
       
       if (result) {
-        addNotification('Negative marks updated successfully', 'success');
+        addNotification({ 
+          message: 'Negative marks updated successfully', 
+          type: 'success' 
+        });
         fetchTestQuestions(); // Refresh the list
       }
     } catch (error) {
       console.error('Error updating negative marks:', error);
-      addNotification('Failed to update negative marks', 'error');
+      addNotification({ 
+        message: 'Failed to update negative marks', 
+        type: 'error' 
+      });
     }
   };
   
@@ -128,12 +149,18 @@ const TestQuestionManager = ({ test, onClose }) => {
       const result = await executeApiCall(removeQuestionFromTest, token, test.id, questionId);
       
       if (result) {
-        addNotification('Question removed from test successfully', 'success');
+        addNotification({ 
+          message: 'Question removed from test successfully', 
+          type: 'success' 
+        });
         fetchTestQuestions(); // Refresh the list
       }
     } catch (error) {
       console.error('Error removing question from test:', error);
-      addNotification('Failed to remove question from test', 'error');
+      addNotification({ 
+        message: 'Failed to remove question from test', 
+        type: 'error' 
+      });
     }
   };
 
@@ -154,13 +181,19 @@ const TestQuestionManager = ({ test, onClose }) => {
         await executeApiCall(addQuestionToTest, token, test.id, testQuestionData);
       }
       
-      addNotification(`${selectedQuestions.length} question(s) added to test successfully`, 'success');
+      addNotification({ 
+        message: `${selectedQuestions.length} question(s) added to test successfully`, 
+        type: 'success' 
+      });
       setShowAddQuestion(false); // Close the modal
       fetchTestQuestions(); // Refresh the list
       
     } catch (error) {
       console.error('Error adding questions to test:', error);
-      addNotification('Failed to add questions to test', 'error');
+      addNotification({ 
+        message: 'Failed to add questions to test', 
+        type: 'error' 
+      });
     } finally {
       setLoading(false);
     }
