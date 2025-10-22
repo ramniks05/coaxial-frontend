@@ -1,4 +1,4 @@
-import React, { lazy, Suspense, useState } from 'react';
+import React, { lazy, Suspense, useRef, useState } from 'react';
 import { useApp } from '../context/AppContext';
 import './MasterDataManagement.css';
 
@@ -15,6 +15,7 @@ const ChapterManagement = lazy(() => import('./master-data/chapter/ChapterManage
 const MasterDataManagement = ({ onBackToDashboard }) => {
   const { user, token, addNotification } = useApp();
   const [activeTab, setActiveTab] = useState('course-types');
+  const tabsRef = useRef(null);
   const [loading, setLoading] = useState(false);
 
   const tabs = [
@@ -94,6 +95,22 @@ const MasterDataManagement = ({ onBackToDashboard }) => {
     }
   };
 
+  const scrollTabs = (direction) => {
+    const idx = tabs.findIndex(t => t.id === activeTab);
+    const next = direction === 'left' ? Math.max(0, idx - 1) : Math.min(tabs.length - 1, idx + 1);
+    const nextId = tabs[next].id;
+    setActiveTab(nextId);
+    if (tabsRef.current) {
+      const buttons = tabsRef.current.querySelectorAll('.tab-button');
+      const target = buttons[next];
+      if (target && target.scrollIntoView) {
+        target.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+      } else {
+        tabsRef.current.scrollBy({ left: direction === 'left' ? -150 : 150, behavior: 'smooth' });
+      }
+    }
+  };
+
   return (
     <div className="master-data-management">
       <div className="master-data-header">
@@ -119,7 +136,9 @@ const MasterDataManagement = ({ onBackToDashboard }) => {
 
       <div className="master-data-content">
         <div className="tabs-container">
-          <div className="tabs-nav">
+          <div className="tabs-nav-wrapper">
+            <button type="button" aria-label="Previous" className="tabs-arrow left" onClick={() => scrollTabs('left')}>‹</button>
+            <div className="tabs-nav" ref={tabsRef}>
             {tabs.map(tab => (
               <button
                 key={tab.id}
@@ -130,6 +149,8 @@ const MasterDataManagement = ({ onBackToDashboard }) => {
                 <span className="tab-label">{tab.label}</span>
               </button>
             ))}
+            </div>
+            <button type="button" aria-label="Next" className="tabs-arrow right" onClick={() => scrollTabs('right')}>›</button>
           </div>
         </div>
 
