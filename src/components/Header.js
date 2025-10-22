@@ -109,6 +109,24 @@ const Header = () => {
 
         {/* Desktop Navigation - Hidden on mobile */}
         <nav className="header-nav desktop-only">
+          {/* Navigation Links */}
+          <div className="nav-links">
+            <Link 
+              to="/" 
+              className="nav-link"
+              onClick={() => setCurrentPage('home')}
+            >
+              Home
+            </Link>
+            <Link 
+              to="/courses" 
+              className="nav-link"
+              onClick={() => setCurrentPage('courses')}
+            >
+              Browse Courses
+            </Link>
+          </div>
+
           {/* Connectivity indicator */}
           <div 
             className={`connectivity-indicator ${backendConnected ? 'online' : 'offline'}`}
@@ -262,6 +280,18 @@ const Header = () => {
                   <path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z" />
                 </svg>
                 Home
+              </Link>
+            </li>
+            <li>
+              <Link 
+                to="/courses" 
+                className="mobile-nav-link"
+                onClick={() => handleNavigation('/courses', 'courses')}
+              >
+                <svg className="nav-icon" viewBox="0 0 20 20" fill="currentColor">
+                  <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                Browse Courses
               </Link>
             </li>
             {isAuthenticated && (

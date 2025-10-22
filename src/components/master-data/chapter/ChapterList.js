@@ -77,7 +77,7 @@ const ChapterList = ({
   // Group chapters by course type for better organization
   const groupChaptersByType = () => {
     const grouped = {};
-    chapters.forEach(chapter => {
+    (chapters || []).forEach(chapter => {
       const courseTypeName = getCourseTypeNameForChapter(chapter);
       if (!grouped[courseTypeName]) {
         grouped[courseTypeName] = [];
