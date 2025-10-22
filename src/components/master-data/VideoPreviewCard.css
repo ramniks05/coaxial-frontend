@@ -295,9 +295,11 @@
 /* Grid Layout for Multiple Videos */
 .video-previews-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 200px), 1fr));
   gap: 16px;
   margin-top: 16px;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 @media (max-width: 768px) {

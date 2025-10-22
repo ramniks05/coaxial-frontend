@@ -12,7 +12,9 @@
   max-width: 1200px;
   margin: 0 auto;
   width: 100%;
+  max-width: 100vw;
   box-sizing: border-box;
+  overflow-x: hidden;
 }
 
 .user-management-header {
@@ -610,10 +612,14 @@
   .users-table-container {
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
+    width: 100%;
+    max-width: 100vw;
+    box-sizing: border-box;
   }
   
   .users-table {
     min-width: 600px;
+    width: 100%;
   }
   
   .action-buttons {

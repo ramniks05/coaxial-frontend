@@ -5,6 +5,9 @@
   padding: var(--spacing-16) 0 var(--spacing-8);
   position: relative;
   overflow: hidden;
+  width: 100%;
+  max-width: 100vw;
+  box-sizing: border-box;
 }
 
 .footer::before {
@@ -117,6 +120,7 @@
 .footer-section {
   display: flex;
   flex-direction: column;
+  min-width: 0;
 }
 
 .footer-title {
@@ -269,23 +273,25 @@
 
 @media (max-width: 768px) {
   .footer {
-    padding: var(--spacing-12) 0 var(--spacing-6);
+    padding: var(--spacing-8) 0 var(--spacing-4);
   }
   
   .footer-content {
     grid-template-columns: 1fr;
-    gap: var(--spacing-6);
+    gap: var(--spacing-4);
+    margin-bottom: var(--spacing-6);
   }
   
   .footer-brand {
-    grid-column: 1;
-    margin-bottom: 0;
+    grid-column: 1 / -1; /* brand spans full width above two-column menu */
+    margin-bottom: var(--spacing-4);
   }
   
   .footer-bottom {
     flex-direction: column;
     text-align: center;
-    gap: var(--spacing-3);
+    gap: var(--spacing-2);
+    padding-top: var(--spacing-4);
   }
   
   .footer-legal {
@@ -299,15 +305,46 @@
   .newsletter-input {
     min-width: auto;
   }
+
+  .footer-logo-icon {
+    width: 32px;
+    height: 32px;
+  }
+
+  .social-link {
+    width: 36px;
+    height: 36px;
+  }
+
+  .footer-links {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    column-gap: var(--spacing-3);
+    row-gap: var(--spacing-2);
+  }
 }
 
 @media (max-width: 480px) {
+  .footer {
+    padding: var(--spacing-6) 0 var(--spacing-3);
+  }
+  
   .footer-container {
     padding: 0 var(--spacing-3);
   }
   
   .footer-content {
-    gap: var(--spacing-4);
+    grid-template-columns: 1fr;
+    gap: var(--spacing-3);
+    margin-bottom: var(--spacing-4);
+  }
+  
+  .footer-title {
+    font-size: var(--font-size-md);
+  }
+  
+  .footer-description {
+    font-size: var(--font-size-sm);
   }
   
   .footer-legal {
@@ -316,7 +353,23 @@
   }
   
   .newsletter {
-    padding: var(--spacing-4);
+    padding: var(--spacing-3);
+  }
+
+  .footer-links {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    column-gap: var(--spacing-2);
+    row-gap: var(--spacing-2);
+  }
+
+  .footer-logo-icon {
+    width: 28px;
+    height: 28px;
+  }
+
+  .social-link {
+    width: 32px;
+    height: 32px;
   }
 }
 

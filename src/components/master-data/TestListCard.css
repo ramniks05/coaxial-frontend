@@ -406,9 +406,11 @@
   }
 
   .card-actions .btn {
-    padding: 5px 8px;
-    font-size: 0.75rem;
-    min-width: 28px;
+    padding: 8px 12px;
+    font-size: 0.8rem;
+    min-width: 44px; /* Touch target size */
+    min-height: 44px; /* Touch target size */
+    flex: 1 1 auto; /* Allow buttons to grow */
   }
 
   .config-row {
@@ -476,8 +478,22 @@
   }
 
   .card-actions .btn {
-    padding: 4px 6px;
-    font-size: 0.7rem;
-    min-width: 24px;
+    padding: 10px 14px;
+    font-size: 0.75rem;
+    min-width: 44px; /* Touch target size */
+    min-height: 44px; /* Touch target size */
+    width: auto;
+    flex: 1 1 auto;
+  }
+  
+  /* Stack buttons vertically on very small screens */
+  .card-actions {
+    flex-direction: column;
+    gap: 8px;
+  }
+  
+  .card-actions .btn {
+    width: 100%;
+    justify-content: center;
   }
 }
