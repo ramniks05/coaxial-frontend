@@ -1681,8 +1681,44 @@ html {
 
 /* Responsive Page Headers */
 @media (max-width: 768px) {
+  /* Uniform Mobile Content Width Standard - Maximum width with minimal margins */
+  .page-header,
+  .section-header,
+  .master-data-header,
+  .filters-section,
+  .filter-panel,
+  .stats-grid,
+  .stats-section,
+  .courses-grid,
+  .content-grid,
+  .test-cards,
+  .questions-grid,
+  .data-grid,
+  .card,
+  .course-card,
+  .class-card,
+  .subscription-card,
+  .stat-card,
+  .question-card,
+  .test-card,
+  .chapter-card,
+  .filter-row,
+  .form-row,
+  .table-responsive,
+  .users-table-container,
+  .test-history-section,
+  .progress-history {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+    padding-left: 4px !important;
+    padding-right: 4px !important;
+    box-sizing: border-box !important;
+  }
+  
   .page-header {
-    padding: var(--spacing-4) var(--spacing-4) var(--spacing-3);
+    padding: var(--spacing-4) 4px var(--spacing-3);
     margin-bottom: var(--spacing-4);
   }
   
@@ -1722,8 +1758,39 @@ html {
 }
 
 @media (max-width: 480px) {
+  /* Absolute minimal padding for maximum content width */
+  .page-header,
+  .section-header,
+  .master-data-header,
+  .filters-section,
+  .filter-panel,
+  .stats-grid,
+  .stats-section,
+  .courses-grid,
+  .content-grid,
+  .test-cards,
+  .questions-grid,
+  .data-grid,
+  .card,
+  .course-card,
+  .class-card,
+  .subscription-card,
+  .stat-card,
+  .question-card,
+  .test-card,
+  .chapter-card,
+  .filter-row,
+  .form-row,
+  .table-responsive,
+  .users-table-container,
+  .test-history-section,
+  .progress-history {
+    padding-left: 2px !important;
+    padding-right: 2px !important;
+  }
+  
   .page-header {
-    padding: var(--spacing-3) var(--spacing-3) var(--spacing-2);
+    padding: var(--spacing-3) 2px var(--spacing-2);
   }
   
   .page-header h1 {

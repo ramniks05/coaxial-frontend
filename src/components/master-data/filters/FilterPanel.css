@@ -139,22 +139,45 @@
     max-height: none;
     border-radius: var(--filter-radius-lg);
     border: 1px solid var(--filter-border);
+    width: 100%;
+    box-sizing: border-box;
+    overflow-x: hidden;
   }
   
   .filter-panel-header {
-    padding: 1rem;
+    padding: 0.875rem;
   }
   
   .header-content h3 {
-    font-size: 1rem;
+    font-size: 0.9375rem;
   }
   
   .filter-section-header {
-    padding: 1rem;
+    padding: 0.875rem;
   }
   
   .filter-section-content {
-    padding: 1rem;
+    padding: 0.875rem;
+    width: 100%;
+    box-sizing: border-box;
+    overflow-x: hidden;
+  }
+  
+  .filter-panel-content {
+    width: 100%;
+    box-sizing: border-box;
+  }
+}
+
+@media (max-width: 480px) {
+  .filter-panel-header,
+  .filter-section-header,
+  .filter-section-content {
+    padding: 0.75rem;
+  }
+  
+  .header-content h3 {
+    font-size: 0.875rem;
   }
 }
 

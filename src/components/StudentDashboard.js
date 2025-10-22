@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { useApp } from '../context/AppContext';
 import './Dashboard.css';
 import './master-data/StudentDashboard.css';
@@ -15,6 +15,7 @@ import StudentProgressTracker from './master-data/StudentProgressTracker';
 const StudentDashboard = () => {
   const { user } = useApp();
   const [activeTab, setActiveTab] = useState('overview');
+  const navRef = useRef(null);
 
   const tabs = [
     { id: 'overview', label: 'Overview', icon: '🏠' },
@@ -45,6 +46,25 @@ const StudentDashboard = () => {
     }
   };
 
+  const scrollToTab = (direction) => {
+    const currentIndex = tabs.findIndex(t => t.id === activeTab);
+    const nextIndex = direction === 'left'
+      ? Math.max(0, currentIndex - 1)
+      : Math.min(tabs.length - 1, currentIndex + 1);
+    const nextId = tabs[nextIndex].id;
+    setActiveTab(nextId);
+    // scroll container
+    if (navRef.current) {
+      const buttons = navRef.current.querySelectorAll('.tab-button');
+      const target = buttons[nextIndex];
+      if (target && target.scrollIntoView) {
+        target.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+      } else {
+        navRef.current.scrollBy({ left: direction === 'left' ? -150 : 150, behavior: 'smooth' });
+      }
+    }
+  };
+
   return (
     <div className="dashboard-content">
       <div className="dashboard-header">
@@ -53,7 +73,16 @@ const StudentDashboard = () => {
       </div>
 
       {/* Tab Navigation */}
-      <div className="tab-navigation">
+      <div className="tab-nav-wrapper">
+        <button
+          type="button"
+          className="tab-nav-arrow left"
+          aria-label="Previous"
+          onClick={() => scrollToTab('left')}
+        >
+          ‹
+        </button>
+        <div className="tab-navigation" ref={navRef}>
         {tabs.map(tab => (
           <button
             key={tab.id}
@@ -64,6 +93,15 @@ const StudentDashboard = () => {
             <span className="tab-label">{tab.label}</span>
           </button>
         ))}
+        </div>
+        <button
+          type="button"
+          className="tab-nav-arrow right"
+          aria-label="Next"
+          onClick={() => scrollToTab('right')}
+        >
+          ›
+        </button>
       </div>
 
       {/* Tab Content */}
