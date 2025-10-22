@@ -1,7 +1,11 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useApp } from '../../context/AppContext';
+import { useFilterSubmit } from '../../hooks/useFilterSubmit';
+import { useFormFocus } from '../../hooks/useFormFocus';
 import { createExam, deleteExam, getCourses, getExams, updateExam } from '../../services/masterDataService';
 import AdminPageHeader from '../common/AdminPageHeader';
+import { getExamFilterConfig, getInitialFilters } from './filters/filterConfigs';
+import FilterPanel from './filters/FilterPanel';
 import './MasterDataComponent.css';
 
 // Reusable DataCard Component
@@ -163,7 +167,6 @@ const ExamManagement = () => {
   const [exams, setExams] = useState([]);
   const [courses, setCourses] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [selectedCourse, setSelectedCourse] = useState('');
   const [formData, setFormData] = useState({
@@ -174,18 +177,82 @@ const ExamManagement = () => {
     isActive: true
   });
 
-  useEffect(() => {
-    if (token && !fetchDataInProgressRef.current) {
-      fetchData();
-    } else if (!token) {
-      console.warn('No token available, skipping data fetch');
-      addNotification({
-        type: 'warning',
-        message: 'Please log in to access exam management features',
-        duration: 5000
+  // State declarations
+  const [showForm, setShowForm] = useState(false);
+  
+  // Form focus management
+  const { formRef, firstInputRef } = useFormFocus(showForm);
+  
+  // Filter state and handlers
+  const initialFilters = getInitialFilters('exam');
+  const filterConfig = getExamFilterConfig({ courses });
+  
+  // Fetch data function for filters
+  const fetchDataWithFilters = useCallback(async (filters) => {
+    if (!token) return [];
+    
+    try {
+      const data = await getExams(token);
+      let filteredData = Array.isArray(data) ? data : [];
+      
+      // Apply search filter
+      if (filters.search) {
+        const searchLower = filters.search.toLowerCase();
+        filteredData = filteredData.filter(item => 
+          item.name?.toLowerCase().includes(searchLower) ||
+          item.description?.toLowerCase().includes(searchLower)
+        );
+      }
+      
+      // Apply course filter
+      if (filters.courseId) {
+        filteredData = filteredData.filter(item => 
+          item.course?.id === parseInt(filters.courseId)
+        );
+      }
+      
+      // Apply active filter
+      if (filters.isActive) {
+        filteredData = filteredData.filter(item => item.isActive === true);
+      }
+      
+      return filteredData;
+    } catch (error) {
+      console.error('Error fetching exams with filters:', error);
+      addNotification({ 
+        message: 'Failed to load exams', 
+        type: 'error' 
       });
+      return [];
     }
-  }, [token]);
+  }, [token, addNotification]);
+  
+  // Filter management
+  const {
+    filters,
+    loading: filterLoading,
+    hasChanges,
+    handleFilterChange,
+    applyFilters,
+    clearFilters
+  } = useFilterSubmit(initialFilters, fetchDataWithFilters, {
+    autoFetchOnMount: true
+  });
+
+  // Update exams when filters are applied
+  useEffect(() => {
+    const updateExams = async () => {
+      try {
+        const filteredData = await applyFilters();
+        setExams(filteredData);
+      } catch (error) {
+        console.error('Error applying filters:', error);
+        setExams([]);
+      }
+    };
+
+    updateExams();
+  }, [applyFilters]);
 
   // Refs for preventing duplicate calls and managing state
   const isInitialMountRef = useRef(true);
@@ -559,30 +626,20 @@ const ExamManagement = () => {
         )}
       />
 
-      {/* Filters */}
-      <div className="filter-section">
-        <div className="filter-group">
-          <label htmlFor="course-filter">Competitive Course:</label>
-          <select
-            id="course-filter"
-            value={selectedCourse}
-            onChange={(e) => setSelectedCourse(e.target.value)}
-            className="filter-select"
-          >
-            <option value="">All Competitive Courses</option>
-            {Array.isArray(courses) && courses.length > 0 ? courses.map(course => (
-              <option key={course.id} value={course.id}>
-                {course.name}
-              </option>
-            )) : (
-              <option value="" disabled>No competitive courses available</option>
-            )}
-          </select>
-        </div>
-      </div>
+      {/* Filter Panel */}
+      <FilterPanel
+        filters={filters}
+        onFilterChange={handleFilterChange}
+        onApplyFilters={applyFilters}
+        onClearFilters={clearFilters}
+        loading={filterLoading}
+        filterConfig={filterConfig}
+        masterData={{ courses }}
+        hasChanges={hasChanges}
+      />
 
       {showForm && (
-        <div className="form-section">
+        <div className="form-section" ref={formRef}>
           <div className="form-header">
             <h3>{editingId ? 'Edit Exam' : 'Add New Exam'}</h3>
             <button className="btn btn-outline btn-sm" onClick={resetForm}>
@@ -596,6 +653,7 @@ const ExamManagement = () => {
               <div className="form-group">
                 <label htmlFor="name">Exam Name *</label>
                 <input
+                  ref={firstInputRef}
                   type="text"
                   id="name"
                   name="name"
@@ -691,7 +749,7 @@ const ExamManagement = () => {
 
       <div className="data-section">
         <div className="data-header">
-          <h3>Exams ({exams.length})</h3>
+          <h3>Exams ({exams?.length || 0})</h3>
           <div className="data-actions">
             <button 
               className="btn btn-outline btn-sm"
@@ -714,7 +772,7 @@ const ExamManagement = () => {
             <div className="loading-spinner"></div>
             <p>Loading exams...</p>
           </div>
-        ) : exams.length === 0 ? (
+        ) : (exams?.length || 0) === 0 ? (
           <div className="empty-state">
             <div className="empty-icon">No Exams</div>
             <h4>No Exams Found</h4>

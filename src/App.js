@@ -7,6 +7,7 @@ import InstructorDashboard from './components/InstructorDashboard';
 import Layout from './components/Layout';
 import LoginPage from './components/LoginPage';
 import ProtectedRoute from './components/ProtectedRoute';
+import PublicCoursesPage from './components/PublicCoursesPage';
 import RegisterPage from './components/RegisterPage';
 import StudentDashboard from './components/StudentDashboard';
 import SubjectFilter from './components/SubjectFilter';
@@ -24,6 +25,14 @@ function App() {
               element={
                 <Layout showHeader={true} showFooter={true}>
                   <HomePage />
+                </Layout>
+              } 
+            />
+            <Route 
+              path="/courses" 
+              element={
+                <Layout showHeader={true} showFooter={true}>
+                  <PublicCoursesPage />
                 </Layout>
               } 
             />

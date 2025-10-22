@@ -78,6 +78,35 @@
   gap: var(--spacing-6);
 }
 
+/* Navigation Links */
+.nav-links {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-6);
+}
+
+.nav-link {
+  color: var(--gray-700);
+  text-decoration: none;
+  font-weight: 500;
+  padding: var(--spacing-2) var(--spacing-3);
+  border-radius: var(--radius-md);
+  transition: all var(--transition-fast);
+  position: relative;
+}
+
+.nav-link:hover {
+  color: var(--primary-blue);
+  background-color: var(--light-blue);
+  text-decoration: none;
+}
+
+.nav-link.active {
+  color: var(--primary-blue);
+  background-color: var(--light-blue);
+  font-weight: 600;
+}
+
 .header-actions {
   display: flex;
   align-items: center;

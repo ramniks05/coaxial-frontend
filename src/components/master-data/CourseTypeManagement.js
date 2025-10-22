@@ -1,8 +1,11 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useApp } from '../../context/AppContext';
+import { useFilterSubmit } from '../../hooks/useFilterSubmit';
 import { clearCourseTypesCache, getCourseTypesCached } from '../../services/globalApiCache';
 import { createCourseType, deleteCourseType, updateCourseType } from '../../services/masterDataService';
 import AdminPageHeader from '../common/AdminPageHeader';
+import { getCourseTypeFilterConfig, getInitialFilters } from './filters/filterConfigs';
+import FilterPanel from './filters/FilterPanel';
 import './MasterDataComponent.css';
 
 // Reusable DataCard Component
@@ -177,10 +180,73 @@ const CourseTypeManagement = () => {
   const courseTypesFetched = useRef(false);
   const tokenRef = useRef(token);
   
+  // Form focus management
+  const formRef = useRef(null);
+  const firstInputRef = useRef(null);
+  
+  // Filter state and handlers
+  const initialFilters = getInitialFilters('courseType');
+  const filterConfig = getCourseTypeFilterConfig({ courseTypes });
+  
+  // Fetch data function for filters
+  const fetchDataWithFilters = useCallback(async (filters) => {
+    if (!token) return [];
+    
+    try {
+      const data = await getCourseTypesCached(token);
+      let filteredData = Array.isArray(data) ? data : [];
+      
+      // Apply search filter
+      if (filters.search) {
+        const searchLower = filters.search.toLowerCase();
+        filteredData = filteredData.filter(item => 
+          item.name?.toLowerCase().includes(searchLower) ||
+          item.description?.toLowerCase().includes(searchLower)
+        );
+      }
+      
+      // Apply active filter
+      if (filters.isActive) {
+        filteredData = filteredData.filter(item => item.isActive === true);
+      }
+      
+      return filteredData;
+    } catch (error) {
+      console.error('Error fetching course types with filters:', error);
+      addNotification({ 
+        message: 'Failed to load course types', 
+        type: 'error' 
+      });
+      return [];
+    }
+  }, [token, addNotification]);
+  
+  // Filter management
+  const {
+    filters,
+    loading: filterLoading,
+    hasChanges,
+    handleFilterChange,
+    applyFilters,
+    clearFilters
+  } = useFilterSubmit(initialFilters, fetchDataWithFilters, {
+    autoFetchOnMount: true
+  });
+  
   // Update token ref when token changes
   useEffect(() => {
     tokenRef.current = token;
   }, [token]);
+  
+  // Focus management - focus first input when form is shown
+  useEffect(() => {
+    if (showForm && firstInputRef.current) {
+      // Small delay to ensure form is rendered
+      setTimeout(() => {
+        firstInputRef.current.focus();
+      }, 100);
+    }
+  }, [showForm]);
 
   // Structure types configuration
   const structureTypes = [
@@ -214,104 +280,34 @@ const CourseTypeManagement = () => {
     }
   ];
 
-  // Fetch course types on component mount (only once)
+  // Update course types when filters are applied
   useEffect(() => {
-    if (courseTypesFetched.current || !tokenRef.current) return; // Prevent multiple calls or if no token
-    
-    const fetchCourseTypes = async () => {
+    const updateCourseTypes = async () => {
       try {
-        setLoading(true);
-        const data = await getCourseTypesCached(tokenRef.current);
-        console.log('Raw API response:', data);
-        console.log('Data type:', typeof data);
-        console.log('Is array:', Array.isArray(data));
-        
-        // Handle different response formats
-        let courseTypesArray = [];
-        if (Array.isArray(data)) {
-          courseTypesArray = data;
-        } else if (data && Array.isArray(data.content)) {
-          // Handle paginated response
-          courseTypesArray = data.content;
-        } else if (data && Array.isArray(data.data)) {
-          // Handle wrapped response
-          courseTypesArray = data.data;
-        } else if (data && data.courseTypes && Array.isArray(data.courseTypes)) {
-          // Handle nested response
-          courseTypesArray = data.courseTypes;
-        } else {
-          console.warn('Unexpected data format:', data);
-          courseTypesArray = [];
-        }
-        
-        console.log('Processed course types array:', courseTypesArray);
-        setCourseTypes(courseTypesArray);
-        courseTypesFetched.current = true; // Mark as fetched
+        const filteredData = await applyFilters();
+        setCourseTypes(filteredData);
       } catch (error) {
-        console.error('Error fetching course types:', error);
-        
-        // Show actual error instead of mock data
-        addNotification({
-          type: 'error',
-          message: `Failed to fetch course types: ${error.message}`,
-          duration: 7000
-        });
-        
-        // Set empty course types array instead of mock data
+        console.error('Error applying filters:', error);
         setCourseTypes([]);
-      } finally {
-        setLoading(false);
       }
     };
 
-    fetchCourseTypes();
-  }, []); // Empty dependency array - only run once on mount
+    updateCourseTypes();
+  }, [applyFilters]);
 
-  // Simple refreshCourseTypes function for manual calls (like after create/update/delete)
+  // Refresh course types with current filters
   const refreshCourseTypes = async () => {
-    if (!tokenRef.current) return; // Don't fetch if no token
-    
     try {
-      setLoading(true);
-      const data = await getCourseTypesCached(tokenRef.current);
-      console.log('Raw API response (refresh):', data);
-      console.log('Data type:', typeof data);
-      console.log('Is array:', Array.isArray(data));
-      
-      // Handle different response formats
-      let courseTypesArray = [];
-      if (Array.isArray(data)) {
-        courseTypesArray = data;
-      } else if (data && Array.isArray(data.content)) {
-        // Handle paginated response
-        courseTypesArray = data.content;
-      } else if (data && Array.isArray(data.data)) {
-        // Handle wrapped response
-        courseTypesArray = data.data;
-      } else if (data && data.courseTypes && Array.isArray(data.courseTypes)) {
-        // Handle nested response
-        courseTypesArray = data.courseTypes;
-      } else {
-        console.warn('Unexpected data format (refresh):', data);
-        courseTypesArray = [];
-      }
-      
-      console.log('Processed course types array (refresh):', courseTypesArray);
-      setCourseTypes(courseTypesArray);
+      const filteredData = await applyFilters();
+      setCourseTypes(filteredData);
     } catch (error) {
-      console.error('Error fetching course types:', error);
-      
-      // Show actual error instead of mock data
+      console.error('Error refreshing course types:', error);
       addNotification({
         type: 'error',
-        message: `Failed to fetch course types: ${error.message}`,
+        message: `Failed to refresh course types: ${error.message}`,
         duration: 7000
       });
-      
-      // Set empty course types array instead of mock data
       setCourseTypes([]);
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -476,8 +472,20 @@ const CourseTypeManagement = () => {
         )}
       />
 
+      {/* Filter Panel */}
+      <FilterPanel
+        filters={filters}
+        onFilterChange={handleFilterChange}
+        onApplyFilters={applyFilters}
+        onClearFilters={clearFilters}
+        loading={filterLoading}
+        filterConfig={filterConfig}
+        masterData={{ courseTypes }}
+        hasChanges={hasChanges}
+      />
+
       {showForm && (
-        <div className="form-section">
+        <div className="form-section" ref={formRef}>
           <div className="form-header">
             <h3>{editingId ? 'Edit Course Type' : 'Add New Course Type'}</h3>
             <button className="btn btn-outline btn-sm" onClick={resetForm}>
@@ -491,6 +499,7 @@ const CourseTypeManagement = () => {
               <div className="form-group">
                 <label htmlFor="name">Course Type Name *</label>
                 <input
+                  ref={firstInputRef}
                   type="text"
                   id="name"
                   name="name"
@@ -599,7 +608,7 @@ const CourseTypeManagement = () => {
 
       <div className="data-section">
         <div className="data-header">
-          <h3>Course Types ({courseTypes.length})</h3>
+          <h3>Course Types ({courseTypes?.length || 0})</h3>
           <div className="data-actions">
             <button 
               className="btn btn-outline btn-sm"
@@ -616,7 +625,7 @@ const CourseTypeManagement = () => {
             <div className="loading-spinner"></div>
             <p>Loading course types...</p>
           </div>
-        ) : courseTypes.length === 0 ? (
+        ) : (courseTypes?.length || 0) === 0 ? (
           <div className="empty-state">
             <div className="empty-icon">📚</div>
             <h4>No Course Types Found</h4>
@@ -630,7 +639,7 @@ const CourseTypeManagement = () => {
           </div>
         ) : (
           <div className="data-grid">
-            {courseTypes.map((courseType) => {
+            {(courseTypes || []).map((courseType) => {
               // CourseType field configuration
               const courseTypeFields = [
                 { 

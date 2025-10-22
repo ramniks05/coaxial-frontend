@@ -1,29 +1,30 @@
 import React, { Fragment, useCallback, useEffect, useRef, useState } from 'react';
 import { useApp } from '../../context/AppContext';
+import { useFilterSubmit } from '../../hooks/useFilterSubmit';
 import { getCourseTypesCached } from '../../services/globalApiCache';
 import {
-  createChapter,
-  deleteChapter,
-  getAllSubjectLinkages,
-  getChaptersByModule,
-  getChaptersCombinedFilter,
-  getClassesByCourse,
-  getCourses,
-  getExamsByCourse,
-  getMasterSubjectsByCourseType,
-  getModulesByTopic,
-  getTopicsByLinkage,
-  updateChapter
+    createChapter,
+    deleteChapter,
+    getAllSubjectLinkages,
+    getChaptersByModule,
+    getChaptersCombinedFilter,
+    getClassesByCourse,
+    getCourses,
+    getExamsByCourse,
+    getMasterSubjectsByCourseType,
+    getModulesByTopic,
+    getTopicsByLinkage,
+    updateChapter
 } from '../../services/masterDataService';
 import {
-  validateFileType
+    validateFileType
 } from '../../utils/documentUtils';
 import {
-  getYouTubeEmbedUrl,
-  getYouTubeThumbnail,
-  getYouTubeVideoId,
-  isValidYouTubeUrl,
-  normalizeYouTubeUrl
+    getYouTubeEmbedUrl,
+    getYouTubeThumbnail,
+    getYouTubeVideoId,
+    isValidYouTubeUrl,
+    normalizeYouTubeUrl
 } from '../../utils/youtubeUtils';
 import ChapterListCard from './ChapterListCard';
 import './ChapterListCard.css';
@@ -31,6 +32,8 @@ import DocumentPreviewCard from './DocumentPreviewCard';
 import './DocumentPreviewCard.css';
 import DocumentPreviewModal from './DocumentPreviewModal';
 import './DocumentPreviewModal.css';
+import { getChapterFilterConfig, getInitialFilters } from './filters/filterConfigs';
+import FilterPanel from './filters/FilterPanel';
 import './MasterDataComponent.css';
 import './VideoPreviewCard.css';
 import VideoPreviewModal from './VideoPreviewModal';
@@ -102,15 +105,68 @@ const ChapterManagement = () => {
   const [editingId, setEditingId] = useState(null);
   const [loading, setLoading] = useState(false);
   
-  // Filter states
-  const [selectedCourseType, setSelectedCourseType] = useState('');
-  const [selectedCourse, setSelectedCourse] = useState('');
-  const [selectedClass, setSelectedClass] = useState('');
-  const [selectedExam, setSelectedExam] = useState('');
-  const [selectedSubject, setSelectedSubject] = useState('');
-  const [selectedTopic, setSelectedTopic] = useState('');
-  const [selectedModule, setSelectedModule] = useState('');
-  const [showActiveOnly, setShowActiveOnly] = useState(true);
+  // Filter state and handlers
+  const initialFilters = getInitialFilters('chapter');
+  const filterConfig = getChapterFilterConfig({ 
+    courseTypes, 
+    courses, 
+    classes, 
+    exams,
+    subjects,
+    topics,
+    modules 
+  });
+  
+  // Fetch data function for filters
+  const fetchDataWithFilters = useCallback(async (filters) => {
+    if (!token) return [];
+    
+    try {
+      const data = await getChaptersCombinedFilter(token, {
+        courseTypeId: filters.courseTypeId || '',
+        courseId: filters.courseId || '',
+        classId: filters.classId || '',
+        examId: filters.examId || '',
+        subjectId: filters.subjectId || '',
+        topicId: filters.topicId || '',
+        moduleId: filters.moduleId || '',
+        isActive: filters.isActive
+      });
+      let filteredData = Array.isArray(data) ? data : [];
+      
+      // Apply search filter
+      if (filters.search) {
+        const searchLower = filters.search.toLowerCase();
+        filteredData = filteredData.filter(item => 
+          item.name?.toLowerCase().includes(searchLower) ||
+          item.description?.toLowerCase().includes(searchLower)
+        );
+      }
+      
+      return filteredData;
+    } catch (error) {
+      console.error('Error fetching chapters with filters:', error);
+      addNotification({ 
+        message: 'Failed to load chapters', 
+        type: 'error' 
+      });
+      return [];
+    }
+  }, [token, addNotification]);
+  
+  // Filter management
+  const {
+    filters,
+    loading: filterLoading,
+    hasChanges,
+    handleFilterChange,
+    applyFilters,
+    clearFilters
+  } = useFilterSubmit(initialFilters, fetchDataWithFilters, {
+    autoFetchOnMount: true
+  });
+  
+  // Old filter states removed - now using useFilterSubmit hook
 
   // Filtered data states (for filter form)
   const [filteredCourses, setFilteredCourses] = useState([]);
@@ -156,6 +212,21 @@ const ChapterManagement = () => {
   const [selectedDocumentData, setSelectedDocumentData] = useState(null);
   const [fileInputError, setFileInputError] = useState('');
   const [uploadedFileObjects, setUploadedFileObjects] = useState({});
+
+  // Update chapters when filters are applied
+  useEffect(() => {
+    const updateChapters = async () => {
+      try {
+        const filteredData = await applyFilters();
+        setChapters(filteredData);
+      } catch (error) {
+        console.error('Error applying filters:', error);
+        setChapters([]);
+      }
+    };
+
+    updateChapters();
+  }, [applyFilters]);
 
   // API fetch functions
   const fetchData = useCallback(async () => {
@@ -326,17 +397,7 @@ const ChapterManagement = () => {
 
   const fetchChaptersData = useCallback(async () => {
     try {
-      console.log('=== FETCHING CHAPTERS ===');
-      console.log('Filters:', {
-        active: showActiveOnly,
-        courseTypeId: selectedCourseType,
-        courseId: selectedCourse,
-        classId: selectedClass,
-        examId: selectedExam,
-        subjectId: selectedSubject,
-        topicId: selectedTopic,
-        moduleId: selectedModule
-      });
+      // Old filter debug code removed
 
       const filters = {
         active: showActiveOnly,
@@ -1185,174 +1246,19 @@ const ChapterManagement = () => {
         </div>
       </div>
 
-      {/* Filter Section - Same as Module Management */}
-      <div className="filter-section">
-        <div className="filter-header">
-          <h4>Filter Chapters</h4>
-          <div className="filter-header-controls">
-            <label className="filter-checkbox">
-              <input
-                type="checkbox"
-                checked={showActiveOnly}
-                onChange={(e) => setShowActiveOnly(e.target.checked)}
-              />
-              <span>Active Only</span>
-            </label>
-            <button 
-              className="btn btn-outline btn-xs"
-              onClick={() => {
-                setSelectedCourseType('');
-                setSelectedCourse('');
-                setSelectedClass('');
-                setSelectedExam('');
-                setSelectedSubject('');
-                setSelectedTopic('');
-                setSelectedModule('');
-              }}
-            >
-              Clear All Filters
-            </button>
-          </div>
-        </div>
-        
-        <div className="filter-row">
-          {/* Course Type Filter */}
-          <div className="filter-group">
-            <label htmlFor="course-type-filter">1. Course Type:</label>
-            <select
-              id="course-type-filter"
-              value={selectedCourseType}
-              onChange={(e) => setSelectedCourseType(e.target.value)}
-              className="filter-select"
-            >
-              <option value="">All Course Types</option>
-              {courseTypes.map(courseType => (
-                <option key={courseType.id} value={courseType.id}>
-                  {courseType.name}
-                </option>
-              ))}
-            </select>
-          </div>
+      {/* Old filter section removed - using FilterPanel instead */}
 
-          {/* Course Filter */}
-          <div className="filter-group">
-            <label htmlFor="course-filter">2. Course:</label>
-            <select
-              id="course-filter"
-              value={selectedCourse}
-              onChange={(e) => setSelectedCourse(e.target.value)}
-              disabled={!selectedCourseType}
-              className="filter-select"
-            >
-              <option value="">All Courses</option>
-              {filteredCourses.map(course => (
-                <option key={course.id} value={course.id}>
-                  {course.name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Class Filter (Academic only) */}
-          {isAcademicCourseType(selectedCourseType) && (
-            <div className="filter-group">
-              <label htmlFor="class-filter">3. Class:</label>
-              <select
-                id="class-filter"
-                value={selectedClass}
-                onChange={(e) => setSelectedClass(e.target.value)}
-                disabled={!selectedCourse}
-                className="filter-select"
-              >
-                <option value="">All Classes</option>
-                {filteredClasses.map(cls => (
-                  <option key={cls.id} value={cls.id}>
-                    {cls.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
-
-          {/* Exam Filter (Competitive only) */}
-          {isCompetitiveCourseType(selectedCourseType) && (
-            <div className="filter-group">
-              <label htmlFor="exam-filter">3. Exam:</label>
-              <select
-                id="exam-filter"
-                value={selectedExam}
-                onChange={(e) => setSelectedExam(e.target.value)}
-                disabled={!selectedCourse}
-                className="filter-select"
-              >
-                <option value="">All Exams</option>
-                {filteredExams.map(exam => (
-                  <option key={exam.id} value={exam.id}>
-                    {exam.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
-
-          {/* Subject Filter */}
-          <div className="filter-group">
-            <label htmlFor="subject-filter">4. Subject:</label>
-            <select
-              id="subject-filter"
-              value={selectedSubject}
-              onChange={(e) => setSelectedSubject(e.target.value)}
-              disabled={!selectedCourse}
-              className="filter-select"
-            >
-              <option value="">All Subjects</option>
-              {filteredSubjects.map(subject => (
-                <option key={subject.id} value={subject.linkageId || subject.id}>
-                  {getSubjectDisplayText(subject, selectedCourseType)}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Topic Filter */}
-          <div className="filter-group">
-            <label htmlFor="topic-filter">5. Topic:</label>
-            <select
-              id="topic-filter"
-              value={selectedTopic}
-              onChange={(e) => setSelectedTopic(e.target.value)}
-              disabled={!selectedSubject}
-              className="filter-select"
-            >
-              <option value="">All Topics</option>
-              {filteredTopics.map(topic => (
-                <option key={topic.id} value={topic.id}>
-                  {topic.name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Module Filter */}
-          <div className="filter-group">
-            <label htmlFor="module-filter">6. Module:</label>
-            <select
-              id="module-filter"
-              value={selectedModule}
-              onChange={(e) => setSelectedModule(e.target.value)}
-              disabled={!selectedTopic}
-              className="filter-select"
-            >
-              <option value="">All Modules</option>
-              {filteredModules.map(module => (
-                <option key={module.id} value={module.id}>
-                  {module.name}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
-      </div>
+      {/* Filter Panel */}
+      <FilterPanel
+        filters={filters}
+        onFilterChange={handleFilterChange}
+        onApplyFilters={applyFilters}
+        onClearFilters={clearFilters}
+        loading={filterLoading}
+        filterConfig={filterConfig}
+        masterData={{ courseTypes, courses, classes, exams, subjects: subjectLinkages, topics, modules }}
+        hasChanges={hasChanges}
+      />
 
       {/* Form Section - Will be added in next part */}
       {showForm && (

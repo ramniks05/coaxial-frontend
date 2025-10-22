@@ -1,8 +1,11 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useApp } from '../../context/AppContext';
+import { useFilterSubmit } from '../../hooks/useFilterSubmit';
 import { getCourseTypesCached } from '../../services/globalApiCache';
 import { createClass, deleteClass, getClasses, getCourses, updateClass } from '../../services/masterDataService';
 import AdminPageHeader from '../common/AdminPageHeader';
+import { getClassFilterConfig, getInitialFilters } from './filters/filterConfigs';
+import FilterPanel from './filters/FilterPanel';
 import './MasterDataComponent.css';
 
 // Reusable DataCard Component
@@ -153,8 +156,7 @@ const ClassManagement = () => {
   const [loading, setLoading] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState(null);
-  const [selectedCourseType, setSelectedCourseType] = useState('');
-  const [selectedCourse, setSelectedCourse] = useState('');
+  // Old filter states removed - now using useFilterSubmit hook
   const [formData, setFormData] = useState({
     name: '',
     description: '',
@@ -173,47 +175,103 @@ const ClassManagement = () => {
   const lastCoursesQueryRef = useRef('');
   const lastCoursesQueryTimeRef = useRef(0);
   const coursesCacheRef = useRef({ data: null, ts: 0 });
-
-  useEffect(() => {
-    console.log('Initial useEffect triggered with token:', !!token);
-    if (token) {
-      console.log('Calling fetchData...');
-      fetchData();
-    } else {
-      console.warn('No token available, skipping data fetch');
-      addNotification({
-        type: 'warning',
-        message: 'Please log in to access class management features',
-        duration: 5000
+  
+  // Form focus management
+  const formRef = useRef(null);
+  const firstInputRef = useRef(null);
+  
+  // State declarations
+  const [coursesByType, setCoursesByType] = useState([]);
+  
+  // Filter state and handlers
+  const initialFilters = getInitialFilters('class');
+  const filterConfig = getClassFilterConfig({ courseTypes, courses: coursesByType });
+  
+  // Fetch data function for filters
+  const fetchDataWithFilters = useCallback(async (filters) => {
+    if (!token) return [];
+    
+    try {
+      const data = await getClasses(token);
+      let filteredData = Array.isArray(data) ? data : [];
+      
+      // Apply search filter
+      if (filters.search) {
+        const searchLower = filters.search.toLowerCase();
+        filteredData = filteredData.filter(item => 
+          item.name?.toLowerCase().includes(searchLower) ||
+          item.description?.toLowerCase().includes(searchLower)
+        );
+      }
+      
+      // Apply course type filter
+      if (filters.courseTypeId) {
+        filteredData = filteredData.filter(item => 
+          item.course?.courseType?.id === parseInt(filters.courseTypeId)
+        );
+      }
+      
+      // Apply course filter
+      if (filters.courseId) {
+        filteredData = filteredData.filter(item => 
+          item.course?.id === parseInt(filters.courseId)
+        );
+      }
+      
+      // Apply active filter
+      if (filters.isActive) {
+        filteredData = filteredData.filter(item => item.isActive === true);
+      }
+      
+      return filteredData;
+    } catch (error) {
+      console.error('Error fetching classes with filters:', error);
+      addNotification({ 
+        message: 'Failed to load classes', 
+        type: 'error' 
       });
+      return [];
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token]);
-
-  // Optimized filter effect with deduplication and caching
+  }, [token, addNotification]);
+  
+  // Filter management
+  const {
+    filters,
+    loading: filterLoading,
+    hasChanges,
+    handleFilterChange,
+    applyFilters,
+    clearFilters
+  } = useFilterSubmit(initialFilters, fetchDataWithFilters, {
+    autoFetchOnMount: true
+  });
+  
+  // Focus management - focus first input when form is shown
   useEffect(() => {
-    if (!token) return;
-    
-    // Skip on initial mount and until initial fetch is complete
-    if (isInitialMountRef.current || !hasInitialFetchRef.current) {
-      isInitialMountRef.current = false;
-      return;
+    if (showForm && firstInputRef.current) {
+      // Small delay to ensure form is rendered
+      setTimeout(() => {
+        firstInputRef.current.focus();
+      }, 100);
     }
-    
-    // Handle course change - fetch classes for specific course or all Academic classes
-    if (selectedCourse) {
-      // Handle course change - fetch classes for specific course
-      console.log('Course changed to:', selectedCourse);
-      classesCacheRef.current = { data: null, ts: 0 };
-      fetchClasses(null, selectedCourse);
-    } else {
-      // Handle "All Academic Courses" selection - fetch all Academic classes
-      console.log('Fetching all Academic classes for course type:', selectedCourseType);
-      classesCacheRef.current = { data: null, ts: 0 };
-      fetchClasses(selectedCourseType); // Use the Academic course type
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedCourse, selectedCourseType, token]);
+  }, [showForm]);
+
+  // Update classes when filters are applied
+  useEffect(() => {
+    const updateClasses = async () => {
+      try {
+        const filteredData = await applyFilters();
+        setClasses(filteredData);
+      } catch (error) {
+        console.error('Error applying filters:', error);
+        setClasses([]);
+      }
+    };
+
+    updateClasses();
+  }, [applyFilters]);
+
+  // Old filter effect removed - now using useFilterSubmit hook
 
   // Cleanup abort controllers on unmount
   useEffect(() => {
@@ -271,22 +329,7 @@ const ClassManagement = () => {
       console.log('Processed courseTypes array (ClassManagement):', courseTypesArray);
       setCourseTypes(courseTypesArray);
       
-      // Find the Academic course type and set it automatically
-      const academicCourseType = courseTypesArray.find(ct => ct.name.toLowerCase().includes('academic'));
-      console.log('Academic course type found:', academicCourseType);
-      if (academicCourseType) {
-        console.log('Auto-setting Academic course type:', academicCourseType);
-        setSelectedCourseType(academicCourseType.id);
-        
-        // Fetch courses for Academic course type
-        console.log('Fetching courses for academic course type...');
-        await fetchCoursesByCourseType(academicCourseType.id);
-      }
-      
-      // Fetch classes for the academic course type
-      const academicCourseTypeId = academicCourseType ? academicCourseType.id : null;
-      console.log('Initial fetchClasses call with courseTypeId:', academicCourseTypeId);
-      await fetchClasses(academicCourseTypeId);
+      // Old auto-filter logic removed - now using FilterPanel
       
       // Mark that initial fetch is complete
       hasInitialFetchRef.current = true;
@@ -357,8 +400,7 @@ const ClassManagement = () => {
         courseId,
         hasToken: !!token,
         queryKey,
-        selectedCourseType,
-        selectedCourse
+        // Old filter variables removed
       });
       
       // Update query tracking
@@ -502,9 +544,8 @@ const ClassManagement = () => {
       setEditingId(null);
       setFormData({ name: '', description: '', course: { id: '' }, isActive: true });
       
-      // Clear cache and refresh data
-      classesCacheRef.current = { data: null, ts: 0 };
-      await fetchClasses(selectedCourseType, selectedCourse);
+      // Refresh data using new filter system
+      await applyFilters();
     } catch (error) {
       console.error('Error saving class:', error);
       addNotification({
@@ -539,9 +580,8 @@ const ClassManagement = () => {
           duration: 3000
         });
         
-        // Clear cache and refresh data
-        classesCacheRef.current = { data: null, ts: 0 };
-        await fetchClasses(selectedCourseType, selectedCourse);
+        // Refresh data using new filter system
+        await applyFilters();
       } catch (error) {
         console.error('Error deleting class:', error);
         addNotification({
@@ -627,8 +667,6 @@ const ClassManagement = () => {
     console.log('Academic courses found:', academicCourses);
     return academicCourses;
   };
-
-  const [coursesByType, setCoursesByType] = useState([]);
 
   const fetchCoursesByCourseType = async (courseTypeId) => {
     if (!courseTypeId || !token) {
@@ -735,33 +773,20 @@ const ClassManagement = () => {
         )}
       />
 
-      {/* Filters */}
-      <div className="filter-section">
-        <div className="filter-group">
-          <label htmlFor="course-filter">Course:</label>
-          <select
-            id="course-filter"
-            value={selectedCourse}
-            onChange={(e) => {
-              const newCourse = e.target.value;
-              if (newCourse !== selectedCourse) {
-                setSelectedCourse(newCourse);
-              }
-            }}
-            className="filter-select"
-          >
-            <option value="">All Academic Courses</option>
-            {getAcademicCourses().map(course => (
-              <option key={course.id} value={course.id}>
-                {course.name}
-              </option>
-            ))}
-          </select>
-        </div>
-      </div>
+      {/* Filter Panel */}
+      <FilterPanel
+        filters={filters}
+        onFilterChange={handleFilterChange}
+        onApplyFilters={applyFilters}
+        onClearFilters={clearFilters}
+        loading={filterLoading}
+        filterConfig={filterConfig}
+        masterData={{ courseTypes, courses: coursesByType }}
+        hasChanges={hasChanges}
+      />
 
       {showForm && (
-        <div className="form-section">
+        <div className="form-section" ref={formRef}>
           <div className="form-header">
             <h3>{editingId ? 'Edit Class' : 'Add New Class'}</h3>
             <button className="btn btn-outline btn-sm" onClick={resetForm}>
@@ -775,6 +800,7 @@ const ClassManagement = () => {
               <div className="form-group">
                 <label htmlFor="name">Class Name *</label>
                 <input
+                  ref={firstInputRef}
                   type="text"
                   id="name"
                   name="name"
@@ -858,19 +884,15 @@ const ClassManagement = () => {
 
       <div className="data-section">
         <div className="data-header">
-          <h3>Classes ({classes.length})</h3>
+          <h3>Classes ({classes?.length || 0})</h3>
           <div className="data-actions">
             <button 
               className="btn btn-outline btn-sm"
               onClick={() => {
                 // Clear cache to force fresh data fetch
                 classesCacheRef.current = { data: null, ts: 0 };
-                console.log('Refresh button clicked with:', {
-                  selectedCourseType,
-                  selectedCourse,
-                  courseTypes: courseTypes.length
-                });
-                fetchClasses(selectedCourseType, selectedCourse);
+                // Refresh data using new filter system
+                applyFilters();
               }}
               disabled={loading}
             >
@@ -884,17 +906,12 @@ const ClassManagement = () => {
             <div className="loading-spinner"></div>
             <p>Loading classes...</p>
           </div>
-        ) : classes.length === 0 ? (
+        ) : (classes?.length || 0) === 0 ? (
           <div className="empty-state">
             <div className="empty-icon">No Classes</div>
             <h4>No Classes Found</h4>
             <p>
-              {selectedCourse 
-                ? `No classes found for the selected course. Create your first class for this course.`
-                : selectedCourseType 
-                  ? `No classes found for the selected course type. Create your first class.`
-                  : `No classes found. Create your first class.`
-              }
+              No classes found. Create your first class.
             </p>
             <button 
               className="btn btn-primary"

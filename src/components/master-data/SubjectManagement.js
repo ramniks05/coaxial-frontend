@@ -1,8 +1,12 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useApp } from '../../context/AppContext';
+import { useFilterSubmit } from '../../hooks/useFilterSubmit';
+import { useFormFocus } from '../../hooks/useFormFocus';
 import { getCourseTypesCached } from '../../services/globalApiCache';
 import { createSubjectWithAutoLink, deleteSubject, getAllSubjectLinkages, getClassesByCourse, getCourses, getExamsByCourse, getMasterSubjectsByCourseType, updateSubject } from '../../services/masterDataService';
 import AdminPageHeader from '../common/AdminPageHeader';
+import { getInitialFilters, getSubjectFilterConfig } from './filters/filterConfigs';
+import FilterPanel from './filters/FilterPanel';
 import './MasterDataComponent.css';
 
 // Reusable DataCard Component
@@ -145,14 +149,8 @@ const SubjectManagement = () => {
   const [subjects, setSubjects] = useState([]);
   const [courseTypes, setCourseTypes] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState(null);
-  // Filter states for drill-down filtering
-  const [selectedCourseType, setSelectedCourseType] = useState('');
-  const [selectedCourse, setSelectedCourse] = useState('');
-  const [selectedClass, setSelectedClass] = useState('');
-  const [selectedExam, setSelectedExam] = useState('');
-  const [showActiveOnly, setShowActiveOnly] = useState(true);
+  // Old filter states removed - now using useFilterSubmit hook
   
   const [formData, setFormData] = useState({
     name: '',
@@ -166,9 +164,89 @@ const SubjectManagement = () => {
     isActive: true
   });
   
+  // State declarations
+  const [showForm, setShowForm] = useState(false);
   const [courses, setCourses] = useState([]);
   const [classes, setClasses] = useState([]);
   const [exams, setExams] = useState([]);
+  
+  // Form focus management
+  const { formRef, firstInputRef } = useFormFocus(showForm);
+  
+  // Filter state and handlers
+  const initialFilters = getInitialFilters('subject');
+  const filterConfig = getSubjectFilterConfig({ 
+    courseTypes, 
+    courses, 
+    classes, 
+    exams 
+  });
+  
+  // Fetch data function for filters
+  const fetchDataWithFilters = useCallback(async (filters) => {
+    if (!token) return [];
+    
+    try {
+      const data = await getMasterSubjectsByCourseType(token, filters.courseTypeId || '');
+      let filteredData = Array.isArray(data) ? data : [];
+      
+      // Apply search filter
+      if (filters.search) {
+        const searchLower = filters.search.toLowerCase();
+        filteredData = filteredData.filter(item => 
+          item.name?.toLowerCase().includes(searchLower) ||
+          item.description?.toLowerCase().includes(searchLower)
+        );
+      }
+      
+      // Apply course filter
+      if (filters.courseId) {
+        filteredData = filteredData.filter(item => 
+          item.course?.id === parseInt(filters.courseId)
+        );
+      }
+      
+      // Apply class filter
+      if (filters.classId) {
+        filteredData = filteredData.filter(item => 
+          item.class?.id === parseInt(filters.classId)
+        );
+      }
+      
+      // Apply exam filter
+      if (filters.examId) {
+        filteredData = filteredData.filter(item => 
+          item.exam?.id === parseInt(filters.examId)
+        );
+      }
+      
+      // Apply active filter
+      if (filters.isActive) {
+        filteredData = filteredData.filter(item => item.isActive === true);
+      }
+      
+      return filteredData;
+    } catch (error) {
+      console.error('Error fetching subjects with filters:', error);
+      addNotification({ 
+        message: 'Failed to load subjects', 
+        type: 'error' 
+      });
+      return [];
+    }
+  }, [token, addNotification]);
+  
+  // Filter management
+  const {
+    filters,
+    loading: filterLoading,
+    hasChanges,
+    handleFilterChange,
+    applyFilters,
+    clearFilters
+  } = useFilterSubmit(initialFilters, fetchDataWithFilters, {
+    autoFetchOnMount: true
+  });
   const [filteredCourses, setFilteredCourses] = useState([]);
   const [filteredClasses, setFilteredClasses] = useState([]);
   const [filteredExams, setFilteredExams] = useState([]);
@@ -201,10 +279,24 @@ const SubjectManagement = () => {
   }, []);
 
   const hasInitialFetchRef = useRef(false);
+  // Update subjects when filters are applied
+  useEffect(() => {
+    const updateSubjects = async () => {
+      try {
+        const filteredData = await applyFilters();
+        setSubjects(filteredData);
+      } catch (error) {
+        console.error('Error applying filters:', error);
+        setSubjects([]);
+      }
+    };
+
+    updateSubjects();
+  }, [applyFilters]);
+  
   useEffect(() => {
     if (!token || hasInitialFetchRef.current) return;
     hasInitialFetchRef.current = true;
-    fetchData();
     // Additionally load full linkage snapshot on first load (no filters)
     (async () => {
       try {
@@ -230,162 +322,15 @@ const SubjectManagement = () => {
   const didMountActive = useRef(false);
 
   // Effect for course type change - filter courses and fetch subjects
-  useEffect(() => {
-    if (!didMountCourseType.current) { didMountCourseType.current = true; return; }
-    console.log('=== COURSE TYPE CHANGE EFFECT ===');
-    console.log('Selected course type changed:', selectedCourseType);
-    console.log('Selected course type type:', typeof selectedCourseType);
-    console.log('Selected course type length:', selectedCourseType?.length);
-    if (selectedCourseType) {
-      const courseTypeId = parseInt(selectedCourseType);
-      console.log('Filtering courses for course type:', courseTypeId);
-      
-      // Fetch courses for this course type (subject dropdown is populated via getSubjects elsewhere)
-      fetchCoursesByCourseType(courseTypeId);
-      
-      // Reset dependent filters
-      setSelectedCourse('');
-      setSelectedClass('');
-      setSelectedExam('');
-      setFilteredClasses([]);
-      setFilteredExams([]);
-      // Clear current subjects to avoid showing stale content
-      setSubjects([]);
-      
-      // Fetch subjects via all-linkages endpoint filtered by courseTypeId
-      (async () => {
-        try {
-          console.log('About to fetch subjects via /api/admin/subjects/all-linkages?courseTypeId=.. :', courseTypeId);
-          setSubjects([]);
-          const data = await getAllSubjectLinkages(token, { courseTypeId });
-          const items = Array.isArray(data) ? data : (data?.content || data?.data || []);
-          // Keep linkage shape so render uses subjectName/courseName/className/examName
-          setSubjects(Array.isArray(items) ? items : []);
-        } catch (e) {
-          console.warn('Fetch subjects by courseType failed:', e?.message || e);
-        }
-      })();
-    } else {
-      console.log('No course type selected - clearing subjects until a filter is applied');
-      setFilteredCourses(Array.isArray(courses) ? courses : []);
-      setMasterSubjects([]);
-      setSelectedCourse('');
-      setSelectedClass('');
-      setSelectedExam('');
-      setFilteredClasses([]);
-      setFilteredExams([]);
-      // Do not auto-fetch subjects without filters
-      setSubjects([]);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedCourseType, showActiveOnly]);
+  // Old filter effect removed - now using useFilterSubmit hook
 
-  // Effect for course change - fetch classes/exams and subjects
-  useEffect(() => {
-    if (!didMountCourse.current) { didMountCourse.current = true; return; }
-    if (selectedCourse) {
-      const courseId = parseInt(selectedCourse);
-      const courseTypeId = selectedCourseType ? parseInt(selectedCourseType) : null;
-      console.log('=== COURSE CHANGE EFFECT ===');
-      console.log('Selected course changed:', courseId, 'course type:', courseTypeId);
-      console.log('About to fetch subjects via all-linkages with courseId & courseTypeId:', courseId, courseTypeId);
-      
-      // Fetch classes and exams for this course using combined endpoints
-      fetchClassesAndExamsByCourse(courseTypeId, courseId);
-      
-      // Reset dependent filters
-      setSelectedClass('');
-      setSelectedExam('');
-      // Clear current subjects to avoid showing stale content
-      setSubjects([]);
-      
-      // Fetch subjects for this course using all-linkages endpoint
-      (async () => {
-        try {
-          const data = await getAllSubjectLinkages(token, { courseId, courseTypeId });
-          const items = Array.isArray(data) ? data : (data?.content || data?.data || []);
-          setSubjects(Array.isArray(items) ? items : []);
-        } catch (e) {
-          console.warn('Fetch subjects by course (all-linkages) failed:', e?.message || e);
-          setSubjects([]);
-        }
-      })();
-    } else {
-      setFilteredClasses([]);
-      setFilteredExams([]);
-      setSelectedClass('');
-      setSelectedExam('');
-      // Do NOT refetch here; course type effect already fetched via all-linkages
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedCourse, selectedCourseType, showActiveOnly]);
+  // Old filter effect removed - now using useFilterSubmit hook
 
-  // Effect for class change - fetch subjects for specific class
-  useEffect(() => {
-    if (!didMountClass.current) { didMountClass.current = true; return; }
-    if (selectedClass) {
-      const classId = parseInt(selectedClass);
-      console.log('Selected class changed:', classId);
-      
-      // Reset exam selection
-      setSelectedExam('');
-      // Clear master subject selection when class changes
-      setFormData(prev => ({
-        ...prev,
-        name: '',
-        description: '',
-        masterSubjectId: ''
-      }));
-      
-      // Fetch subjects for this class
-      const courseTypeId = selectedCourseType ? parseInt(selectedCourseType) : null;
-      const courseId = selectedCourse ? parseInt(selectedCourse) : null;
-      fetchSubjects(courseTypeId, courseId, classId, null, showActiveOnly);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedClass, selectedCourseType, selectedCourse]);
+  // Old filter effect removed - now using useFilterSubmit hook
 
-  // Effect for exam change - fetch subjects for specific exam
-  useEffect(() => {
-    if (!didMountExam.current) { didMountExam.current = true; return; }
-    if (selectedExam) {
-      const examId = parseInt(selectedExam);
-      console.log('Selected exam changed:', examId);
-      
-      // Reset class selection
-      setSelectedClass('');
-      // Clear master subject selection when exam changes
-      setFormData(prev => ({
-        ...prev,
-        name: '',
-        description: '',
-        masterSubjectId: ''
-      }));
-      
-      // Clear current subjects to avoid showing stale content
-      setSubjects([]);
-      
-      // Fetch subjects for this exam
-      const courseTypeId = selectedCourseType ? parseInt(selectedCourseType) : null;
-      const courseId = selectedCourse ? parseInt(selectedCourse) : null;
-      fetchSubjects(courseTypeId, courseId, null, examId, showActiveOnly);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedExam, selectedCourseType, selectedCourse]);
+  // Old filter effect removed - now using useFilterSubmit hook
 
-  // Effect for active filter change - refetch subjects with new active filter only
-  useEffect(() => {
-    if (!didMountActive.current) { didMountActive.current = true; return; }
-    console.log('Show active only changed:', showActiveOnly);
-    const courseTypeId = selectedCourseType ? parseInt(selectedCourseType) : null;
-    const courseId = selectedCourse ? parseInt(selectedCourse) : null;
-    const classId = selectedClass ? parseInt(selectedClass) : null;
-    const examId = selectedExam ? parseInt(selectedExam) : null;
-    
-    // Do not clear subjects here to avoid flicker; just refetch with new flag
-    fetchSubjects(courseTypeId, courseId, classId, examId, showActiveOnly);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [showActiveOnly]);
+  // Old filter effect removed - now using useFilterSubmit hook
 
   // Debug effect for masterSubjects state changes
   useEffect(() => {
@@ -554,7 +499,7 @@ const SubjectManagement = () => {
     try {
       setLoadingStates(prev => ({ ...prev, masterSubjects: true }));
       console.log('Fetching master subjects for course type (master endpoint):', courseTypeId);
-      const data = await getMasterSubjectsByCourseType(token, courseTypeId, { active: showActiveOnly });
+      const data = await getMasterSubjectsByCourseType(token, courseTypeId, { active: true });
       
       // Handle paginated response - extract content array for master subjects
       const masterSubjectsArray = data.content || data;
@@ -794,27 +739,8 @@ const SubjectManagement = () => {
         displayOrder: '', 
         isActive: true 
       });
-      // Refresh the subject list after successful save
-      const refreshCourseTypeId = selectedCourseType ? parseInt(selectedCourseType) : null;
-      const refreshCourseId = selectedCourse ? parseInt(selectedCourse) : null;
-      const refreshClassId = selectedClass ? parseInt(selectedClass) : null;
-      const refreshExamId = selectedExam ? parseInt(selectedExam) : null;
-      
-      console.log('Refreshing subjects after save with filters:', {
-        refreshCourseTypeId, refreshCourseId, refreshClassId, refreshExamId, showActiveOnly
-      });
-      
-      // Always refresh - if no filters, fetch all linkages
-      if (refreshCourseTypeId || refreshCourseId || refreshClassId || refreshExamId) {
-        await fetchSubjects(refreshCourseTypeId, refreshCourseId, refreshClassId, refreshExamId, showActiveOnly);
-      } else {
-        // No filters: refresh all linkages
-        console.log('No filters applied, fetching all subject linkages');
-        const linkages = await getAllSubjectLinkages(token, {});
-        const list = Array.isArray(linkages) ? linkages : (linkages?.content || linkages?.data || []);
-        setSubjects(list || []);
-        subjectsCacheRef.current.set('ALL_LINKAGES', { data: list || [], ts: Date.now() });
-      }
+      // Refresh the subject list after successful save using new filter system
+      await applyFilters();
     } catch (error) {
       console.error('Error saving subject:', error);
       
@@ -878,11 +804,8 @@ const SubjectManagement = () => {
           message: 'Subject deleted successfully',
           duration: 3000
         });
-        const courseTypeId = selectedCourseType ? parseInt(selectedCourseType) : null;
-        const courseId = selectedCourse ? parseInt(selectedCourse) : null;
-        const classId = selectedClass ? parseInt(selectedClass) : null;
-        const examId = selectedExam ? parseInt(selectedExam) : null;
-        fetchSubjects(courseTypeId, courseId, classId, examId, showActiveOnly);
+        // Refresh subjects using new filter system
+        await applyFilters();
       } catch (error) {
         console.error('Error deleting subject:', error);
       } finally {
@@ -932,13 +855,13 @@ const SubjectManagement = () => {
         const [coursesData, subjectsData] = await Promise.all([
           getCourses(token, courseTypeId, 0, 100, 'createdAt', 'desc'),
           getMasterSubjectsByCourseType(token, courseTypeId, { 
-            active: showActiveOnly
+            active: true
           })
         ]);
         
         console.log('=== SUBJECT MANAGEMENT DEBUG ===');
         console.log('Course Type ID:', courseTypeId);
-        console.log('Show Active Only:', showActiveOnly);
+        console.log('Show Active Only: true');
         console.log('Raw courses API response:', coursesData);
         console.log('Raw master subjects API response:', subjectsData);
         console.log('Courses has content property:', !!coursesData.content);
@@ -963,8 +886,8 @@ const SubjectManagement = () => {
           coursesArray = [];
         }
         
-        // Keep only active if flag is on (use form's showActiveOnly toggle from top scope)
-        let normalizedCourses = coursesArray.filter(c => (showActiveOnly ? !!c.isActive : true));
+        // Keep only active courses
+        let normalizedCourses = coursesArray.filter(c => !!c.isActive);
         normalizedCourses.sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0) || a.name.localeCompare(b.name));
 
         // Handle different response formats for master subjects
@@ -991,7 +914,7 @@ const SubjectManagement = () => {
         
         // Normalize subjects for dropdown as {id,label,description}
         let normalizedMasterSubjects = subjectsArray
-          .filter(s => (showActiveOnly ? !!s.isActive : true))
+          .filter(s => !!s.isActive)
           .map(s => ({ id: s.id, label: s.name || '', description: s.description || '' }));
         normalizedMasterSubjects.sort((a, b) => a.label.localeCompare(b.label));
         
@@ -1071,7 +994,7 @@ const SubjectManagement = () => {
           classesArray = [];
         }
         
-        let normalizedClasses = classesArray.filter(cl => (showActiveOnly ? !!cl.isActive : true));
+        let normalizedClasses = classesArray.filter(cl => !!cl.isActive);
         normalizedClasses.sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0) || a.name.localeCompare(b.name));
 
         // Handle different response formats for exams
@@ -1089,7 +1012,7 @@ const SubjectManagement = () => {
           examsArray = [];
         }
         
-        let normalizedExams = examsArray.filter(ex => (showActiveOnly ? !!ex.isActive : true));
+        let normalizedExams = examsArray.filter(ex => !!ex.isActive);
         normalizedExams.sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0) || a.name.localeCompare(b.name));
         
         setClasses(normalizedClasses);
@@ -1130,131 +1053,22 @@ const SubjectManagement = () => {
         )}
       />
 
-       {/* Drill-down Filters */}
-       <div className="filter-section">
-         <div className="filter-header">
-           <h4>Filter Subjects</h4>
-           <div className="filter-header-controls">
-             <label className="filter-checkbox">
-               <input
-                 type="checkbox"
-                 checked={showActiveOnly}
-                 onChange={(e) => setShowActiveOnly(e.target.checked)}
-               />
-               <span>Active Only</span>
-             </label>
-             <button 
-               className="btn btn-outline btn-xs"
-               onClick={() => {
-                 setSelectedCourseType('');
-                 setSelectedCourse('');
-                 setSelectedClass('');
-                 setSelectedExam('');
-                 setFilteredCourses([]);
-                 setFilteredClasses([]);
-                 setFilteredExams([]);
-               }}
-               disabled={loading}
-             >
-               Clear All Filters
-             </button>
-           </div>
-         </div>
-         
-         {(loading && courseTypes.length === 0) ? (
-           <div className="empty-state">
-             <div className="empty-icon">No Subjects</div>
-             <h4>Loading Course Types...</h4>
-             <p>Please wait while we load the course types</p>
-           </div>
-         ) : (
-           <div className="filter-row">
-             {/* Course Type Filter */}
-             <div className="filter-group">
-               <label htmlFor="course-type-filter">1. Course Type:</label>
-               <select
-                 id="course-type-filter"
-                 value={selectedCourseType}
-                 onChange={(e) => setSelectedCourseType(e.target.value)}
-                 className="filter-select"
-               >
-                 <option value="">Select Course Type</option>
-                 {Array.isArray(courseTypes) && courseTypes.length > 0 ? courseTypes.map(courseType => (
-                   <option key={courseType.id} value={courseType.id}>
-                     {courseType.name}
-                   </option>
-                 )) : (
-                   <option value="" disabled>Loading course types...</option>
-                 )}
-               </select>
-             </div>
+      {/* Filter Panel */}
+      <FilterPanel
+        filters={filters}
+        onFilterChange={handleFilterChange}
+        onApplyFilters={applyFilters}
+        onClearFilters={clearFilters}
+        loading={filterLoading}
+        filterConfig={filterConfig}
+        masterData={{ courseTypes, courses, classes, exams }}
+        hasChanges={hasChanges}
+      />
 
-             {/* Course Filter */}
-             <div className="filter-group">
-               <label htmlFor="course-filter">2. Course:</label>
-               <select
-                 id="course-filter"
-                 value={selectedCourse}
-                 onChange={(e) => setSelectedCourse(e.target.value)}
-                 className="filter-select"
-                 disabled={!selectedCourseType}
-               >
-                 <option value="">Select Course</option>
-                 {Array.isArray(filteredCourses) && filteredCourses.map(course => (
-                   <option key={course.id} value={course.id}>
-                     {course.name}
-                   </option>
-                 ))}
-               </select>
-             </div>
-
-             {/* Class Filter (Academic only) */}
-             {isAcademicCourseType(selectedCourseType) && (
-               <div className="filter-group">
-                 <label htmlFor="class-filter">3. Class:</label>
-                 <select
-                   id="class-filter"
-                   value={selectedClass}
-                   onChange={(e) => setSelectedClass(e.target.value)}
-                   className="filter-select"
-                   disabled={!selectedCourse}
-                 >
-                   <option value="">Select Class</option>
-                   {Array.isArray(filteredClasses) && filteredClasses.map(cls => (
-                     <option key={cls.id} value={cls.id}>
-                       {cls.name}
-                     </option>
-                   ))}
-                 </select>
-               </div>
-             )}
-
-             {/* Exam Filter (Competitive only) */}
-             {isCompetitiveCourseType(selectedCourseType) && (
-               <div className="filter-group">
-                 <label htmlFor="exam-filter">3. Exam:</label>
-                 <select
-                   id="exam-filter"
-                   value={selectedExam}
-                   onChange={(e) => setSelectedExam(e.target.value)}
-                   className="filter-select"
-                   disabled={!selectedCourse}
-                 >
-                   <option value="">Select Exam</option>
-                   {Array.isArray(filteredExams) && filteredExams.map(exam => (
-                     <option key={exam.id} value={exam.id}>
-                       {exam.name}
-                     </option>
-                   ))}
-                 </select>
-               </div>
-             )}
-           </div>
-         )}
-       </div>
+      {/* Form Section */}
 
       {showForm && (
-        <div className="form-section">
+        <div className="form-section" ref={formRef}>
           <div className="form-header">
             <h3>{editingId ? 'Edit Subject' : 'Add New Subject'}</h3>
             <button className="btn btn-outline btn-sm" onClick={resetForm}>
@@ -1268,6 +1082,7 @@ const SubjectManagement = () => {
               <div className="form-group">
                 <label htmlFor="courseType">Course Type *</label>
                 <select
+                  ref={firstInputRef}
                   id="courseType"
                   name="courseType"
                   value={formData.courseType.id}
@@ -1484,41 +1299,12 @@ const SubjectManagement = () => {
       <div className="data-section">
         <div className="data-header">
           <h3>
-            Subjects ({(() => {
-              const ct = selectedCourseType ? parseInt(selectedCourseType) : null;
-              if (!Array.isArray(subjects)) return 0;
-              if (!ct) return subjects.length;
-              if (ct === 1) return subjects.filter(s => (s.courseTypeId === 1) || (s.structureType === 'ACADEMIC')).length;
-              if (ct === 2) return subjects.filter(s => (s.courseTypeId === 2) || (s.structureType === 'COMPETITIVE')).length;
-              return subjects.filter(s => (s.courseTypeId && s.courseTypeId !== 1 && s.courseTypeId !== 2) || (s.structureType === 'PROFESSIONAL')).length;
-            })()})
+            Subjects ({subjects?.length || 0})
           </h3>
           <div className="data-actions">
             <button 
               className="btn btn-outline btn-sm"
-              onClick={async () => {
-                const hasAnyFilter = !!(selectedCourseType || selectedCourse || selectedClass || selectedExam);
-                setLoading(true);
-                try {
-                  if (hasAnyFilter) {
-                    const courseTypeId = selectedCourseType ? parseInt(selectedCourseType) : null;
-                    const courseId = selectedCourse ? parseInt(selectedCourse) : null;
-                    const classId = selectedClass ? parseInt(selectedClass) : null;
-                    const examId = selectedExam ? parseInt(selectedExam) : null;
-                    await fetchSubjects(courseTypeId, courseId, classId, examId, showActiveOnly);
-                  } else {
-                    // No filters: refresh all-linkages
-                    const linkages = await getAllSubjectLinkages(token, {});
-                    const list = Array.isArray(linkages) ? linkages : (linkages?.content || linkages?.data || []);
-                    setSubjects(list || []);
-                    subjectsCacheRef.current.set('ALL_LINKAGES', { data: list || [], ts: Date.now() });
-                  }
-                } catch (e) {
-                  console.warn('Refresh failed:', e?.message || e);
-                } finally {
-                  setLoading(false);
-                }
-              }}
+              onClick={() => applyFilters()}
               disabled={loading}
             >
               Refresh
@@ -1531,7 +1317,7 @@ const SubjectManagement = () => {
             <div className="loading-spinner"></div>
             <p>Loading subjects...</p>
           </div>
-        ) : subjects.length === 0 ? (
+        ) : (subjects?.length || 0) === 0 ? (
           <div className="empty-state">
             <div className="empty-icon">No Subjects</div>
             <h4>No Subjects Found</h4>
@@ -1543,7 +1329,7 @@ const SubjectManagement = () => {
               Add Subject
             </button>
           </div>
-        ) : courseTypeNames.length === 0 ? (
+        ) : (courseTypeNames?.length || 0) === 0 ? (
           <div className="empty-state">
             <div className="empty-icon">No Subjects</div>
             <h4>No Subjects Found</h4>

@@ -1,8 +1,11 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useApp } from '../../context/AppContext';
+import { useFilterSubmit } from '../../hooks/useFilterSubmit';
 import { clearCoursesCache, getCourseTypesCached, getCoursesCached } from '../../services/globalApiCache';
 import { createCourse, deleteCourse, updateCourse } from '../../services/masterDataService';
 import AdminPageHeader from '../common/AdminPageHeader';
+import { getCourseFilterConfig, getInitialFilters } from './filters/filterConfigs';
+import FilterPanel from './filters/FilterPanel';
 import './MasterDataComponent.css';
 
 // Reusable DataCard Component
@@ -151,7 +154,7 @@ const CourseManagement = () => {
   const [loading, setLoading] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState(null);
-  const [selectedCourseType, setSelectedCourseType] = useState('');
+  // Old filter states removed - now using useFilterSubmit hook
   const [formData, setFormData] = useState({
     name: '',
     description: '',
@@ -165,10 +168,80 @@ const CourseManagement = () => {
   const coursesFetched = useRef(false);
   const tokenRef = useRef(token);
   
+  // Form focus management
+  const formRef = useRef(null);
+  const firstInputRef = useRef(null);
+  
+  // Filter state and handlers
+  const initialFilters = getInitialFilters('course');
+  const filterConfig = getCourseFilterConfig({ courseTypes });
+  
+  // Fetch data function for filters
+  const fetchDataWithFilters = useCallback(async (filters) => {
+    if (!token) return [];
+    
+    try {
+      const data = await getCoursesCached(token);
+      let filteredData = Array.isArray(data) ? data : [];
+      
+      // Apply search filter
+      if (filters.search) {
+        const searchLower = filters.search.toLowerCase();
+        filteredData = filteredData.filter(item => 
+          item.name?.toLowerCase().includes(searchLower) ||
+          item.description?.toLowerCase().includes(searchLower)
+        );
+      }
+      
+      // Apply course type filter
+      if (filters.courseTypeId) {
+        filteredData = filteredData.filter(item => 
+          item.courseType?.id === parseInt(filters.courseTypeId)
+        );
+      }
+      
+      // Apply active filter
+      if (filters.isActive) {
+        filteredData = filteredData.filter(item => item.isActive === true);
+      }
+      
+      return filteredData;
+    } catch (error) {
+      console.error('Error fetching courses with filters:', error);
+      addNotification({ 
+        message: 'Failed to load courses', 
+        type: 'error' 
+      });
+      return [];
+    }
+  }, [token, addNotification]);
+  
+  // Filter management
+  const {
+    filters,
+    loading: filterLoading,
+    hasChanges,
+    handleFilterChange,
+    applyFilters,
+    clearFilters
+  } = useFilterSubmit(initialFilters, fetchDataWithFilters, {
+    autoFetchOnMount: true
+  });
+  
   // Update token ref when token changes
   useEffect(() => {
     tokenRef.current = token;
   }, [token]);
+  
+  // Focus management - focus first input when form is shown
+  useEffect(() => {
+    if (showForm && firstInputRef.current) {
+      // Small delay to ensure form is rendered
+      setTimeout(() => {
+        firstInputRef.current.focus();
+      }, 100);
+    }
+  }, [showForm]);
 
   // Fetch course types on component mount (only once)
   useEffect(() => {
@@ -219,104 +292,34 @@ const CourseManagement = () => {
     fetchCourseTypes();
   }, []); // Empty dependency array - only run once on mount
 
-  // Fetch courses when component loads or when course type filter changes
+  // Update courses when filters are applied
   useEffect(() => {
-    if (!tokenRef.current) return; // Don't fetch if no token
-    
-    const fetchCoursesData = async () => {
+    const updateCourses = async () => {
       try {
-        setLoading(true);
-        const data = await getCoursesCached(tokenRef.current, selectedCourseType, 0, 10, 'createdAt', 'desc');
-        console.log('Raw courses API response:', data);
-        console.log('Courses data type:', typeof data);
-        console.log('Courses is array:', Array.isArray(data));
-        
-        // Handle different response formats
-        let coursesArray = [];
-        if (Array.isArray(data)) {
-          coursesArray = data;
-        } else if (data && Array.isArray(data.content)) {
-          // Handle paginated response
-          coursesArray = data.content;
-        } else if (data && Array.isArray(data.data)) {
-          // Handle wrapped response
-          coursesArray = data.data;
-        } else if (data && data.courses && Array.isArray(data.courses)) {
-          // Handle nested response
-          coursesArray = data.courses;
-        } else {
-          console.warn('Unexpected courses data format:', data);
-          coursesArray = [];
-        }
-        
-        console.log('Processed courses array:', coursesArray);
-        setCourses(coursesArray);
-        coursesFetched.current = true; // Mark as fetched
+        const filteredData = await applyFilters();
+        setCourses(filteredData);
       } catch (error) {
-        console.error('Error fetching courses:', error);
-        
-        // Show the actual error instead of mock data
-        addNotification({
-          type: 'error',
-          message: `Failed to fetch courses: ${error.message}`,
-          duration: 7000
-        });
-        
-        // Set empty courses array instead of mock data
+        console.error('Error applying filters:', error);
         setCourses([]);
-      } finally {
-        setLoading(false);
       }
     };
 
-    fetchCoursesData();
-  }, [selectedCourseType]); // Only depend on selectedCourseType, not token
+    updateCourses();
+  }, [applyFilters]);
 
-  // Simple fetchCourses function for manual calls (like after create/update/delete)
-  const fetchCourses = async (courseTypeId = null) => {
-    if (!tokenRef.current) return; // Don't fetch if no token
-    
+  // Refresh courses with current filters
+  const fetchCourses = async () => {
     try {
-      setLoading(true);
-      const data = await getCoursesCached(tokenRef.current, courseTypeId, 0, 10, 'createdAt', 'desc');
-      console.log('Raw courses API response (fetchCourses):', data);
-      console.log('Courses data type:', typeof data);
-      console.log('Courses is array:', Array.isArray(data));
-      
-      // Handle different response formats
-      let coursesArray = [];
-      if (Array.isArray(data)) {
-        coursesArray = data;
-      } else if (data && Array.isArray(data.content)) {
-        // Handle paginated response
-        coursesArray = data.content;
-      } else if (data && Array.isArray(data.data)) {
-        // Handle wrapped response
-        coursesArray = data.data;
-      } else if (data && data.courses && Array.isArray(data.courses)) {
-        // Handle nested response
-        coursesArray = data.courses;
-      } else {
-        console.warn('Unexpected courses data format (fetchCourses):', data);
-        coursesArray = [];
-      }
-      
-      console.log('Processed courses array (fetchCourses):', coursesArray);
-      setCourses(coursesArray);
+      const filteredData = await applyFilters();
+      setCourses(filteredData);
     } catch (error) {
-      console.error('Error fetching courses:', error);
-      
-      // Show the actual error instead of mock data
+      console.error('Error refreshing courses:', error);
       addNotification({
         type: 'error',
-        message: `Failed to fetch courses: ${error.message}`,
+        message: `Failed to refresh courses: ${error.message}`,
         duration: 7000
       });
-      
-      // Set empty courses array instead of mock data
       setCourses([]);
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -367,7 +370,7 @@ const CourseManagement = () => {
         });
         clearCoursesCache(); // Clear cache to force refresh
         // Manually refresh the courses list
-        await fetchCourses(selectedCourseType);
+        await fetchCourses();
       } else {
         await createCourse(token, submitData);
         addNotification({
@@ -377,7 +380,7 @@ const CourseManagement = () => {
         });
         clearCoursesCache(); // Clear cache to force refresh
         // Manually refresh the courses list
-        await fetchCourses(selectedCourseType);
+        await fetchCourses();
       }
       
       setShowForm(false);
@@ -399,7 +402,7 @@ const CourseManagement = () => {
     console.log('=== EDIT COURSE DEBUG ===');
     console.log('Editing course:', course);
     console.log('Available courseTypes:', courseTypes);
-    console.log('CourseTypes length:', courseTypes.length);
+    console.log('CourseTypes length:', courseTypes?.length || 0);
     
     // Handle different possible course type data structures
     let courseTypeId = '';
@@ -439,7 +442,7 @@ const CourseManagement = () => {
     console.log('Matching courseType found:', matchingCourseType);
     
     // Check if courseTypeId matches any available option
-    const availableIds = courseTypes.map(ct => ct.id);
+    const availableIds = (courseTypes || []).map(ct => ct.id);
     console.log('Available courseType IDs:', availableIds);
     console.log('Is courseTypeId in available IDs?', availableIds.includes(parseInt(courseTypeId)));
     
@@ -470,7 +473,7 @@ const CourseManagement = () => {
         });
         clearCoursesCache(); // Clear cache to force refresh
         // Manually refresh the courses list
-        await fetchCourses(selectedCourseType);
+        await fetchCourses();
       } catch (error) {
         console.error('Error deleting course:', error);
         addNotification({
@@ -500,7 +503,7 @@ const CourseManagement = () => {
   const groupCoursesByType = () => {
     const grouped = {};
     
-    courses.forEach(course => {
+    (courses || []).forEach(course => {
       const courseTypeId = course.courseType?.id || course.courseTypeId;
       const courseTypeName = getCourseTypeName(courseTypeId);
       
@@ -532,28 +535,20 @@ const CourseManagement = () => {
         )}
       />
 
-      {/* Course Type Filter */}
-      <div className="filter-section">
-        <div className="filter-group">
-          <label htmlFor="course-type-filter">Filter by Course Type:</label>
-          <select
-            id="course-type-filter"
-            value={selectedCourseType}
-            onChange={(e) => setSelectedCourseType(e.target.value)}
-            className="filter-select"
-          >
-            <option value="">All Course Types</option>
-            {courseTypes.map(courseType => (
-              <option key={courseType.id} value={courseType.id}>
-                {courseType.name}
-              </option>
-            ))}
-          </select>
-        </div>
-      </div>
+      {/* Filter Panel */}
+      <FilterPanel
+        filters={filters}
+        onFilterChange={handleFilterChange}
+        onApplyFilters={applyFilters}
+        onClearFilters={clearFilters}
+        loading={filterLoading}
+        filterConfig={filterConfig}
+        masterData={{ courseTypes }}
+        hasChanges={hasChanges}
+      />
 
       {showForm && (
-        <div className="form-section">
+        <div className="form-section" ref={formRef}>
           <div className="form-header">
             <h3>{editingId ? 'Edit Course' : 'Add New Course'}</h3>
             <button className="btn btn-outline btn-sm" onClick={resetForm}>
@@ -567,6 +562,7 @@ const CourseManagement = () => {
               <div className="form-group">
                 <label htmlFor="name">Course Name *</label>
                 <input
+                  ref={firstInputRef}
                   type="text"
                   id="name"
                   name="name"
@@ -592,10 +588,10 @@ const CourseManagement = () => {
                   required
                 >
                   <option value="">Select Course Type</option>
-                  {courseTypes.length === 0 ? (
+                  {(courseTypes?.length || 0) === 0 ? (
                     <option value="" disabled>No Course Types Available</option>
                   ) : (
-                    courseTypes.map(courseType => (
+                    (courseTypes || []).map(courseType => (
                       <option key={courseType.id} value={courseType.id}>
                         {courseType.name}
                       </option>
@@ -664,11 +660,11 @@ const CourseManagement = () => {
 
       <div className="data-section">
         <div className="data-header">
-          <h3>Courses ({courses.length})</h3>
+          <h3>Courses ({courses?.length || 0})</h3>
           <div className="data-actions">
             <button 
               className="btn btn-outline btn-sm"
-              onClick={() => fetchCourses(selectedCourseType)}
+              onClick={() => applyFilters()}
               disabled={loading}
             >
               Refresh
@@ -681,7 +677,7 @@ const CourseManagement = () => {
             <div className="loading-spinner"></div>
             <p>Loading courses...</p>
           </div>
-        ) : courses.length === 0 ? (
+        ) : (courses?.length || 0) === 0 ? (
           <div className="empty-state">
             <div className="empty-icon">📚</div>
             <h4>No Courses Found</h4>
@@ -693,7 +689,7 @@ const CourseManagement = () => {
               Add Course
             </button>
           </div>
-        ) : courseTypeNames.length === 0 ? (
+        ) : (courseTypeNames?.length || 0) === 0 ? (
           <div className="empty-state">
             <div className="empty-icon">No Courses</div>
             <h4>No Courses Found</h4>
@@ -707,13 +703,13 @@ const CourseManagement = () => {
           </div>
         ) : (
           <div className="courses-by-type">
-            {courseTypeNames.map((courseTypeName) => (
+            {(courseTypeNames || []).map((courseTypeName) => (
               <div key={courseTypeName} className="course-type-section">
                 <div className="section-header">
-                  <h4>{courseTypeName} ({groupedCourses[courseTypeName].length})</h4>
+                  <h4>{courseTypeName} ({(groupedCourses[courseTypeName] || []).length})</h4>
                 </div>
                 <div className="data-grid">
-                  {groupedCourses[courseTypeName].map((course) => {
+                  {(groupedCourses[courseTypeName] || []).map((course) => {
                     // Course field configuration
                     const courseFields = [
                       { 

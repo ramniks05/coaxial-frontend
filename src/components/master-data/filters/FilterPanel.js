@@ -1,183 +1,178 @@
-import React, { useState } from 'react';
-import FilterPresets from './controls/FilterPresets';
+import React, { useEffect, useState } from 'react';
 import './FilterPanel.css';
-import AcademicLevelFilters from './sections/AcademicLevelFilters';
-import BasicFilters from './sections/BasicFilters';
-import ExamSuitabilityFilters from './sections/ExamSuitabilityFilters';
-import PreviouslyAskedFilters from './sections/PreviouslyAskedFilters';
 
+/**
+ * Reusable Filter Panel Component
+ * Provides consistent filter UI across all master data components
+ * 
+ * @param {Object} props
+ * @param {Object} props.filters - Current filter state
+ * @param {Function} props.onFilterChange - Handler for filter changes
+ * @param {Function} props.onApplyFilters - Handler for applying filters
+ * @param {Function} props.onClearFilters - Handler for clearing filters
+ * @param {boolean} props.loading - Loading state
+ * @param {Array} props.filterConfig - Configuration for filter fields
+ * @param {Object} props.masterData - Master data for dropdowns
+ * @param {boolean} props.hasChanges - Whether filters have been changed
+ */
 const FilterPanel = ({
   filters,
   onFilterChange,
-  onResetFilters,
-  onLoadPreset,
-  onSavePreset,
-  savedPresets,
-  isLoading,
-  isMobile,
-  isTablet
+  onApplyFilters,
+  onClearFilters,
+  loading = false,
+  filterConfig = [],
+  masterData = {},
+  hasChanges = false
 }) => {
-  const [expandedSections, setExpandedSections] = useState({
-    basic: true,
-    academic: false,
-    examSuitability: false,
-    previouslyAsked: false
-  });
+  const [localFilters, setLocalFilters] = useState(filters);
 
-  const toggleSection = (section) => {
-    setExpandedSections(prev => ({
-      ...prev,
-      [section]: !prev[section]
-    }));
+  // Sync local filters with props
+  useEffect(() => {
+    setLocalFilters(filters);
+  }, [filters]);
+
+  const handleFilterChange = (field, value) => {
+    const newFilters = { ...localFilters, [field]: value };
+    setLocalFilters(newFilters);
+    onFilterChange(field, value);
   };
 
-  const expandAllSections = () => {
-    setExpandedSections({
-      basic: true,
-      academic: true,
-      examSuitability: true,
-      previouslyAsked: true
+  const handleApply = () => {
+    onApplyFilters(localFilters);
+  };
+
+  const handleClear = () => {
+    const clearedFilters = {};
+    filterConfig.forEach(config => {
+      if (config.defaultValue !== undefined) {
+        clearedFilters[config.field] = config.defaultValue;
+      }
     });
+    setLocalFilters(clearedFilters);
+    onClearFilters(clearedFilters);
   };
 
-  const collapseAllSections = () => {
-    setExpandedSections({
-      basic: false,
-      academic: false,
-      examSuitability: false,
-      previouslyAsked: false
-    });
+  const renderFilterField = (config) => {
+    const { field, type, label, options, placeholder, disabled } = config;
+    const value = localFilters[field] || '';
+
+    switch (type) {
+      case 'select':
+        return (
+          <div key={field} className="filter-field">
+            <label htmlFor={field}>{label}</label>
+            <select
+              id={field}
+              value={value}
+              onChange={(e) => handleFilterChange(field, e.target.value)}
+              disabled={disabled || loading}
+              className="filter-input"
+            >
+              <option value="">{placeholder || `Select ${label}`}</option>
+              {options?.map(option => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </div>
+        );
+
+      case 'toggle':
+        return (
+          <div key={field} className="filter-field filter-toggle">
+            <label className="toggle-label">
+              <input
+                type="checkbox"
+                checked={value}
+                onChange={(e) => handleFilterChange(field, e.target.checked)}
+                disabled={disabled || loading}
+                className="toggle-input"
+              />
+              <span className="toggle-slider"></span>
+              {label}
+            </label>
+          </div>
+        );
+
+      case 'search':
+        return (
+          <div key={field} className="filter-field">
+            <label htmlFor={field}>{label}</label>
+            <input
+              type="text"
+              id={field}
+              value={value}
+              onChange={(e) => handleFilterChange(field, e.target.value)}
+              placeholder={placeholder || `Search ${label.toLowerCase()}`}
+              disabled={disabled || loading}
+              className="filter-input"
+            />
+          </div>
+        );
+
+      default:
+        return null;
+    }
   };
 
+  const getActiveFilterCount = () => {
+    return Object.values(localFilters).filter(value => 
+      value !== '' && value !== null && value !== undefined && value !== false
+    ).length;
+  };
+
+  const activeFilterCount = getActiveFilterCount();
 
   return (
-    <div className={`filter-panel ${isMobile ? 'mobile' : ''} ${isTablet ? 'tablet' : ''}`}>
-      {/* Panel Header */}
-      <div className="filter-panel-header">
-        <div className="header-content">
-          <h3>Question Filters</h3>
-        </div>
-        <div className="header-actions">
-          <button
-            type="button"
-            className="btn btn-outline btn-xs"
-            onClick={expandAllSections}
-            title="Expand all sections"
-          >
-            Expand All
-          </button>
-          <button
-            type="button"
-            className="btn btn-outline btn-xs"
-            onClick={collapseAllSections}
-            title="Collapse all sections"
-          >
-            Collapse All
-          </button>
-        </div>
+    <div className="filter-panel">
+      <div className="filter-header">
+        <h3>Filters</h3>
+        {activeFilterCount > 0 && (
+          <span className="filter-count">
+            {activeFilterCount} filter{activeFilterCount !== 1 ? 's' : ''} applied
+          </span>
+        )}
       </div>
 
-      {/* Panel Content */}
-      <div className="filter-panel-content">
-        {/* Filter Presets */}
-        <FilterPresets
-          savedPresets={savedPresets}
-          onLoadPreset={onLoadPreset}
-          onSavePreset={onSavePreset}
-          currentFilters={filters}
-          isLoading={isLoading}
-        />
-
-        {/* Basic Filters Section */}
-        <div className="filter-section">
-          <div 
-            className="filter-section-header"
-            onClick={() => toggleSection('basic')}
-          >
-            <h4>Basic Filters</h4>
-            <span className={`expand-icon ${expandedSections.basic ? 'expanded' : ''}`}>
-              ▼
-            </span>
-          </div>
-          {expandedSections.basic && (
-            <div className="filter-section-content">
-              <BasicFilters
-                filters={filters.basic}
-                onFilterChange={(updates) => onFilterChange('basic', updates)}
-                isLoading={isLoading}
-              />
-            </div>
-          )}
-        </div>
-
-        {/* Academic Level Section */}
-        <div className="filter-section">
-          <div 
-            className="filter-section-header"
-            onClick={() => toggleSection('academic')}
-          >
-            <h4>Academic Level</h4>
-            <span className={`expand-icon ${expandedSections.academic ? 'expanded' : ''}`}>
-              ▼
-            </span>
-          </div>
-          {expandedSections.academic && (
-            <div className="filter-section-content">
-              <AcademicLevelFilters
-                filters={filters.academic}
-                onFilterChange={(updates) => onFilterChange('academic', updates)}
-                isLoading={isLoading}
-              />
-            </div>
-          )}
-        </div>
-
-        {/* Exam Suitability Section */}
-        <div className="filter-section">
-          <div 
-            className="filter-section-header"
-            onClick={() => toggleSection('examSuitability')}
-          >
-            <h4>Exam Suitability</h4>
-            <span className={`expand-icon ${expandedSections.examSuitability ? 'expanded' : ''}`}>
-              ▼
-            </span>
-          </div>
-          {expandedSections.examSuitability && (
-            <div className="filter-section-content">
-              <ExamSuitabilityFilters
-                filters={filters.examSuitability}
-                onFilterChange={(updates) => onFilterChange('examSuitability', updates)}
-                isLoading={isLoading}
-              />
-            </div>
-          )}
-        </div>
-
-        {/* Previously Asked Section */}
-        <div className="filter-section">
-          <div 
-            className="filter-section-header"
-            onClick={() => toggleSection('previouslyAsked')}
-          >
-            <h4>Previously Asked</h4>
-            <span className={`expand-icon ${expandedSections.previouslyAsked ? 'expanded' : ''}`}>
-              ▼
-            </span>
-          </div>
-          {expandedSections.previouslyAsked && (
-            <div className="filter-section-content">
-              <PreviouslyAskedFilters
-                filters={filters.previouslyAsked}
-                onFilterChange={(updates) => onFilterChange('previouslyAsked', updates)}
-                isLoading={isLoading}
-              />
-            </div>
-          )}
-        </div>
-
-
+      <div className="filter-fields">
+        {filterConfig.map(renderFilterField)}
       </div>
+
+      <div className="filter-actions">
+        <button
+          type="button"
+          onClick={handleApply}
+          disabled={loading}
+          className={`btn btn-primary ${hasChanges ? 'btn-highlight' : ''}`}
+        >
+          {loading ? (
+            <>
+              <span className="loading-spinner"></span>
+              Applying...
+            </>
+          ) : (
+            'Apply Filters'
+          )}
+        </button>
+        
+        <button
+          type="button"
+          onClick={handleClear}
+          disabled={loading || activeFilterCount === 0}
+          className="btn btn-outline"
+        >
+          Clear All
+        </button>
+      </div>
+
+      {hasChanges && (
+        <div className="filter-notice">
+          <span className="notice-icon">ℹ️</span>
+          You have unsaved filter changes. Click "Apply Filters" to see results.
+        </div>
+      )}
     </div>
   );
 };
