@@ -137,7 +137,9 @@
 }
 
 .questions-container.grid {
-  grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 260px), 1fr));
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .questions-container.list {
@@ -345,7 +347,7 @@
 /* Responsive Design */
 @media (max-width: 1024px) {
   .questions-container.grid {
-    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 260px), 1fr));
   }
   
   .results-header {

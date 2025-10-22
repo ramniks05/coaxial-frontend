@@ -1493,6 +1493,41 @@ select.form-input,
   overflow: hidden;
 }
 
+/* Text Wrapping & Breaking */
+.text-wrap {
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  word-break: break-word;
+  hyphens: auto;
+}
+
+.text-no-wrap {
+  white-space: nowrap;
+}
+
+.break-words {
+  word-break: break-word;
+  overflow-wrap: break-word;
+}
+
+.break-all {
+  word-break: break-all;
+}
+
+/* Table Responsive Wrapper */
+.table-responsive {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  border-radius: var(--radius-lg);
+  box-sizing: border-box;
+}
+
+.table-responsive table {
+  width: 100%;
+  min-width: 100%;
+}
+
 /* Smooth Scrolling */
 html {
   scroll-behavior: smooth;

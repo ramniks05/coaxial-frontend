@@ -88,9 +88,12 @@
 /* Questions Grid */
 .questions-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr));
   gap: 20px;
   margin-bottom: 24px;
+  width: 100%;
+  box-sizing: border-box;
+  overflow-x: hidden;
 }
 
 /* Loading State */
@@ -363,6 +366,21 @@
 
   .results-info {
     font-size: 14px;
+  }
+  
+  .questions-grid {
+    gap: 16px;
+  }
+}
+
+/* Extra small phones */
+@media (max-width: 375px) {
+  .questions-grid {
+    gap: 12px;
+  }
+  
+  .page-title {
+    font-size: 18px;
   }
 }
 

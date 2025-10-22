@@ -644,14 +644,19 @@
 .tips-card {
   max-width: 1400px;
   margin: 0 auto 40px auto;
-  margin-left: 40px;
-  margin-right: 40px;
+  padding: 0 40px;
+  width: 100%;
+  box-sizing: border-box;
+  overflow-x: hidden;
 }
 
 .tips-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 24px;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
+  gap: 20px;
+  width: 100%;
+  box-sizing: border-box;
+  overflow-x: hidden;
 }
 
 .tip-item {
@@ -662,6 +667,9 @@
   border-radius: 12px;
   border: 2px solid #e5e7eb;
   transition: all 0.3s ease;
+  width: 100%;
+  box-sizing: border-box;
+  min-width: 0;
 }
 
 .tip-item:hover {
@@ -675,11 +683,18 @@
   line-height: 1;
 }
 
+.tip-content {
+  flex: 1;
+  min-width: 0;
+}
+
 .tip-content h4 {
   margin: 0 0 8px 0;
   font-size: 16px;
   font-weight: 700;
   color: #1f2937;
+  word-break: break-word;
+  overflow-wrap: break-word;
 }
 
 .tip-content p {
@@ -687,6 +702,8 @@
   font-size: 13px;
   color: #6b7280;
   line-height: 1.5;
+  word-break: break-word;
+  overflow-wrap: break-word;
 }
 
 /* Responsive Design */
@@ -781,12 +798,14 @@
   }
 
   .tips-card {
-    margin-left: 20px;
-    margin-right: 20px;
+    padding: 0 20px;
+    margin-left: 0;
+    margin-right: 0;
   }
 
   .tips-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 250px), 1fr));
+    gap: 16px;
   }
 
   .stat-card-value {
@@ -909,16 +928,32 @@
   }
 
   .tips-card {
-    margin: 0 12px 20px 12px;
-    padding: 16px;
+    padding: 0 12px;
+    margin: 0 0 20px 0;
   }
 
   .tips-grid {
+    grid-template-columns: 1fr;
     gap: 12px;
   }
-
+  
   .tip-item {
-    padding: 12px;
+    padding: 16px;
+    flex-direction: column;
+    text-align: center;
+    gap: 12px;
+  }
+  
+  .tip-icon {
+    font-size: 28px;
+  }
+  
+  .tip-content h4 {
+    font-size: 15px;
+  }
+  
+  .tip-content p {
+    font-size: 12px;
   }
 }
 
