@@ -1,7 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import { useFilterSubmit } from '../../hooks/useFilterSubmit';
-import { getCourseTypesCached } from '../../services/globalApiCache';
 import { createClass, deleteClass, getClasses, getCourses, updateClass } from '../../services/masterDataService';
 import AdminPageHeader from '../common/AdminPageHeader';
 import { getClassFilterConfig, getInitialFilters } from './filters/filterConfigs';
@@ -152,7 +151,7 @@ const DataCard = ({
 const ClassManagement = () => {
   const { token, addNotification } = useApp();
   const [classes, setClasses] = useState([]);
-  const [courseTypes, setCourseTypes] = useState([]);
+  
   const [loading, setLoading] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState(null);
@@ -181,51 +180,38 @@ const ClassManagement = () => {
   const firstInputRef = useRef(null);
   
   // State declarations
-  const [coursesByType, setCoursesByType] = useState([]);
+  const [allCourses, setAllCourses] = useState([]);
   
   // Filter state and handlers
   const initialFilters = getInitialFilters('class');
-  const filterConfig = getClassFilterConfig({ courseTypes, courses: coursesByType });
   
   // Fetch data function for filters
   const fetchDataWithFilters = useCallback(async (filters) => {
-    if (!token) return [];
+    if (!token) {
+      return [];
+    }
     
     try {
-      const data = await getClasses(token);
-      let filteredData = Array.isArray(data) ? data : [];
+      const data = await getClasses(token, null, filters.courseId);
       
-      // Apply search filter
-      if (filters.search) {
-        const searchLower = filters.search.toLowerCase();
-        filteredData = filteredData.filter(item => 
-          item.name?.toLowerCase().includes(searchLower) ||
-          item.description?.toLowerCase().includes(searchLower)
-        );
+      // Parse data to handle different API response formats
+      let classesArray = [];
+      if (Array.isArray(data)) {
+        classesArray = data;
+      } else if (data && Array.isArray(data.data)) {
+        classesArray = data.data;
+      } else if (data && Array.isArray(data.content)) {
+        classesArray = data.content;
+      } else if (data && Array.isArray(data.items)) {
+        classesArray = data.items;
+      } else {
+        console.log('📊 Unexpected data format:', data);
+        classesArray = [];
       }
       
-      // Apply course type filter
-      if (filters.courseTypeId) {
-        filteredData = filteredData.filter(item => 
-          item.course?.courseType?.id === parseInt(filters.courseTypeId)
-        );
-      }
-      
-      // Apply course filter
-      if (filters.courseId) {
-        filteredData = filteredData.filter(item => 
-          item.course?.id === parseInt(filters.courseId)
-        );
-      }
-      
-      // Apply active filter
-      if (filters.isActive) {
-        filteredData = filteredData.filter(item => item.isActive === true);
-      }
-      
-      return filteredData;
+      return classesArray;
     } catch (error) {
-      console.error('Error fetching classes with filters:', error);
+      console.error('❌ Error fetching classes with filters:', error);
       addNotification({ 
         message: 'Failed to load classes', 
         type: 'error' 
@@ -234,17 +220,43 @@ const ClassManagement = () => {
     }
   }, [token, addNotification]);
   
-  // Filter management
-  const {
-    filters,
-    loading: filterLoading,
-    hasChanges,
-    handleFilterChange,
-    applyFilters,
-    clearFilters
-  } = useFilterSubmit(initialFilters, fetchDataWithFilters, {
-    autoFetchOnMount: true
-  });
+  // Simple filter state management
+  const [filters, setFilters] = useState(initialFilters);
+  const [filterLoading, setFilterLoading] = useState(false);
+  const [hasChanges, setHasChanges] = useState(false);
+
+  // Simple filter change handler
+  const handleFilterChange = useCallback((field, value) => {
+    setFilters(prev => ({ ...prev, [field]: value }));
+    setHasChanges(true);
+  }, []);
+
+  // Simple apply filters
+  const applyFilters = useCallback(async () => {
+    setFilterLoading(true);
+    try {
+      const result = await fetchDataWithFilters(filters);
+      setClasses(result);
+      setHasChanges(false);
+    } catch (error) {
+      console.error('Filter error:', error);
+    } finally {
+      setFilterLoading(false);
+    }
+  }, [filters, fetchDataWithFilters]);
+
+  // Simple clear filters
+  const clearFilters = useCallback(() => {
+    setFilters(initialFilters);
+    setHasChanges(false);
+  }, [initialFilters]);
+
+  // Auto-load data on mount
+  useEffect(() => {
+    applyFilters();
+  }, []); // Only run once on mount
+
+
   
   // Focus management - focus first input when form is shown
   useEffect(() => {
@@ -256,20 +268,61 @@ const ClassManagement = () => {
     }
   }, [showForm]);
 
-  // Update classes when filters are applied
+  // Load only academic courses for filter dropdowns
   useEffect(() => {
-    const updateClasses = async () => {
+    const loadAcademicCourses = async () => {
+      if (!token) return;
+      
       try {
-        const filteredData = await applyFilters();
-        setClasses(filteredData);
+        const data = await getCourses(token);
+        
+        // Parse data to handle different API response formats
+        let coursesArray = [];
+        if (Array.isArray(data)) {
+          coursesArray = data;
+        } else if (data && Array.isArray(data.data)) {
+          coursesArray = data.data;
+        } else if (data && Array.isArray(data.content)) {
+          coursesArray = data.content;
+        } else if (data && Array.isArray(data.items)) {
+          coursesArray = data.items;
+        } else {
+          coursesArray = [];
+        }
+        
+        // Filter to only academic courses
+        const academicCourses = coursesArray.filter(course => 
+          course.courseTypeName?.toLowerCase().includes('academic') ||
+          course.courseType?.name?.toLowerCase().includes('academic') ||
+          course.structureType === 'ACADEMIC'
+        );
+        
+        setAllCourses(academicCourses);
       } catch (error) {
-        console.error('Error applying filters:', error);
-        setClasses([]);
+        console.error('Error loading academic courses:', error);
+        setAllCourses([]);
       }
     };
 
-    updateClasses();
-  }, [applyFilters]);
+    loadAcademicCourses();
+  }, [token]);
+
+  // Get academic courses for filter dropdown
+  const getFilteredCourses = useCallback(() => {
+    return allCourses; // All courses are already academic
+  }, [allCourses]);
+
+  // Get dynamic filter config with academic courses
+  const getDynamicFilterConfig = useCallback(() => {
+    const filteredCourses = getFilteredCourses();
+    const config = getClassFilterConfig({ courses: filteredCourses });
+    return config;
+  }, [getFilteredCourses]);
+
+
+
+
+
 
   // Old filter effect removed - now using useFilterSubmit hook
 
@@ -300,36 +353,6 @@ const ClassManagement = () => {
       if (!token) {
         throw new Error('No authentication token available. Please log in again.');
       }
-      
-      // Use optimized fetchClasses instead of direct API call
-      console.log('Fetching course types...');
-      const courseTypesData = await getCourseTypesCached(token);
-      console.log('Raw courseTypes API response (ClassManagement):', courseTypesData);
-      console.log('CourseTypes data type:', typeof courseTypesData);
-      console.log('CourseTypes is array:', Array.isArray(courseTypesData));
-      
-      // Handle different response formats
-      let courseTypesArray = [];
-      if (Array.isArray(courseTypesData)) {
-        courseTypesArray = courseTypesData;
-      } else if (courseTypesData && Array.isArray(courseTypesData.content)) {
-        // Handle paginated response
-        courseTypesArray = courseTypesData.content;
-      } else if (courseTypesData && Array.isArray(courseTypesData.data)) {
-        // Handle wrapped response
-        courseTypesArray = courseTypesData.data;
-      } else if (courseTypesData && courseTypesData.courseTypes && Array.isArray(courseTypesData.courseTypes)) {
-        // Handle nested response
-        courseTypesArray = courseTypesData.courseTypes;
-      } else {
-        console.warn('Unexpected courseTypes data format (ClassManagement):', courseTypesData);
-        courseTypesArray = [];
-      }
-      
-      console.log('Processed courseTypes array (ClassManagement):', courseTypesArray);
-      setCourseTypes(courseTypesArray);
-      
-      // Old auto-filter logic removed - now using FilterPanel
       
       // Mark that initial fetch is complete
       hasInitialFetchRef.current = true;
@@ -601,152 +624,13 @@ const ClassManagement = () => {
     setShowForm(false);
   };
 
-  const getCourseTypeName = (courseTypeId) => {
-    if (!Array.isArray(courseTypes)) {
-      console.warn('courseTypes is not an array:', courseTypes);
-      return 'Unknown';
-    }
-    const courseType = courseTypes.find(ct => ct.id === courseTypeId);
-    return courseType ? courseType.name : 'Unknown';
-  };
-
   const getCourseName = (courseId) => {
-    if (!Array.isArray(coursesByType)) {
-      console.warn('coursesByType is not an array:', coursesByType);
+    if (!Array.isArray(allCourses)) {
+      console.warn('allCourses is not an array:', allCourses);
       return 'Unknown';
     }
-    const course = coursesByType.find(c => c.id === courseId);
+    const course = allCourses.find(c => c.id === courseId);
     return course ? course.name : 'Unknown';
-  };
-
-  const isAcademicCourseType = (courseTypeId) => {
-    if (!Array.isArray(courseTypes)) {
-      console.warn('courseTypes is not an array:', courseTypes);
-      return false;
-    }
-    const courseType = courseTypes.find(ct => ct.id === courseTypeId);
-    const isAcademic = courseType && courseType.name.toLowerCase().includes('academic');
-    console.log('isAcademicCourseType check:', {
-      courseTypeId,
-      courseType,
-      isAcademic
-    });
-    return isAcademic;
-  };
-
-  const getAcademicCourseTypes = () => {
-    if (!Array.isArray(courseTypes)) {
-      console.warn('courseTypes is not an array:', courseTypes);
-      return [];
-    }
-    const academicTypes = courseTypes.filter(ct => ct.name.toLowerCase().includes('academic'));
-    console.log('Available course types:', courseTypes);
-    console.log('Academic course types:', academicTypes);
-    return academicTypes;
-  };
-
-  const getAcademicCourses = () => {
-    if (!Array.isArray(coursesByType)) {
-      console.warn('coursesByType is not an array:', coursesByType);
-      return [];
-    }
-    console.log('All courses:', coursesByType);
-    const academicCourses = coursesByType.filter(c => {
-      // Check courseTypeName directly first (most reliable)
-      if (c.courseTypeName && c.courseTypeName.toLowerCase().includes('academic')) {
-        console.log('Found academic course by courseTypeName:', c);
-        return true;
-      }
-      // Fallback to checking course type lookup
-      const isAcademic = isAcademicCourseType(c.courseType?.id || c.courseTypeId);
-      if (isAcademic) {
-        console.log('Found academic course by courseType lookup:', c);
-      }
-      return isAcademic;
-    });
-    console.log('Academic courses found:', academicCourses);
-    return academicCourses;
-  };
-
-  const fetchCoursesByCourseType = async (courseTypeId) => {
-    if (!courseTypeId || !token) {
-      setCoursesByType([]);
-      return;
-    }
-    
-    try {
-      // Create query key for deduplication and caching
-      const queryKey = `courses_${courseTypeId}`;
-      const now = Date.now();
-      
-      // Check short-lived cache (5 seconds)
-      if (coursesCacheRef.current.data && 
-          coursesCacheRef.current.queryKey === queryKey && 
-          now - coursesCacheRef.current.ts < 5000) {
-        console.log('Using cached courses data for:', queryKey);
-        setCoursesByType(coursesCacheRef.current.data);
-        return;
-      }
-      
-      // Check for duplicate requests (1.5 second deduplication window)
-      if (lastCoursesQueryRef.current === queryKey && 
-          now - lastCoursesQueryTimeRef.current < 1500) {
-        console.log('Skipping duplicate courses request:', queryKey);
-        return;
-      }
-      
-      // Cancel previous request
-      if (coursesAbortRef.current) {
-        try { coursesAbortRef.current.abort(); } catch(_) {}
-      }
-      
-      // Create new abort controller
-      coursesAbortRef.current = new AbortController();
-      
-      console.log('Fetching courses for course type:', courseTypeId);
-      
-      // Update query tracking
-      lastCoursesQueryRef.current = queryKey;
-      lastCoursesQueryTimeRef.current = now;
-      
-      const data = await getCourses(token, courseTypeId, 0, 100); // courseTypeId, page=0, size=100
-      
-      // Handle paginated response - extract content array for courses
-      const coursesArray = data.content || data;
-      const filteredData = Array.isArray(coursesArray) ? coursesArray : [];
-      
-      // Update cache
-      coursesCacheRef.current = {
-        data: filteredData,
-        queryKey,
-        ts: now
-      };
-      
-      setCoursesByType(filteredData);
-      
-      console.log('Courses fetched for course type:', filteredData);
-    } catch (error) {
-      if (error.name === 'AbortError') {
-        console.log('Courses request was aborted');
-        return;
-      }
-      
-      console.error('Error fetching courses by course type:', error);
-      setCoursesByType([]);
-      addNotification({
-        type: 'error',
-        message: 'Failed to fetch courses for selected course type',
-        duration: 5000
-      });
-    }
-  };
-
-  const getCoursesByCourseTypeLocal = (courseTypeId) => {
-    if (!courseTypeId) {
-      return getAcademicCourses();
-    }
-    
-    return coursesByType;
   };
 
   const getClassesForCourse = (courseId) => {
@@ -780,10 +664,11 @@ const ClassManagement = () => {
         onApplyFilters={applyFilters}
         onClearFilters={clearFilters}
         loading={filterLoading}
-        filterConfig={filterConfig}
-        masterData={{ courseTypes, courses: coursesByType }}
+        filterConfig={getDynamicFilterConfig()}
+        masterData={{ courses: getFilteredCourses() }}
         hasChanges={hasChanges}
       />
+      
 
       {showForm && (
         <div className="form-section" ref={formRef}>
@@ -826,12 +711,12 @@ const ClassManagement = () => {
                   required
                 >
                   <option value="">Select Course</option>
-                  {getAcademicCourses().length === 0 ? (
+                  {allCourses.length === 0 ? (
                     <option value="" disabled>No Academic Courses Available - Create a course first</option>
                   ) : (
-                    getAcademicCourses().map(course => (
+                    allCourses.map(course => (
                       <option key={course.id} value={course.id}>
-                        {course.name} ({course.courseTypeName || getCourseTypeName(course.courseType?.id || course.courseTypeId)})
+                        {course.name} ({course.courseTypeName || 'Academic'})
                       </option>
                     ))
                   )}
@@ -901,6 +786,8 @@ const ClassManagement = () => {
           </div>
         </div>
 
+        {/* Debug info */}
+
         {loading ? (
           <div className="loading-state">
             <div className="loading-spinner"></div>
@@ -928,7 +815,7 @@ const ClassManagement = () => {
                 { 
                   key: 'courseTypeName', 
                   label: 'Course Type',
-                  value: (item) => item.course?.courseTypeName || item.courseTypeName || getCourseTypeName(item.course?.courseType?.id || item.courseType?.id || item.courseTypeId)
+                  value: (item) => item.course?.courseTypeName || item.courseTypeName || 'Academic'
                 },
                 { 
                   key: 'courseName', 

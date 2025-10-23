@@ -1,6 +1,5 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useApp } from '../../context/AppContext';
-import { useFilterSubmit } from '../../hooks/useFilterSubmit';
 import { useFormFocus } from '../../hooks/useFormFocus';
 import { getCourseTypesCached } from '../../services/globalApiCache';
 import { createSubjectWithAutoLink, deleteSubject, getAllSubjectLinkages, getClassesByCourse, getCourses, getExamsByCourse, getMasterSubjectsByCourseType, updateSubject } from '../../services/masterDataService';
@@ -173,80 +172,205 @@ const SubjectManagement = () => {
   // Form focus management
   const { formRef, firstInputRef } = useFormFocus(showForm);
   
-  // Filter state and handlers
+  // Filter state and handlers - Simple approach without useFilterSubmit
   const initialFilters = getInitialFilters('subject');
-  const filterConfig = getSubjectFilterConfig({ 
-    courseTypes, 
-    courses, 
-    classes, 
-    exams 
-  });
+  const [filters, setFilters] = useState(initialFilters);
+  const [filterLoading, setFilterLoading] = useState(false);
+  const [hasChanges, setHasChanges] = useState(false);
   
-  // Fetch data function for filters
-  const fetchDataWithFilters = useCallback(async (filters) => {
-    if (!token) return [];
+  // Fetch data function for filters - Uses subject-linkages/filter API
+  const fetchDataWithFilters = useCallback(async (currentFilters) => {
+    if (!token) return;
     
     try {
-      const data = await getMasterSubjectsByCourseType(token, filters.courseTypeId || '');
-      let filteredData = Array.isArray(data) ? data : [];
+      setFilterLoading(true);
       
-      // Apply search filter
-      if (filters.search) {
-        const searchLower = filters.search.toLowerCase();
-        filteredData = filteredData.filter(item => 
-          item.name?.toLowerCase().includes(searchLower) ||
-          item.description?.toLowerCase().includes(searchLower)
-        );
+      // Call the correct API endpoint: /api/admin/subjects/subject-linkages/filter
+      const data = await getAllSubjectLinkages(token, {
+        active: true, // Show only active subjects
+        courseTypeId: currentFilters.courseTypeId || null,
+        courseId: currentFilters.courseId || null,
+        classId: currentFilters.classId || null,
+        examId: currentFilters.examId || null
+      });
+      
+      // Parse data to handle different API response formats
+      let filteredData = [];
+      if (Array.isArray(data)) {
+        filteredData = data;
+      } else if (data && Array.isArray(data.content)) {
+        filteredData = data.content;
+      } else if (data && Array.isArray(data.data)) {
+        filteredData = data.data;
+      } else if (data && Array.isArray(data.items)) {
+        filteredData = data.items;
+      } else {
+        console.warn('Unexpected data format:', data);
+        filteredData = [];
       }
       
-      // Apply course filter
-      if (filters.courseId) {
-        filteredData = filteredData.filter(item => 
-          item.course?.id === parseInt(filters.courseId)
-        );
-      }
-      
-      // Apply class filter
-      if (filters.classId) {
-        filteredData = filteredData.filter(item => 
-          item.class?.id === parseInt(filters.classId)
-        );
-      }
-      
-      // Apply exam filter
-      if (filters.examId) {
-        filteredData = filteredData.filter(item => 
-          item.exam?.id === parseInt(filters.examId)
-        );
-      }
-      
-      // Apply active filter
-      if (filters.isActive) {
-        filteredData = filteredData.filter(item => item.isActive === true);
-      }
-      
-      return filteredData;
+      console.log('Subjects data from subject-linkages/filter:', filteredData);
+      setSubjects(filteredData);
     } catch (error) {
       console.error('Error fetching subjects with filters:', error);
       addNotification({ 
         message: 'Failed to load subjects', 
         type: 'error' 
       });
-      return [];
+      setSubjects([]);
+    } finally {
+      setFilterLoading(false);
     }
   }, [token, addNotification]);
   
-  // Filter management
-  const {
-    filters,
-    loading: filterLoading,
-    hasChanges,
-    handleFilterChange,
-    applyFilters,
-    clearFilters
-  } = useFilterSubmit(initialFilters, fetchDataWithFilters, {
-    autoFetchOnMount: true
-  });
+  // Handle filter change
+  const handleFilterChange = useCallback((field, value) => {
+    const newFilters = { ...filters, [field]: value };
+    setFilters(newFilters);
+    setHasChanges(true);
+  }, [filters]);
+  
+  // Apply filters
+  const applyFilters = useCallback(() => {
+    fetchDataWithFilters(filters);
+    setHasChanges(false);
+  }, [filters, fetchDataWithFilters]);
+  
+  // Clear filters
+  const clearFilters = useCallback(() => {
+    setFilters(initialFilters);
+    fetchDataWithFilters(initialFilters);
+    setHasChanges(false);
+  }, [initialFilters, fetchDataWithFilters]);
+  
+  // Load initial data on mount - Direct API call to prevent duplicates
+  const hasInitiallyLoaded = useRef(false);
+  const isLoadingRef = useRef(false);
+  const lastErrorTimeRef = useRef(0);
+  
+  useEffect(() => {
+    const loadInitialData = async () => {
+      // Prevent duplicate calls
+      if (!token || hasInitiallyLoaded.current || isLoadingRef.current) return;
+      
+      hasInitiallyLoaded.current = true;
+      isLoadingRef.current = true;
+      setFilterLoading(true);
+      
+      try {
+        // Call the correct API endpoint: /api/admin/subjects/subject-linkages/filter
+        const data = await getAllSubjectLinkages(token, { active: true });
+        
+        // Parse data to handle different API response formats
+        let filteredData = [];
+        if (Array.isArray(data)) {
+          filteredData = data;
+        } else if (data && Array.isArray(data.content)) {
+          filteredData = data.content;
+        } else if (data && Array.isArray(data.data)) {
+          filteredData = data.data;
+        } else if (data && Array.isArray(data.items)) {
+          filteredData = data.items;
+        }
+        
+        setSubjects(filteredData);
+      } catch (error) {
+        console.error('Error loading initial subjects:', error);
+        
+        // Only show error once - with timestamp check to prevent duplicates
+        const now = Date.now();
+        if (now - lastErrorTimeRef.current > 1000) { // 1 second debounce
+          lastErrorTimeRef.current = now;
+          addNotification({ 
+            message: 'Failed to load subjects', 
+            type: 'error' 
+          });
+        }
+        setSubjects([]);
+      } finally {
+        setFilterLoading(false);
+        isLoadingRef.current = false;
+      }
+    };
+    
+    loadInitialData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token]); // Only token - addNotification intentionally excluded to prevent re-runs
+  
+  // Get dynamic filter config based on selected course type
+  // Using useMemo instead of useCallback to avoid function recreation
+  const filterConfig = useMemo(() => {
+    const selectedCourseType = courseTypes.find(ct => ct.id === parseInt(filters.courseTypeId));
+    const courseTypeName = selectedCourseType?.name?.toLowerCase() || '';
+    
+    // Filter courses by selected course type
+    const filteredCourseOptions = filters.courseTypeId
+      ? courses?.filter(c => 
+          c.courseTypeId === parseInt(filters.courseTypeId) ||
+          c.courseType?.id === parseInt(filters.courseTypeId)
+        ).map(c => ({
+          value: c.id,
+          label: c.name
+        })) || []
+      : courses?.map(c => ({
+          value: c.id,
+          label: c.name
+        })) || [];
+    
+    // Base filters that are always shown
+    const baseFilters = [
+      {
+        field: 'courseTypeId',
+        type: 'select',
+        label: 'Course Type',
+        placeholder: 'All Course Types',
+        options: courseTypes?.map(ct => ({
+          value: ct.id,
+          label: ct.name
+        })) || []
+      },
+      {
+        field: 'courseId',
+        type: 'select',
+        label: 'Course',
+        placeholder: 'All Courses',
+        options: filteredCourseOptions
+      }
+    ];
+    
+    // Add Class filter only for Academic courses
+    if (courseTypeName.includes('academic')) {
+      baseFilters.push({
+        field: 'classId',
+        type: 'select',
+        label: 'Class',
+        placeholder: 'All Classes',
+        options: classes?.map(c => ({
+          value: c.id,
+          label: c.name
+        })) || []
+      });
+    }
+    
+    // Add Exam filter only for Competitive courses
+    if (courseTypeName.includes('competitive')) {
+      baseFilters.push({
+        field: 'examId',
+        type: 'select',
+        label: 'Exam',
+        placeholder: 'All Exams',
+        options: exams?.map(e => ({
+          value: e.id,
+          label: e.name
+        })) || []
+      });
+    }
+    
+    // For Professional courses, neither Class nor Exam is shown
+    
+    return baseFilters;
+  }, [courseTypes, courses, classes, exams, filters.courseTypeId]);
+  
   const [filteredCourses, setFilteredCourses] = useState([]);
   const [filteredClasses, setFilteredClasses] = useState([]);
   const [filteredExams, setFilteredExams] = useState([]);
@@ -257,6 +381,72 @@ const SubjectManagement = () => {
     exams: false,
     masterSubjects: false
   });
+
+  // Load filter data on component mount
+  useEffect(() => {
+    const loadFilterData = async () => {
+      if (!token) return;
+      
+      try {
+        // Load course types
+        const courseTypesData = await getCourseTypesCached(token);
+        const courseTypesArray = courseTypesData?.content || courseTypesData || [];
+        setCourseTypes(Array.isArray(courseTypesArray) ? courseTypesArray : []);
+        
+        // Load all courses
+        const coursesData = await getCourses(token);
+        const coursesArray = coursesData?.content || coursesData || [];
+        setCourses(Array.isArray(coursesArray) ? coursesArray : []);
+      } catch (error) {
+        console.error('Error loading filter data:', error);
+      }
+    };
+
+    loadFilterData();
+  }, [token]);
+
+  // Load classes or exams based on selected course
+  useEffect(() => {
+    const loadClassesOrExams = async () => {
+      if (!token || !filters.courseId) {
+        setClasses([]);
+        setExams([]);
+        return;
+      }
+      
+      try {
+        const selectedCourseType = courseTypes.find(ct => ct.id === parseInt(filters.courseTypeId));
+        const courseTypeName = selectedCourseType?.name?.toLowerCase() || '';
+        
+        // Load classes for Academic courses
+        if (courseTypeName.includes('academic')) {
+          const classesData = await getClassesByCourse(token, filters.courseId);
+          const classesArray = classesData?.content || classesData || [];
+          setClasses(Array.isArray(classesArray) ? classesArray : []);
+          setExams([]);
+        }
+        // Load exams for Competitive courses
+        else if (courseTypeName.includes('competitive')) {
+          const examsData = await getExamsByCourse(token, filters.courseId);
+          const examsArray = examsData?.content || examsData || [];
+          setExams(Array.isArray(examsArray) ? examsArray : []);
+          setClasses([]);
+        }
+        // Clear both for Professional courses
+        else {
+          setClasses([]);
+          setExams([]);
+        }
+      } catch (error) {
+        console.error('Error loading classes/exams:', error);
+      }
+    };
+
+    loadClassesOrExams();
+  }, [token, filters.courseId, filters.courseTypeId, courseTypes]);
+
+  // Note: Removed automatic clearing to prevent infinite loops
+  // Users can use "Clear Filters" button to reset all filters
 
   // Dedup/abort/cache controls
   const courseTypesAbortRef = useRef(null);
@@ -279,20 +469,8 @@ const SubjectManagement = () => {
   }, []);
 
   const hasInitialFetchRef = useRef(false);
-  // Update subjects when filters are applied
-  useEffect(() => {
-    const updateSubjects = async () => {
-      try {
-        const filteredData = await applyFilters();
-        setSubjects(filteredData);
-      } catch (error) {
-        console.error('Error applying filters:', error);
-        setSubjects([]);
-      }
-    };
-
-    updateSubjects();
-  }, [applyFilters]);
+  // This useEffect was causing automatic API calls on filter changes
+  // Removed to ensure API only calls on manual "Apply Filter" button click
   
   useEffect(() => {
     if (!token || hasInitialFetchRef.current) return;
@@ -356,6 +534,11 @@ const SubjectManagement = () => {
   // Group subjects by course type
   const groupSubjectsByType = () => {
     const grouped = {};
+    
+    // Safety check for subjects
+    if (!subjects || !Array.isArray(subjects)) {
+      return grouped;
+    }
     
     subjects.forEach(subject => {
       const courseTypeId = subject.courseTypeId || subject.courseType?.id;
