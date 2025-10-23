@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 /**
  * Custom hook for managing filter state and submission
@@ -46,7 +46,6 @@ export const useFilterSubmit = (initialFilters = {}, fetchDataFn, options = {}) 
   // Apply filters with loading state and error handling
   const applyFilters = useCallback(async (filtersToApply = filters) => {
     if (isApplyingRef.current) {
-      console.log('Filter application already in progress, skipping...');
       return;
     }
 
@@ -79,7 +78,7 @@ export const useFilterSubmit = (initialFilters = {}, fetchDataFn, options = {}) 
       setLoading(false);
       isApplyingRef.current = false;
     }
-  }, [filters, fetchDataFn, onSuccess, onError]);
+  }, [fetchDataFn, onSuccess, onError]);
 
   // Debounced apply filters
   const debouncedApplyFilters = useCallback((filtersToApply = filters) => {
@@ -90,7 +89,7 @@ export const useFilterSubmit = (initialFilters = {}, fetchDataFn, options = {}) 
     debounceTimeoutRef.current = setTimeout(() => {
       applyFilters(filtersToApply);
     }, debounceMs);
-  }, [applyFilters, filters, debounceMs]);
+  }, [applyFilters, debounceMs]);
 
   // Clear all filters
   const clearFilters = useCallback((newFilters = {}) => {
@@ -135,7 +134,14 @@ export const useFilterSubmit = (initialFilters = {}, fetchDataFn, options = {}) 
         console.warn('Auto-fetch on mount failed:', err);
       }
     }
-  }, [autoFetchOnMount, fetchDataFn, applyFilters, initialFilters]);
+  }, [autoFetchOnMount, fetchDataFn, initialFilters]);
+
+  // Auto-fetch on mount
+  useEffect(() => {
+    if (autoFetchOnMount && fetchDataFn) {
+      autoFetch();
+    }
+  }, [autoFetchOnMount, fetchDataFn]);
 
   // Cleanup debounce timeout on unmount
   const cleanup = useCallback(() => {

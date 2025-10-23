@@ -27,13 +27,6 @@ export const getCourseTypeFilterConfig = (masterData = {}) => [
  */
 export const getCourseFilterConfig = (masterData = {}) => [
   {
-    field: 'search',
-    type: 'search',
-    label: 'Search',
-    placeholder: 'Search courses...',
-    options: null
-  },
-  {
     field: 'courseTypeId',
     type: 'select',
     label: 'Course Type',
@@ -42,12 +35,6 @@ export const getCourseFilterConfig = (masterData = {}) => [
       value: ct.id,
       label: ct.name
     })) || []
-  },
-  {
-    field: 'isActive',
-    type: 'toggle',
-    label: 'Show Active Only',
-    defaultValue: true
   }
 ];
 
@@ -56,23 +43,6 @@ export const getCourseFilterConfig = (masterData = {}) => [
  */
 export const getClassFilterConfig = (masterData = {}) => [
   {
-    field: 'search',
-    type: 'search',
-    label: 'Search',
-    placeholder: 'Search classes...',
-    options: null
-  },
-  {
-    field: 'courseTypeId',
-    type: 'select',
-    label: 'Course Type',
-    placeholder: 'All Course Types',
-    options: masterData.courseTypes?.map(ct => ({
-      value: ct.id,
-      label: ct.name
-    })) || []
-  },
-  {
     field: 'courseId',
     type: 'select',
     label: 'Course',
@@ -81,12 +51,6 @@ export const getClassFilterConfig = (masterData = {}) => [
       value: c.id,
       label: c.name
     })) || []
-  },
-  {
-    field: 'isActive',
-    type: 'toggle',
-    label: 'Show Active Only',
-    defaultValue: true
   }
 ];
 
@@ -95,23 +59,6 @@ export const getClassFilterConfig = (masterData = {}) => [
  */
 export const getExamFilterConfig = (masterData = {}) => [
   {
-    field: 'search',
-    type: 'search',
-    label: 'Search',
-    placeholder: 'Search exams...',
-    options: null
-  },
-  {
-    field: 'courseTypeId',
-    type: 'select',
-    label: 'Course Type',
-    placeholder: 'All Course Types',
-    options: masterData.courseTypes?.map(ct => ({
-      value: ct.id,
-      label: ct.name
-    })) || []
-  },
-  {
     field: 'courseId',
     type: 'select',
     label: 'Course',
@@ -120,12 +67,6 @@ export const getExamFilterConfig = (masterData = {}) => [
       value: c.id,
       label: c.name
     })) || []
-  },
-  {
-    field: 'isActive',
-    type: 'toggle',
-    label: 'Show Active Only',
-    defaultValue: true
   }
 ];
 
@@ -133,13 +74,6 @@ export const getExamFilterConfig = (masterData = {}) => [
  * Get filter configuration for SubjectManagement
  */
 export const getSubjectFilterConfig = (masterData = {}) => [
-  {
-    field: 'search',
-    type: 'search',
-    label: 'Search',
-    placeholder: 'Search subjects...',
-    options: null
-  },
   {
     field: 'courseTypeId',
     type: 'select',
@@ -179,12 +113,6 @@ export const getSubjectFilterConfig = (masterData = {}) => [
       value: e.id,
       label: e.name
     })) || []
-  },
-  {
-    field: 'isActive',
-    type: 'toggle',
-    label: 'Show Active Only',
-    defaultValue: true
   }
 ];
 
@@ -430,7 +358,6 @@ export const getChapterFilterConfig = (masterData = {}) => [
  */
 export const getInitialFilters = (componentType) => {
   const baseFilters = {
-    search: '',
     isActive: true
   };
 
@@ -442,14 +369,13 @@ export const getInitialFilters = (componentType) => {
       return { ...baseFilters, courseTypeId: '' };
     
     case 'class':
-      return { ...baseFilters, courseTypeId: '', courseId: '' };
+      return { courseId: '' };
     
     case 'exam':
-      return { ...baseFilters, courseTypeId: '', courseId: '' };
+      return { courseId: '' };
     
     case 'subject':
       return { 
-        ...baseFilters, 
         courseTypeId: '', 
         courseId: '', 
         classId: '', 

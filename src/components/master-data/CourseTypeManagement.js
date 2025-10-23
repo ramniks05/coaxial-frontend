@@ -1,11 +1,8 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useApp } from '../../context/AppContext';
-import { useFilterSubmit } from '../../hooks/useFilterSubmit';
 import { clearCourseTypesCache, getCourseTypesCached } from '../../services/globalApiCache';
-import { createCourseType, deleteCourseType, updateCourseType } from '../../services/masterDataService';
+import { createCourseType, deleteCourseType, updateCourseType, getCourseTypes } from '../../services/masterDataService';
 import AdminPageHeader from '../common/AdminPageHeader';
-import { getCourseTypeFilterConfig, getInitialFilters } from './filters/filterConfigs';
-import FilterPanel from './filters/FilterPanel';
 import './MasterDataComponent.css';
 
 // Reusable DataCard Component
@@ -176,62 +173,13 @@ const CourseTypeManagement = () => {
     isActive: true
   });
 
-  // Use ref to track if data has been fetched to prevent infinite loops
-  const courseTypesFetched = useRef(false);
+  // Use ref to track token changes
   const tokenRef = useRef(token);
   
   // Form focus management
   const formRef = useRef(null);
   const firstInputRef = useRef(null);
   
-  // Filter state and handlers
-  const initialFilters = getInitialFilters('courseType');
-  const filterConfig = getCourseTypeFilterConfig({ courseTypes });
-  
-  // Fetch data function for filters
-  const fetchDataWithFilters = useCallback(async (filters) => {
-    if (!token) return [];
-    
-    try {
-      const data = await getCourseTypesCached(token);
-      let filteredData = Array.isArray(data) ? data : [];
-      
-      // Apply search filter
-      if (filters.search) {
-        const searchLower = filters.search.toLowerCase();
-        filteredData = filteredData.filter(item => 
-          item.name?.toLowerCase().includes(searchLower) ||
-          item.description?.toLowerCase().includes(searchLower)
-        );
-      }
-      
-      // Apply active filter
-      if (filters.isActive) {
-        filteredData = filteredData.filter(item => item.isActive === true);
-      }
-      
-      return filteredData;
-    } catch (error) {
-      console.error('Error fetching course types with filters:', error);
-      addNotification({ 
-        message: 'Failed to load course types', 
-        type: 'error' 
-      });
-      return [];
-    }
-  }, [token, addNotification]);
-  
-  // Filter management
-  const {
-    filters,
-    loading: filterLoading,
-    hasChanges,
-    handleFilterChange,
-    applyFilters,
-    clearFilters
-  } = useFilterSubmit(initialFilters, fetchDataWithFilters, {
-    autoFetchOnMount: true
-  });
   
   // Update token ref when token changes
   useEffect(() => {
@@ -280,26 +228,76 @@ const CourseTypeManagement = () => {
     }
   ];
 
-  // Update course types when filters are applied
+  // Load all course types immediately on mount (no filtering needed for minimal data)
   useEffect(() => {
-    const updateCourseTypes = async () => {
+    const loadAllCourseTypes = async () => {
+      if (!token) return;
+      
       try {
-        const filteredData = await applyFilters();
-        setCourseTypes(filteredData);
+        setLoading(true);
+        
+        // Try cached version first
+        let data;
+        try {
+          data = await getCourseTypesCached(token);
+        } catch (cacheError) {
+          // Fallback to direct API call
+          data = await getCourseTypes(token);
+        }
+        
+        // Handle different API response formats
+        let allCourseTypes = [];
+        if (Array.isArray(data)) {
+          allCourseTypes = data;
+        } else if (data && Array.isArray(data.data)) {
+          allCourseTypes = data.data;
+        } else if (data && Array.isArray(data.content)) {
+          allCourseTypes = data.content;
+        } else if (data && Array.isArray(data.items)) {
+          allCourseTypes = data.items;
+        }
+        
+        setCourseTypes(allCourseTypes);
       } catch (error) {
-        console.error('Error applying filters:', error);
+        console.error('Error loading course types:', error);
+        addNotification({
+          type: 'error',
+          message: `Failed to load course types: ${error.message}`,
+          duration: 7000
+        });
         setCourseTypes([]);
+      } finally {
+        setLoading(false);
       }
     };
 
-    updateCourseTypes();
-  }, [applyFilters]);
+    loadAllCourseTypes();
+  }, [token, addNotification]);
 
-  // Refresh course types with current filters
+
+  // Refresh course types (load all since no filtering)
   const refreshCourseTypes = async () => {
     try {
-      const filteredData = await applyFilters();
-      setCourseTypes(filteredData);
+      let data;
+      try {
+        data = await getCourseTypesCached(token);
+      } catch (cacheError) {
+        data = await getCourseTypes(token);
+      }
+      
+      // Handle different API response formats
+      let allCourseTypes = [];
+      if (Array.isArray(data)) {
+        allCourseTypes = data;
+      } else if (data && Array.isArray(data.data)) {
+        allCourseTypes = data.data;
+      } else if (data && Array.isArray(data.content)) {
+        allCourseTypes = data.content;
+      } else if (data && Array.isArray(data.items)) {
+        allCourseTypes = data.items;
+      }
+      
+      setCourseTypes(allCourseTypes);
     } catch (error) {
       console.error('Error refreshing course types:', error);
       addNotification({
@@ -353,8 +351,6 @@ const CourseTypeManagement = () => {
       delete submitData.courses;
       delete submitData.subjects;
       
-      console.log('Form data being submitted:', submitData);
-      console.log('Token available:', !!token);
       
       if (editingId) {
         await updateCourseType(token, editingId, submitData);
@@ -371,6 +367,9 @@ const CourseTypeManagement = () => {
           duration: 3000
         });
       }
+      
+      // Refresh the course types list
+      await refreshCourseTypes();
       
       setShowForm(false);
       setEditingId(null);
@@ -427,7 +426,9 @@ const CourseTypeManagement = () => {
           duration: 3000
         });
         clearCourseTypesCache(); // Clear cache to force refresh
-        refreshCourseTypes();
+        
+        // Refresh the course types list
+        await refreshCourseTypes();
       } catch (error) {
         console.error('Error deleting course type:', error);
         
@@ -462,27 +463,25 @@ const CourseTypeManagement = () => {
         subtitle="Manage different types of courses with their hierarchical structures (Academic, Competitive, Professional, Custom)"
         showAdminBadge={false}
         actions={(
-          <button 
-            className="btn btn-primary"
-            onClick={() => setShowForm(true)}
-            disabled={loading}
-          >
-            Add Course Type
-          </button>
+          <div style={{ display: 'flex', gap: '10px' }}>
+            <button 
+              className="btn btn-outline"
+              onClick={refreshCourseTypes}
+              disabled={loading}
+            >
+              {loading ? 'Loading...' : 'Refresh'}
+            </button>
+            <button 
+              className="btn btn-primary"
+              onClick={() => setShowForm(true)}
+              disabled={loading}
+            >
+              Add Course Type
+            </button>
+          </div>
         )}
       />
 
-      {/* Filter Panel */}
-      <FilterPanel
-        filters={filters}
-        onFilterChange={handleFilterChange}
-        onApplyFilters={applyFilters}
-        onClearFilters={clearFilters}
-        loading={filterLoading}
-        filterConfig={filterConfig}
-        masterData={{ courseTypes }}
-        hasChanges={hasChanges}
-      />
 
       {showForm && (
         <div className="form-section" ref={formRef}>
@@ -619,7 +618,9 @@ const CourseTypeManagement = () => {
             </button>
           </div>
         </div>
+        
 
+        
         {loading ? (
           <div className="loading-state">
             <div className="loading-spinner"></div>

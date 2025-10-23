@@ -178,31 +178,61 @@ const CourseManagement = () => {
   
   // Fetch data function for filters
   const fetchDataWithFilters = useCallback(async (filters) => {
-    if (!token) return [];
+    if (!token) {
+      return [];
+    }
+    
+    // Prevent multiple simultaneous calls
+    if (loading) {
+      return [];
+    }
     
     try {
-      const data = await getCoursesCached(token);
-      let filteredData = Array.isArray(data) ? data : [];
-      
-      // Apply search filter
-      if (filters.search) {
-        const searchLower = filters.search.toLowerCase();
-        filteredData = filteredData.filter(item => 
-          item.name?.toLowerCase().includes(searchLower) ||
-          item.description?.toLowerCase().includes(searchLower)
+      let data;
+      try {
+        // Add timeout to prevent hanging
+        const timeoutPromise = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('API call timeout after 10 seconds')), 10000)
         );
+        
+        data = await Promise.race([
+          getCoursesCached(token),
+          timeoutPromise
+        ]);
+      } catch (cacheError) {
+        // Fallback to direct API call
+        const { getCourses } = await import('../../services/masterDataService');
+        data = await getCourses(token);
       }
+      
+      // Handle different API response formats
+      let coursesArray = [];
+      if (Array.isArray(data)) {
+        coursesArray = data;
+      } else if (data && Array.isArray(data.data)) {
+        coursesArray = data.data;
+      } else if (data && Array.isArray(data.content)) {
+        coursesArray = data.content;
+      } else if (data && Array.isArray(data.items)) {
+        coursesArray = data.items;
+      } else if (data && data.courses && Array.isArray(data.courses)) {
+        coursesArray = data.courses;
+      } else {
+        coursesArray = [];
+      }
+      
+      // Always show only active courses by default
+      const activeCourses = coursesArray.filter(item => 
+        item.isActive === true || item.isActive === 'true' || item.status === 'active'
+      );
       
       // Apply course type filter
+      let filteredData = activeCourses;
       if (filters.courseTypeId) {
-        filteredData = filteredData.filter(item => 
-          item.courseType?.id === parseInt(filters.courseTypeId)
+        filteredData = activeCourses.filter(item => 
+          item.courseType?.id === parseInt(filters.courseTypeId) ||
+          item.courseTypeId === parseInt(filters.courseTypeId)
         );
-      }
-      
-      // Apply active filter
-      if (filters.isActive) {
-        filteredData = filteredData.filter(item => item.isActive === true);
       }
       
       return filteredData;
@@ -225,7 +255,11 @@ const CourseManagement = () => {
     applyFilters,
     clearFilters
   } = useFilterSubmit(initialFilters, fetchDataWithFilters, {
-    autoFetchOnMount: true
+    autoFetchOnMount: true,
+    onSuccess: (data) => {
+      console.log('🎉 Filter success callback - setting courses:', data);
+      setCourses(data);
+    }
   });
   
   // Update token ref when token changes
@@ -251,9 +285,6 @@ const CourseManagement = () => {
       try {
         setLoading(true);
         const courseTypesResponse = await getCourseTypesCached(tokenRef.current);
-        console.log('Raw courseTypes API response:', courseTypesResponse);
-        console.log('CourseTypes data type:', typeof courseTypesResponse);
-        console.log('CourseTypes is array:', Array.isArray(courseTypesResponse));
         
         // Handle different response formats
         let courseTypesArray = [];
@@ -269,11 +300,9 @@ const CourseManagement = () => {
           // Handle nested response
           courseTypesArray = courseTypesResponse.courseTypes;
         } else {
-          console.warn('Unexpected courseTypes data format:', courseTypesResponse);
           courseTypesArray = [];
         }
         
-        console.log('Processed courseTypes array:', courseTypesArray);
         setCourseTypes(courseTypesArray);
         courseTypesFetched.current = true; // Mark as fetched
       } catch (error) {
@@ -292,26 +321,10 @@ const CourseManagement = () => {
     fetchCourseTypes();
   }, []); // Empty dependency array - only run once on mount
 
-  // Update courses when filters are applied
-  useEffect(() => {
-    const updateCourses = async () => {
-      try {
-        const filteredData = await applyFilters();
-        setCourses(filteredData);
-      } catch (error) {
-        console.error('Error applying filters:', error);
-        setCourses([]);
-      }
-    };
-
-    updateCourses();
-  }, [applyFilters]);
-
   // Refresh courses with current filters
   const fetchCourses = async () => {
     try {
-      const filteredData = await applyFilters();
-      setCourses(filteredData);
+      await applyFilters();
     } catch (error) {
       console.error('Error refreshing courses:', error);
       addNotification({
@@ -356,12 +369,8 @@ const CourseManagement = () => {
         isActive: formData.isActive
       };
       
-      console.log('Form data being submitted:', submitData);
-      console.log('Token available:', !!token);
-      
       if (editingId) {
         // Use the same format as creation for updates
-        console.log('Update data being submitted:', submitData);
         await updateCourse(token, editingId, submitData);
         addNotification({
           type: 'success',
@@ -399,52 +408,30 @@ const CourseManagement = () => {
   };
 
   const handleEdit = (course) => {
-    console.log('=== EDIT COURSE DEBUG ===');
-    console.log('Editing course:', course);
-    console.log('Available courseTypes:', courseTypes);
-    console.log('CourseTypes length:', courseTypes?.length || 0);
-    
     // Handle different possible course type data structures
     let courseTypeId = '';
     
     // Priority 1: Direct courseTypeId (most reliable for this API)
     if (course.courseTypeId) {
       courseTypeId = course.courseTypeId;
-      console.log('Found courseTypeId:', courseTypeId);
     }
     // Priority 2: Nested courseType.id
     else if (course.courseType?.id) {
       courseTypeId = course.courseType.id;
-      console.log('Found courseType.id:', courseTypeId);
     }
     // Priority 3: Match by courseTypeName
     else if (course.courseTypeName) {
       const matchingCourseType = courseTypes.find(ct => ct.name === course.courseTypeName);
       if (matchingCourseType) {
         courseTypeId = matchingCourseType.id;
-        console.log('Found courseType by name match:', courseTypeId);
       }
     }
     // Priority 4: Other fallbacks
     else if (typeof course.courseType === 'string') {
       courseTypeId = course.courseType;
-      console.log('Found courseType as string:', courseTypeId);
     } else if (typeof course.courseType === 'number') {
       courseTypeId = course.courseType.toString();
-      console.log('Found courseType as number:', courseTypeId);
     }
-    
-    console.log('Final extracted courseTypeId:', courseTypeId);
-    console.log('CourseTypeId type:', typeof courseTypeId);
-    
-    // Verify the courseTypeId exists in available courseTypes
-    const matchingCourseType = courseTypes.find(ct => ct.id === parseInt(courseTypeId));
-    console.log('Matching courseType found:', matchingCourseType);
-    
-    // Check if courseTypeId matches any available option
-    const availableIds = (courseTypes || []).map(ct => ct.id);
-    console.log('Available courseType IDs:', availableIds);
-    console.log('Is courseTypeId in available IDs?', availableIds.includes(parseInt(courseTypeId)));
     
     const newFormData = {
       name: course.name || '',
@@ -454,11 +441,9 @@ const CourseManagement = () => {
       isActive: course.isActive !== undefined ? course.isActive : true
     };
     
-    console.log('Setting formData to:', newFormData);
     setFormData(newFormData);
     setEditingId(course.id);
     setShowForm(true);
-    console.log('=== END EDIT DEBUG ===');
   };
 
   const handleDelete = async (id) => {
@@ -503,9 +488,23 @@ const CourseManagement = () => {
   const groupCoursesByType = () => {
     const grouped = {};
     
+    console.log('🔍 Grouping courses:', { 
+      coursesLength: courses?.length || 0, 
+      courses: courses,
+      courseTypesLength: courseTypes?.length || 0,
+      courseTypes: courseTypes
+    });
+    
     (courses || []).forEach(course => {
       const courseTypeId = course.courseType?.id || course.courseTypeId;
       const courseTypeName = getCourseTypeName(courseTypeId);
+      
+      console.log('📚 Processing course:', { 
+        courseName: course.name, 
+        courseTypeId, 
+        courseTypeName,
+        courseType: course.courseType
+      });
       
       if (!grouped[courseTypeName]) {
         grouped[courseTypeName] = [];
@@ -513,11 +512,20 @@ const CourseManagement = () => {
       grouped[courseTypeName].push(course);
     });
     
+    console.log('📊 Grouped courses result:', grouped);
     return grouped;
   };
 
   const groupedCourses = groupCoursesByType();
   const courseTypeNames = Object.keys(groupedCourses).sort();
+  
+  console.log('🎯 Final render data:', {
+    coursesLength: courses?.length || 0,
+    groupedCoursesKeys: courseTypeNames,
+    groupedCourses,
+    loading,
+    filterLoading
+  });
 
   return (
     <div className="master-data-component">

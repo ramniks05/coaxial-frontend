@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useApp } from '../../context/AppContext';
-import { useFilterSubmit } from '../../hooks/useFilterSubmit';
 import { useFormFocus } from '../../hooks/useFormFocus';
 import { createExam, deleteExam, getCourses, getExams, updateExam } from '../../services/masterDataService';
 import AdminPageHeader from '../common/AdminPageHeader';
@@ -183,76 +182,106 @@ const ExamManagement = () => {
   // Form focus management
   const { formRef, firstInputRef } = useFormFocus(showForm);
   
-  // Filter state and handlers
+  // Filter state and handlers - Simple approach
   const initialFilters = getInitialFilters('exam');
   const filterConfig = getExamFilterConfig({ courses });
+  const [filters, setFilters] = useState(initialFilters);
+  const [filterLoading, setFilterLoading] = useState(false);
+  const [hasChanges, setHasChanges] = useState(false);
   
   // Fetch data function for filters
-  const fetchDataWithFilters = useCallback(async (filters) => {
-    if (!token) return [];
+  const fetchDataWithFilters = useCallback(async (currentFilters) => {
+    if (!token) return;
     
     try {
-      const data = await getExams(token);
-      let filteredData = Array.isArray(data) ? data : [];
+      setFilterLoading(true);
       
-      // Apply search filter
-      if (filters.search) {
-        const searchLower = filters.search.toLowerCase();
-        filteredData = filteredData.filter(item => 
-          item.name?.toLowerCase().includes(searchLower) ||
-          item.description?.toLowerCase().includes(searchLower)
-        );
+      const data = await getExams(token, null, currentFilters.courseId || null);
+      
+      // Parse data to handle different API response formats
+      let examsArray = [];
+      if (Array.isArray(data)) {
+        examsArray = data;
+      } else if (data && Array.isArray(data.content)) {
+        examsArray = data.content;
+      } else if (data && Array.isArray(data.data)) {
+        examsArray = data.data;
+      } else if (data && Array.isArray(data.items)) {
+        examsArray = data.items;
       }
       
-      // Apply course filter
-      if (filters.courseId) {
-        filteredData = filteredData.filter(item => 
-          item.course?.id === parseInt(filters.courseId)
-        );
-      }
-      
-      // Apply active filter
-      if (filters.isActive) {
-        filteredData = filteredData.filter(item => item.isActive === true);
-      }
-      
-      return filteredData;
+      setExams(examsArray);
     } catch (error) {
       console.error('Error fetching exams with filters:', error);
       addNotification({ 
         message: 'Failed to load exams', 
         type: 'error' 
       });
-      return [];
+      setExams([]);
+    } finally {
+      setFilterLoading(false);
     }
   }, [token, addNotification]);
   
-  // Filter management
-  const {
-    filters,
-    loading: filterLoading,
-    hasChanges,
-    handleFilterChange,
-    applyFilters,
-    clearFilters
-  } = useFilterSubmit(initialFilters, fetchDataWithFilters, {
-    autoFetchOnMount: true
-  });
+  // Handle filter change
+  const handleFilterChange = useCallback((field, value) => {
+    const newFilters = { ...filters, [field]: value };
+    setFilters(newFilters);
+    setHasChanges(true);
+  }, [filters]);
+  
+  // Apply filters
+  const applyFilters = useCallback(() => {
+    fetchDataWithFilters(filters);
+    setHasChanges(false);
+  }, [filters, fetchDataWithFilters]);
+  
+  // Clear filters
+  const clearFilters = useCallback(() => {
+    setFilters(initialFilters);
+    fetchDataWithFilters(initialFilters);
+    setHasChanges(false);
+  }, [initialFilters, fetchDataWithFilters]);
 
-  // Update exams when filters are applied
+  // Load competitive courses and exams on component mount
   useEffect(() => {
-    const updateExams = async () => {
+    const loadInitialData = async () => {
+      if (!token) return;
+      
       try {
-        const filteredData = await applyFilters();
-        setExams(filteredData);
+        const competitiveCoursesData = await getCourses(token, 2, 0, 100); // courseTypeId=2
+        const coursesArray = competitiveCoursesData.content || competitiveCoursesData;
+        const processed = Array.isArray(coursesArray) ? coursesArray : [];
+        setCourses(processed);
+        
+        // Load initial exams
+        const data = await getExams(token, null, null);
+        
+        // Parse data to handle different API response formats
+        let examsArray = [];
+        if (Array.isArray(data)) {
+          examsArray = data;
+        } else if (data && Array.isArray(data.content)) {
+          examsArray = data.content;
+        } else if (data && Array.isArray(data.data)) {
+          examsArray = data.data;
+        } else if (data && Array.isArray(data.items)) {
+          examsArray = data.items;
+        }
+        
+        setExams(examsArray);
       } catch (error) {
-        console.error('Error applying filters:', error);
-        setExams([]);
+        console.error('Error loading initial data:', error);
       }
     };
 
-    updateExams();
-  }, [applyFilters]);
+    loadInitialData();
+  }, [token]); // Only run when token changes
+
+  // Update selectedCourse when course filter changes
+  useEffect(() => {
+    setSelectedCourse(filters.courseId || '');
+  }, [filters.courseId]);
 
   // Refs for preventing duplicate calls and managing state
   const isInitialMountRef = useRef(true);
@@ -414,15 +443,14 @@ const ExamManagement = () => {
   };
 
 
-  const fetchExams = async (courseTypeId = null, courseId = null) => {
+  const fetchExams = async (courseId = null) => {
     try {
       setLoading(true);
       // Convert string values to numbers for API call
-      const typeId = courseTypeId ? parseInt(courseTypeId) : null;
       const id = courseId ? parseInt(courseId) : null;
       
       // cache key + 5s cache + 1.5s dedup + abort
-      const key = `type:${typeId || ''}|course:${id || ''}`;
+      const key = `course:${id || ''}`;
       const now = Date.now();
       const cached = examsCacheRef.current.get(key);
       let data;
@@ -439,7 +467,7 @@ const ExamManagement = () => {
           // Record last key/time BEFORE awaiting to dedup concurrent triggers
           lastExamsKeyRef.current = key;
           lastExamsAtRef.current = now;
-          data = await getExams(token, typeId, id);
+          data = await getExams(token, null, id);
           examsCacheRef.current.set(key, { data, ts: now });
         }
       }
@@ -604,10 +632,6 @@ const ExamManagement = () => {
     return course ? course.name : 'Unknown';
   };
 
-  const getCourseTypeName = (courseTypeId) => {
-    // For competitive exams, always return 'Competitive'
-    return 'Competitive';
-  };
 
 
   return (
@@ -797,7 +821,7 @@ const ExamManagement = () => {
                 { 
                   key: 'courseTypeName', 
                   label: 'Course Type',
-                  value: (item) => item.courseTypeName || item.course?.courseTypeName || getCourseTypeName(item.course?.courseType?.id || item.courseType?.id || item.courseTypeId)
+                  value: (item) => item.courseTypeName || item.course?.courseTypeName || 'Competitive'
                 },
                 { 
                   key: 'courseName', 
