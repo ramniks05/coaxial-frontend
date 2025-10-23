@@ -54,8 +54,13 @@ const FilterPanel = ({
   };
 
   const renderFilterField = (config) => {
-    const { field, type, label, options, placeholder, disabled } = config;
+    const { field, type, label, options, placeholder, disabled, condition } = config;
     const value = localFilters[field] || '';
+
+    // Check if field should be displayed based on condition
+    if (condition && !condition(localFilters)) {
+      return null;
+    }
 
     switch (type) {
       case 'select':
@@ -125,15 +130,19 @@ const FilterPanel = ({
 
   const activeFilterCount = getActiveFilterCount();
 
+  console.log('🔄 FilterPanel Debug:', {
+    filters: filters,
+    filterConfig: filterConfig,
+    filterConfigLength: filterConfig?.length,
+    masterData: masterData,
+    hasChanges: hasChanges,
+    loading: loading
+  });
+
   return (
     <div className="filter-panel">
       <div className="filter-header">
         <h3>Filters</h3>
-        {activeFilterCount > 0 && (
-          <span className="filter-count">
-            {activeFilterCount} filter{activeFilterCount !== 1 ? 's' : ''} applied
-          </span>
-        )}
       </div>
 
       <div className="filter-fields">
@@ -167,12 +176,6 @@ const FilterPanel = ({
         </button>
       </div>
 
-      {hasChanges && (
-        <div className="filter-notice">
-          <span className="notice-icon">ℹ️</span>
-          You have unsaved filter changes. Click "Apply Filters" to see results.
-        </div>
-      )}
     </div>
   );
 };

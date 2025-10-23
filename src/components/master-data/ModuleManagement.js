@@ -207,25 +207,33 @@ const ModuleManagement = () => {
     if (!token) return [];
     
     try {
+      console.log('🔄 fetchDataWithFilters called with:', filters);
       const data = await getModulesCombinedFilter(token, {
         courseTypeId: filters.courseTypeId || '',
         courseId: filters.courseId || '',
         classId: filters.classId || '',
         examId: filters.examId || '',
         subjectId: filters.subjectId || '',
-        topicId: filters.topicId || '',
-        isActive: filters.isActive
+        topicId: filters.topicId || ''
       });
-      let filteredData = Array.isArray(data) ? data : [];
+      console.log('🔄 Raw API response:', data);
       
-      // Apply search filter
-      if (filters.search) {
-        const searchLower = filters.search.toLowerCase();
-        filteredData = filteredData.filter(item => 
-          item.name?.toLowerCase().includes(searchLower) ||
-          item.description?.toLowerCase().includes(searchLower)
-        );
+      // Handle different response structures
+      let filteredData = [];
+      if (Array.isArray(data)) {
+        filteredData = data;
+      } else if (data && Array.isArray(data.content)) {
+        filteredData = data.content;
+      } else if (data && Array.isArray(data.data)) {
+        filteredData = data.data;
+      } else if (data && Array.isArray(data.items)) {
+        filteredData = data.items;
+      } else {
+        console.warn('Unexpected data format:', data);
+        filteredData = [];
       }
+      
+      console.log('🔄 Processed filtered data:', filteredData);
       
       return filteredData;
     } catch (error) {
@@ -249,6 +257,31 @@ const ModuleManagement = () => {
   } = useFilterSubmit(initialFilters, fetchDataWithFilters, {
     autoFetchOnMount: true
   });
+
+  // Track API calls to prevent duplicates
+  const fetchingModulesRef = useRef(false);
+
+  // Direct filter application function
+  const applyFiltersDirect = useCallback(async (filtersToApply) => {
+    if (fetchingModulesRef.current) {
+      return;
+    }
+
+    try {
+      fetchingModulesRef.current = true;
+      setLoadingStates(prev => ({ ...prev, modules: true }));
+      const filteredData = await fetchDataWithFilters(filtersToApply);
+      setModules(filteredData || []);
+      return filteredData;
+    } catch (error) {
+      console.error('Error applying filters directly:', error);
+      setModules([]);
+      return [];
+    } finally {
+      fetchingModulesRef.current = false;
+      setLoadingStates(prev => ({ ...prev, modules: false }));
+    }
+  }, [fetchDataWithFilters]);
   
   // Dropdown data states (for both filter and form)
   const [filteredCourses, setFilteredCourses] = useState([]);
@@ -546,21 +579,145 @@ const ModuleManagement = () => {
       isInitialMountRef.current = false;
       console.log('🔄 ModuleManagement: Initial mount, fetching data...');
       fetchData();
-      // Initial load with all modules
-      console.log('🔄 ModuleManagement: Fetching initial modules...');
-      fetchModulesData();
     }
   }, [token]);
 
-  // Old filter effects removed - now using useFilterSubmit hook
+  // Load initial modules data with filters
+  useEffect(() => {
+    const loadInitialModules = async () => {
+      if (token) {
+        try {
+          console.log('🔄 Loading initial modules with filters:', initialFilters);
+          setLoadingStates(prev => ({ ...prev, modules: true }));
+          const initialData = await fetchDataWithFilters(initialFilters);
+          console.log('🔄 Initial modules data received:', initialData);
+          
+          // If no data from filters, try loading all modules as fallback
+          if (!initialData || initialData.length === 0) {
+            console.log('🔄 No data from filters, trying fallback...');
+            try {
+              const fallbackData = await getModulesCombinedFilter(token, { active: true });
+              console.log('🔄 Fallback data:', fallbackData);
+              let fallbackModules = [];
+              if (Array.isArray(fallbackData)) {
+                fallbackModules = fallbackData;
+              } else if (fallbackData && Array.isArray(fallbackData.content)) {
+                fallbackModules = fallbackData.content;
+              } else if (fallbackData && Array.isArray(fallbackData.data)) {
+                fallbackModules = fallbackData.data;
+              }
+              setModules(fallbackModules);
+            } catch (fallbackError) {
+              console.error('Fallback also failed:', fallbackError);
+              setModules([]);
+            }
+          } else {
+            setModules(initialData);
+          }
+        } catch (error) {
+          console.error('Error loading initial modules:', error);
+          setModules([]);
+        } finally {
+          setLoadingStates(prev => ({ ...prev, modules: false }));
+        }
+      }
+    };
 
-  // Old filter effect removed - now using useFilterSubmit hook
+    loadInitialModules();
+  }, [token, fetchDataWithFilters]);
 
-  // Old filter effect removed - now using useFilterSubmit hook
+  // Track previous course type to detect actual changes
+  const prevCourseTypeRef = useRef(null);
+  const prevCourseRef = useRef(null);
+  
+  // Track API calls to prevent duplicates
+  const fetchingCoursesRef = useRef(false);
+  const fetchingClassesExamsRef = useRef(false);
+  const fetchingSubjectsRef = useRef(false);
+  const fetchingTopicsRef = useRef(false);
 
-  // Old filter effect removed - now using useFilterSubmit hook
+  // Clear dependent filters when course type actually changes
+  useEffect(() => {
+    if (filters.courseTypeId && prevCourseTypeRef.current !== filters.courseTypeId) {
+      // Course type changed, clear dependent filters
+      if (filters.courseId) {
+        handleFilterChange('courseId', '');
+      }
+      if (filters.classId) {
+        handleFilterChange('classId', '');
+      }
+      if (filters.examId) {
+        handleFilterChange('examId', '');
+      }
+      if (filters.subjectId) {
+        handleFilterChange('subjectId', '');
+      }
+      if (filters.topicId) {
+        handleFilterChange('topicId', '');
+      }
+      prevCourseTypeRef.current = filters.courseTypeId;
+    }
+  }, [filters.courseTypeId, handleFilterChange]);
 
-  // Old filter effect removed - now using useFilterSubmit hook
+  // Clear dependent filters when course actually changes
+  useEffect(() => {
+    if (filters.courseId && prevCourseRef.current !== filters.courseId) {
+      // Course changed, clear dependent filters
+      if (filters.classId) {
+        handleFilterChange('classId', '');
+      }
+      if (filters.examId) {
+        handleFilterChange('examId', '');
+      }
+      if (filters.subjectId) {
+        handleFilterChange('subjectId', '');
+      }
+      if (filters.topicId) {
+        handleFilterChange('topicId', '');
+      }
+      prevCourseRef.current = filters.courseId;
+    }
+  }, [filters.courseId, handleFilterChange]);
+
+  // Handle course type changes - fetch courses
+  useEffect(() => {
+    if (filters.courseTypeId && !fetchingCoursesRef.current) {
+      fetchingCoursesRef.current = true;
+      fetchCoursesByCourseType(filters.courseTypeId).finally(() => {
+        fetchingCoursesRef.current = false;
+      });
+    }
+  }, [filters.courseTypeId]);
+
+  // Handle course changes - fetch classes and exams
+  useEffect(() => {
+    if (filters.courseId && filters.courseTypeId && !fetchingClassesExamsRef.current) {
+      fetchingClassesExamsRef.current = true;
+      fetchClassesAndExamsByCourse(filters.courseTypeId, filters.courseId).finally(() => {
+        fetchingClassesExamsRef.current = false;
+      });
+    }
+  }, [filters.courseId, filters.courseTypeId]);
+
+  // Handle class/exam changes - fetch subjects
+  useEffect(() => {
+    if ((filters.classId || filters.examId) && filters.courseTypeId && filters.courseId && !fetchingSubjectsRef.current) {
+      fetchingSubjectsRef.current = true;
+      fetchSubjectLinkages(filters.courseTypeId, filters.courseId, filters.classId, filters.examId).finally(() => {
+        fetchingSubjectsRef.current = false;
+      });
+    }
+  }, [filters.classId, filters.examId, filters.courseTypeId, filters.courseId]);
+
+  // Handle subject changes - fetch topics
+  useEffect(() => {
+    if (filters.subjectId && filters.courseTypeId && filters.courseId && !fetchingTopicsRef.current) {
+      fetchingTopicsRef.current = true;
+      fetchTopicsBySubject(filters.courseTypeId, filters.subjectId).finally(() => {
+        fetchingTopicsRef.current = false;
+      });
+    }
+  }, [filters.subjectId, filters.courseTypeId, filters.courseId]);
   // Form handlers
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -973,11 +1130,11 @@ const ModuleManagement = () => {
       <FilterPanel
         filters={filters}
         onFilterChange={handleFilterChange}
-        onApplyFilters={applyFilters}
+        onApplyFilters={applyFiltersDirect}
         onClearFilters={clearFilters}
         loading={filterLoading}
         filterConfig={filterConfig}
-        masterData={{ courseTypes, courses, classes, exams, subjects: subjectLinkages, topics }}
+        masterData={{ courseTypes, courses: filteredCourses, classes: filteredClasses, exams: filteredExams, subjects: subjectLinkages, topics }}
         hasChanges={hasChanges}
       />
 
@@ -1232,7 +1389,7 @@ const ModuleManagement = () => {
           <button 
             className="btn btn-outline btn-sm"
             onClick={() => {
-              fetchModulesData();
+              applyFiltersDirect(filters);
             }}
             disabled={loading}
           >

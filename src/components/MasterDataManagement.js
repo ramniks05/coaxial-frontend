@@ -10,7 +10,7 @@ const ExamManagement = lazy(() => import('./master-data/ExamManagement'));
 const SubjectManagement = lazy(() => import('./master-data/SubjectManagement'));
 const TopicManagement = lazy(() => import('./master-data/TopicManagement'));
 const ModuleManagement = lazy(() => import('./master-data/ModuleManagement'));
-const ChapterManagement = lazy(() => import('./master-data/chapter/ChapterManagementNew'));
+const ChapterManagement = lazy(() => import('./master-data/ChapterManagement'));
 
 const MasterDataManagement = ({ onBackToDashboard }) => {
   const { user, token, addNotification } = useApp();

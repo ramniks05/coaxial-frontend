@@ -190,13 +190,6 @@ const TopicManagement = () => {
   
   // Filter state and handlers
   const initialFilters = getInitialFilters('topic');
-  const filterConfig = getTopicFilterConfig({ 
-    courseTypes, 
-    courses, 
-    classes, 
-    exams,
-    subjects: subjectLinkages 
-  });
   
   // Fetch data function for filters
   const fetchDataWithFilters = useCallback(async (filters) => {
@@ -208,20 +201,10 @@ const TopicManagement = () => {
         courseId: filters.courseId || '',
         classId: filters.classId || '',
         examId: filters.examId || '',
-        subjectId: filters.subjectId || '',
-        isActive: filters.isActive
+        subjectId: filters.subjectId || ''
       });
+      
       let filteredData = Array.isArray(data) ? data : [];
-      
-      // Apply search filter
-      if (filters.search) {
-        const searchLower = filters.search.toLowerCase();
-        filteredData = filteredData.filter(item => 
-          item.name?.toLowerCase().includes(searchLower) ||
-          item.description?.toLowerCase().includes(searchLower)
-        );
-      }
-      
       return filteredData;
     } catch (error) {
       console.error('Error fetching topics with filters:', error);
@@ -244,12 +227,21 @@ const TopicManagement = () => {
   } = useFilterSubmit(initialFilters, fetchDataWithFilters, {
     autoFetchOnMount: true
   });
-  
+
   // Dropdown data states (for both filter and form)
   const [filteredCourses, setFilteredCourses] = useState([]);
   const [filteredClasses, setFilteredClasses] = useState([]);
   const [filteredExams, setFilteredExams] = useState([]);
   const [masterSubjects, setMasterSubjects] = useState([]);
+
+  // Filter configuration with current filters for conditional display
+  const filterConfig = getTopicFilterConfig({ 
+    courseTypes, 
+    courses: filteredCourses, 
+    classes: filteredClasses, 
+    exams: filteredExams,
+    subjects: subjectLinkages 
+  });
   const [loadingStates, setLoadingStates] = useState({
     courses: false,
     classes: false,
@@ -285,20 +277,132 @@ const TopicManagement = () => {
 
   // Initial data load
   const hasInitialFetchRef = useRef(false);
-  // Update topics when filters are applied
+  
+  // Load initial data on component mount
   useEffect(() => {
-    const updateTopics = async () => {
-      try {
-        const filteredData = await applyFilters();
-        setTopics(filteredData);
-      } catch (error) {
-        console.error('Error applying filters:', error);
-        setTopics([]);
+    if (!hasInitialFetchRef.current && token) {
+      hasInitialFetchRef.current = true;
+      fetchData();
+    }
+  }, [token]);
+
+  // Load initial topics data
+  useEffect(() => {
+    const loadInitialTopics = async () => {
+      if (token) {
+        try {
+          const initialData = await fetchDataWithFilters(initialFilters);
+          setTopics(initialData || []);
+        } catch (error) {
+          console.error('Error loading initial topics:', error);
+          setTopics([]);
+        }
       }
     };
 
-    updateTopics();
-  }, [applyFilters]);
+    loadInitialTopics();
+  }, [token]);
+
+  // Direct filter application function
+  const applyFiltersDirect = useCallback(async (filtersToApply) => {
+    if (fetchingTopicsRef.current) {
+      return;
+    }
+
+    try {
+      fetchingTopicsRef.current = true;
+      const filteredData = await fetchDataWithFilters(filtersToApply);
+      setTopics(filteredData || []);
+      return filteredData;
+    } catch (error) {
+      console.error('Error applying filters directly:', error);
+      setTopics([]);
+      return [];
+    } finally {
+      fetchingTopicsRef.current = false;
+    }
+  }, [fetchDataWithFilters]);
+
+  // Remove automatic topic loading on filter changes
+  // Topics will only be loaded when "Apply Filters" button is clicked
+
+  // Track previous course type to detect actual changes
+  const prevCourseTypeRef = useRef(null);
+  const prevCourseRef = useRef(null);
+  
+  // Track API calls to prevent duplicates
+  const fetchingCoursesRef = useRef(false);
+  const fetchingClassesExamsRef = useRef(false);
+  const fetchingSubjectsRef = useRef(false);
+  const fetchingTopicsRef = useRef(false);
+
+  // Clear dependent filters when course type actually changes
+  useEffect(() => {
+    if (filters.courseTypeId && prevCourseTypeRef.current !== filters.courseTypeId) {
+      // Course type changed, clear dependent filters
+      if (filters.courseId) {
+        handleFilterChange('courseId', '');
+      }
+      if (filters.classId) {
+        handleFilterChange('classId', '');
+      }
+      if (filters.examId) {
+        handleFilterChange('examId', '');
+      }
+      if (filters.subjectId) {
+        handleFilterChange('subjectId', '');
+      }
+      prevCourseTypeRef.current = filters.courseTypeId;
+    }
+  }, [filters.courseTypeId, handleFilterChange]);
+
+  // Clear dependent filters when course actually changes
+  useEffect(() => {
+    if (filters.courseId && prevCourseRef.current !== filters.courseId) {
+      // Course changed, clear dependent filters
+      if (filters.classId) {
+        handleFilterChange('classId', '');
+      }
+      if (filters.examId) {
+        handleFilterChange('examId', '');
+      }
+      if (filters.subjectId) {
+        handleFilterChange('subjectId', '');
+      }
+      prevCourseRef.current = filters.courseId;
+    }
+  }, [filters.courseId, handleFilterChange]);
+
+  // Handle course type changes - fetch courses
+  useEffect(() => {
+    if (filters.courseTypeId && !fetchingCoursesRef.current) {
+      fetchingCoursesRef.current = true;
+      fetchCoursesByCourseType(filters.courseTypeId).finally(() => {
+        fetchingCoursesRef.current = false;
+      });
+    }
+  }, [filters.courseTypeId]);
+
+  // Handle course changes - fetch classes and exams
+  useEffect(() => {
+    if (filters.courseId && filters.courseTypeId && !fetchingClassesExamsRef.current) {
+      fetchingClassesExamsRef.current = true;
+      fetchClassesAndExamsByCourse(filters.courseTypeId, filters.courseId).finally(() => {
+        fetchingClassesExamsRef.current = false;
+      });
+    }
+  }, [filters.courseId, filters.courseTypeId]);
+
+  // Handle class/exam changes - fetch subjects
+  useEffect(() => {
+    if ((filters.classId || filters.examId) && filters.courseTypeId && filters.courseId && !fetchingSubjectsRef.current) {
+      fetchingSubjectsRef.current = true;
+      fetchSubjectLinkages(filters.courseTypeId, filters.courseId, filters.classId, filters.examId).finally(() => {
+        fetchingSubjectsRef.current = false;
+      });
+    }
+  }, [filters.classId, filters.examId, filters.courseTypeId, filters.courseId]);
+
 
   // Helper functions for course type logic
   const isAcademicCourseType = (courseTypeId) => {
@@ -824,11 +928,11 @@ const TopicManagement = () => {
       <FilterPanel
         filters={filters}
         onFilterChange={handleFilterChange}
-        onApplyFilters={applyFilters}
+        onApplyFilters={applyFiltersDirect}
         onClearFilters={clearFilters}
         loading={filterLoading}
         filterConfig={filterConfig}
-        masterData={{ courseTypes, courses, classes, exams, subjects: subjectLinkages }}
+        masterData={{ courseTypes, courses: filteredCourses, classes: filteredClasses, exams: filteredExams, subjects: subjectLinkages }}
         hasChanges={hasChanges}
       />
 
@@ -1060,7 +1164,7 @@ const TopicManagement = () => {
             <button 
               className="btn btn-outline btn-sm"
               onClick={() => {
-                applyFilters();
+                applyFiltersDirect(filters);
               }}
               disabled={loading}
             >
@@ -1068,6 +1172,7 @@ const TopicManagement = () => {
             </button>
           </div>
         </div>
+        
 
         {loading ? (
           <div className="loading-state">

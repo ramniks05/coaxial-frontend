@@ -121,13 +121,6 @@ export const getSubjectFilterConfig = (masterData = {}) => [
  */
 export const getTopicFilterConfig = (masterData = {}) => [
   {
-    field: 'search',
-    type: 'search',
-    label: 'Search',
-    placeholder: 'Search topics...',
-    options: null
-  },
-  {
     field: 'courseTypeId',
     type: 'select',
     label: 'Course Type',
@@ -155,7 +148,13 @@ export const getTopicFilterConfig = (masterData = {}) => [
     options: masterData.classes?.map(c => ({
       value: c.id,
       label: c.name
-    })) || []
+    })) || [],
+    condition: (filters) => {
+      const courseTypeId = filters.courseTypeId;
+      if (!courseTypeId) return false;
+      const courseType = masterData.courseTypes?.find(ct => ct.id === parseInt(courseTypeId));
+      return courseType && courseType.name && courseType.name.toLowerCase().includes('academic');
+    }
   },
   {
     field: 'examId',
@@ -165,7 +164,13 @@ export const getTopicFilterConfig = (masterData = {}) => [
     options: masterData.exams?.map(e => ({
       value: e.id,
       label: e.name
-    })) || []
+    })) || [],
+    condition: (filters) => {
+      const courseTypeId = filters.courseTypeId;
+      if (!courseTypeId) return false;
+      const courseType = masterData.courseTypes?.find(ct => ct.id === parseInt(courseTypeId));
+      return courseType && courseType.name && courseType.name.toLowerCase().includes('competitive');
+    }
   },
   {
     field: 'subjectId',
@@ -173,15 +178,9 @@ export const getTopicFilterConfig = (masterData = {}) => [
     label: 'Subject',
     placeholder: 'All Subjects',
     options: masterData.subjects?.map(s => ({
-      value: s.id,
-      label: s.name
+      value: s.linkageId || s.id,
+      label: s.subjectName || s.name
     })) || []
-  },
-  {
-    field: 'isActive',
-    type: 'toggle',
-    label: 'Show Active Only',
-    defaultValue: true
   }
 ];
 
@@ -190,13 +189,6 @@ export const getTopicFilterConfig = (masterData = {}) => [
  */
 export const getModuleFilterConfig = (masterData = {}) => [
   {
-    field: 'search',
-    type: 'search',
-    label: 'Search',
-    placeholder: 'Search modules...',
-    options: null
-  },
-  {
     field: 'courseTypeId',
     type: 'select',
     label: 'Course Type',
@@ -224,7 +216,13 @@ export const getModuleFilterConfig = (masterData = {}) => [
     options: masterData.classes?.map(c => ({
       value: c.id,
       label: c.name
-    })) || []
+    })) || [],
+    condition: (filters) => {
+      const courseTypeId = filters.courseTypeId;
+      if (!courseTypeId) return false;
+      const courseType = masterData.courseTypes?.find(ct => ct.id === parseInt(courseTypeId));
+      return courseType && courseType.name && courseType.name.toLowerCase().includes('academic');
+    }
   },
   {
     field: 'examId',
@@ -234,7 +232,13 @@ export const getModuleFilterConfig = (masterData = {}) => [
     options: masterData.exams?.map(e => ({
       value: e.id,
       label: e.name
-    })) || []
+    })) || [],
+    condition: (filters) => {
+      const courseTypeId = filters.courseTypeId;
+      if (!courseTypeId) return false;
+      const courseType = masterData.courseTypes?.find(ct => ct.id === parseInt(courseTypeId));
+      return courseType && courseType.name && courseType.name.toLowerCase().includes('competitive');
+    }
   },
   {
     field: 'subjectId',
@@ -242,8 +246,8 @@ export const getModuleFilterConfig = (masterData = {}) => [
     label: 'Subject',
     placeholder: 'All Subjects',
     options: masterData.subjects?.map(s => ({
-      value: s.id,
-      label: s.name
+      value: s.linkageId || s.id,
+      label: s.subjectName || s.name
     })) || []
   },
   {
@@ -255,12 +259,6 @@ export const getModuleFilterConfig = (masterData = {}) => [
       value: t.id,
       label: t.name
     })) || []
-  },
-  {
-    field: 'isActive',
-    type: 'toggle',
-    label: 'Show Active Only',
-    defaultValue: true
   }
 ];
 
@@ -268,13 +266,6 @@ export const getModuleFilterConfig = (masterData = {}) => [
  * Get filter configuration for ChapterManagement
  */
 export const getChapterFilterConfig = (masterData = {}) => [
-  {
-    field: 'search',
-    type: 'search',
-    label: 'Search',
-    placeholder: 'Search chapters...',
-    options: null
-  },
   {
     field: 'courseTypeId',
     type: 'select',
@@ -303,7 +294,13 @@ export const getChapterFilterConfig = (masterData = {}) => [
     options: masterData.classes?.map(c => ({
       value: c.id,
       label: c.name
-    })) || []
+    })) || [],
+    condition: (filters) => {
+      const courseTypeId = filters.courseTypeId;
+      if (!courseTypeId) return false;
+      const courseType = masterData.courseTypes?.find(ct => ct.id === parseInt(courseTypeId));
+      return courseType && courseType.name && courseType.name.toLowerCase().includes('academic');
+    }
   },
   {
     field: 'examId',
@@ -313,7 +310,13 @@ export const getChapterFilterConfig = (masterData = {}) => [
     options: masterData.exams?.map(e => ({
       value: e.id,
       label: e.name
-    })) || []
+    })) || [],
+    condition: (filters) => {
+      const courseTypeId = filters.courseTypeId;
+      if (!courseTypeId) return false;
+      const courseType = masterData.courseTypes?.find(ct => ct.id === parseInt(courseTypeId));
+      return courseType && courseType.name && courseType.name.toLowerCase().includes('competitive');
+    }
   },
   {
     field: 'subjectId',
@@ -321,8 +324,8 @@ export const getChapterFilterConfig = (masterData = {}) => [
     label: 'Subject',
     placeholder: 'All Subjects',
     options: masterData.subjects?.map(s => ({
-      value: s.id,
-      label: s.name
+      value: s.linkageId || s.id,
+      label: s.subjectName || s.name
     })) || []
   },
   {
@@ -344,12 +347,6 @@ export const getChapterFilterConfig = (masterData = {}) => [
       value: m.id,
       label: m.name
     })) || []
-  },
-  {
-    field: 'isActive',
-    type: 'toggle',
-    label: 'Show Active Only',
-    defaultValue: true
   }
 ];
 
@@ -384,7 +381,6 @@ export const getInitialFilters = (componentType) => {
     
     case 'topic':
       return { 
-        ...baseFilters, 
         courseTypeId: '', 
         courseId: '', 
         classId: '', 
@@ -394,7 +390,6 @@ export const getInitialFilters = (componentType) => {
     
     case 'module':
       return { 
-        ...baseFilters, 
         courseTypeId: '', 
         courseId: '', 
         classId: '', 
@@ -405,7 +400,6 @@ export const getInitialFilters = (componentType) => {
     
     case 'chapter':
       return { 
-        ...baseFilters, 
         courseTypeId: '', 
         courseId: '', 
         classId: '', 
