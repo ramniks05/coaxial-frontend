@@ -860,20 +860,209 @@ const TopicManagement = () => {
     }
   };
 
-  const handleEdit = (topic) => {
-    setFormData({
+  const handleEdit = async (topic) => {
+    console.log('Editing topic:', topic);
+    
+    // Extract values from topic data with proper fallbacks
+    const courseTypeId = topic.courseTypeId || topic.subject?.course?.courseType?.id || '';
+    const courseId = topic.courseId || topic.subject?.course?.id || '';
+    const classId = topic.classId || topic.subject?.class?.id || '';
+    const examId = topic.examId || topic.subject?.exam?.id || '';
+    const subjectId = topic.subjectId || topic.subject?.linkageId || topic.subject?.id || '';
+    
+    // Set editing ID first
+    setEditingId(topic.id);
+    setShowForm(true);
+    
+    // Store the original values to restore after dropdowns are populated
+    const originalValues = {
       name: topic.name,
       description: topic.description || '',
       displayOrder: topic.displayOrder || '',
-      isActive: topic.isActive,
-      courseType: { id: topic.subject?.course?.courseType?.id || '' },
-      course: { id: topic.subject?.course?.id || '' },
-      class: { id: '' },
-      exam: { id: '' },
-      subjectId: topic.subject?.linkageId || topic.subject?.id || '' // Use linkageId if available
-    });
-    setEditingId(topic.id);
-    setShowForm(true);
+      isActive: topic.isActive !== undefined ? topic.isActive : true,
+      courseType: { id: courseTypeId },
+      course: { id: courseId },
+      class: { id: classId },
+      exam: { id: examId },
+      subjectId: subjectId
+    };
+    
+    // Initially set form data with available values
+    setFormData(originalValues);
+    
+    // Trigger course type change to populate related dropdowns
+    if (courseTypeId) {
+      // Create a modified version that doesn't clear the form data
+      const handleCourseTypeChangeForEdit = async (courseTypeId) => {
+        setFormData(prev => ({
+          ...prev,
+          courseType: { id: courseTypeId },
+          course: { id: '' },
+          class: { id: '' },
+          exam: { id: '' },
+          subjectId: ''
+          // Don't clear name, description, displayOrder, isActive
+        }));
+        setFilteredCourses([]);
+        setFilteredClasses([]);
+        setFilteredExams([]);
+        setSubjectLinkages([]);
+        
+        if (courseTypeId) {
+          try {
+            setLoadingStates(prev => ({ ...prev, courses: true }));
+            
+            // Fetch courses for this course type
+            const coursesData = await getCourses(token, courseTypeId, 0, 100, 'createdAt', 'desc');
+            
+            // Handle different response formats for courses
+            let coursesArray = [];
+            if (Array.isArray(coursesData)) {
+              coursesArray = coursesData;
+            } else if (coursesData && Array.isArray(coursesData.content)) {
+              coursesArray = coursesData.content;
+            } else if (coursesData && Array.isArray(coursesData.data)) {
+              coursesArray = coursesData.data;
+            } else if (coursesData && coursesData.courses && Array.isArray(coursesData.courses)) {
+              coursesArray = coursesData.courses;
+            } else {
+              console.warn('Unexpected courses data format (handleCourseTypeChangeForEdit):', coursesData);
+              coursesArray = [];
+            }
+            
+            // Keep only active courses
+            let normalizedCourses = coursesArray.filter(c => !!c.isActive);
+            normalizedCourses.sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0) || a.name.localeCompare(b.name));
+
+            setFilteredCourses(normalizedCourses);
+            
+          } catch (error) {
+            console.error('Error fetching courses:', error);
+            addNotification({
+              type: 'error',
+              message: `Failed to fetch courses: ${error.message}`,
+              duration: 5000
+            });
+            setFilteredCourses([]);
+          } finally {
+            setLoadingStates(prev => ({ ...prev, courses: false }));
+          }
+        }
+      };
+      
+      await handleCourseTypeChangeForEdit(courseTypeId);
+      
+      // Restore the original values after course type change
+      setFormData(prev => ({
+        ...prev,
+        ...originalValues
+      }));
+      
+      // Trigger course change to populate class/exam/subject dropdowns
+      if (courseId) {
+        // Create a modified version of handleCourseChange that doesn't clear the form
+        const handleCourseChangeForEdit = async (courseId) => {
+          setFormData(prev => ({
+            ...prev,
+            course: { id: courseId },
+            class: { id: '' },
+            exam: { id: '' },
+            subjectId: ''
+            // Don't clear name, description, displayOrder, isActive
+          }));
+          setFilteredClasses([]);
+          setFilteredExams([]);
+          setSubjectLinkages([]);
+          
+          if (courseId) {
+            try {
+              setLoadingStates(prev => ({ ...prev, classes: true, exams: true, subjects: true }));
+              
+              // Fetch classes, exams, and subjects
+              const [classesData, examsData, subjectsData] = await Promise.all([
+                getClassesByCourse(token, courseId, 0, 100, 'createdAt', 'desc'),
+                getExamsByCourse(token, courseId, 0, 100, 'createdAt', 'desc'),
+                fetchSubjectLinkages(courseTypeId, courseId, null, null)
+              ]);
+              
+              // Handle different response formats for classes
+              let classesArray = [];
+              if (Array.isArray(classesData)) {
+                classesArray = classesData;
+              } else if (classesData && Array.isArray(classesData.content)) {
+                classesArray = classesData.content;
+              } else if (classesData && Array.isArray(classesData.data)) {
+                classesArray = classesData.data;
+              } else if (classesData && classesData.classes && Array.isArray(classesData.classes)) {
+                classesArray = classesData.classes;
+              } else {
+                console.warn('Unexpected classes data format (handleCourseChangeForEdit):', classesData);
+                classesArray = [];
+              }
+              
+              let normalizedClasses = classesArray.filter(cl => !!cl.isActive);
+              normalizedClasses.sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0) || a.name.localeCompare(b.name));
+
+              // Handle different response formats for exams
+              let examsArray = [];
+              if (Array.isArray(examsData)) {
+                examsArray = examsData;
+              } else if (examsData && Array.isArray(examsData.content)) {
+                examsArray = examsData.content;
+              } else if (examsData && Array.isArray(examsData.data)) {
+                examsArray = examsData.data;
+              } else if (examsData && examsData.exams && Array.isArray(examsData.exams)) {
+                examsArray = examsData.exams;
+              } else {
+                console.warn('Unexpected exams data format (handleCourseChangeForEdit):', examsData);
+                examsArray = [];
+              }
+              
+              let normalizedExams = examsArray.filter(ex => !!ex.isActive);
+              normalizedExams.sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0) || a.name.localeCompare(b.name));
+
+              // Handle subjects data
+              let subjectsArray = [];
+              if (Array.isArray(subjectsData)) {
+                subjectsArray = subjectsData;
+              } else if (subjectsData && Array.isArray(subjectsData.content)) {
+                subjectsArray = subjectsData.content;
+              } else if (subjectsData && Array.isArray(subjectsData.data)) {
+                subjectsArray = subjectsData.data;
+              } else {
+                console.warn('Unexpected subjects data format (handleCourseChangeForEdit):', subjectsData);
+                subjectsArray = [];
+              }
+              
+              setFilteredClasses(normalizedClasses);
+              setFilteredExams(normalizedExams);
+              setSubjectLinkages(subjectsArray);
+              
+            } catch (error) {
+              console.error('Error in handleCourseChangeForEdit:', error);
+              addNotification({
+                type: 'error',
+                message: 'Failed to fetch classes, exams, and subjects',
+                duration: 5000
+              });
+              setFilteredClasses([]);
+              setFilteredExams([]);
+              setSubjectLinkages([]);
+            } finally {
+              setLoadingStates(prev => ({ ...prev, classes: false, exams: false, subjects: false }));
+            }
+          }
+        };
+        
+        await handleCourseChangeForEdit(courseId);
+        
+        // Restore the original values after course change
+        setFormData(prev => ({
+          ...prev,
+          ...originalValues
+        }));
+      }
+    }
   };
 
   const handleDelete = async (topicId) => {
@@ -941,7 +1130,12 @@ const TopicManagement = () => {
       {showForm && (
         <div className="form-section" ref={formRef}>
           <div className="form-header">
-            <h3>{editingId ? 'Edit Topic' : 'Add New Topic'}</h3>
+            <h3>
+              {editingId ? 'Edit Topic (Read-Only)' : 'Add New Topic'}
+              {editingId && (
+                <span className="badge badge-warning ml-2">Review Mode</span>
+              )}
+            </h3>
             <button className="btn btn-outline btn-sm" onClick={resetForm}>
               Cancel
             </button>
@@ -1146,12 +1340,24 @@ const TopicManagement = () => {
             </div>
             
             <div className="form-actions">
-              <button type="submit" className="btn btn-primary" disabled={loading}>
-                {loading ? 'Saving...' : (editingId ? 'Update Topic' : 'Create Topic')}
+              <button 
+                type="submit" 
+                className="btn btn-primary" 
+                disabled={loading || editingId}
+                title={editingId ? 'Edit functionality temporarily disabled - pending team decision' : ''}
+              >
+                {loading ? 'Saving...' : (editingId ? 'Update Topic (Disabled)' : 'Create Topic')}
               </button>
               <button type="button" className="btn btn-outline" onClick={resetForm}>
                 Cancel
               </button>
+              {editingId && (
+                <div className="form-warning">
+                  <small className="text-warning">
+                    ⚠️ Edit functionality is temporarily disabled. All values are populated for review, but changes cannot be saved until the team decides on the proper strategy.
+                  </small>
+                </div>
+              )}
             </div>
           </form>
         </div>

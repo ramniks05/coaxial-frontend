@@ -1003,7 +1003,9 @@ const ChapterManagement = () => {
     }
   }, [formData, editingId, validateForm, executeApiCall, addNotification, resetForm, token]);
 
-  const handleEdit = (chapter) => {
+  const handleEdit = async (chapter) => {
+    console.log('Editing chapter:', chapter);
+    
     // Extract videos data
     const youtubeLinks = [];
     const youtubeTitles = [];
@@ -1024,25 +1026,275 @@ const ChapterManagement = () => {
       });
     }
 
-    setFormData({
+    // Extract values from chapter data with proper fallbacks
+    const courseTypeId = chapter.topic?.subject?.courseTypeId || chapter.module?.topic?.subject?.courseTypeId || '';
+    const courseId = chapter.topic?.subject?.courseId || chapter.module?.topic?.subject?.courseId || '';
+    const classId = chapter.topic?.subject?.classId || chapter.module?.topic?.subject?.classId || '';
+    const examId = chapter.topic?.subject?.examId || chapter.module?.topic?.subject?.examId || '';
+    const subjectId = chapter.topic?.subject?.subjectId || chapter.module?.topic?.subject?.id || '';
+    const topicId = chapter.topic?.id || chapter.module?.topic?.id || '';
+    const moduleId = chapter.moduleId || '';
+
+    // Set editing ID first
+    setEditingId(chapter.id);
+    setShowForm(true);
+    
+    // Store the original values to restore after dropdowns are populated
+    const originalValues = {
       name: chapter.name || '',
       description: chapter.description || '',
       displayOrder: chapter.displayOrder || '',
       isActive: chapter.isActive !== undefined ? chapter.isActive : true,
-      courseTypeId: chapter.topic?.subject?.courseTypeId || chapter.module?.topic?.subject?.courseTypeId || '',
-      courseId: chapter.topic?.subject?.courseId || chapter.module?.topic?.subject?.courseId || '',
-      classId: chapter.topic?.subject?.classId || chapter.module?.topic?.subject?.classId || '',
-      examId: chapter.topic?.subject?.examId || chapter.module?.topic?.subject?.examId || '',
-      subjectId: chapter.topic?.subject?.subjectId || chapter.module?.topic?.subject?.id || '',
-      topicId: chapter.topic?.id || chapter.module?.topic?.id || '',
-      moduleId: chapter.moduleId || '',
+      courseType: { id: courseTypeId },
+      course: { id: courseId },
+      class: { id: classId },
+      exam: { id: examId },
+      subjectId: subjectId,
+      topicId: topicId,
+      moduleId: moduleId,
       youtubeLinks: youtubeLinks,
       youtubeTitles: youtubeTitles,
       uploadedFiles: uploadedFiles,
       uploadedFileTitles: uploadedFileTitles
-    });
-    setEditingId(chapter.id);
-    setShowForm(true);
+    };
+    
+    // Initially set form data with available values
+    setFormData(originalValues);
+    
+    // Trigger course type change to populate related dropdowns
+    if (courseTypeId) {
+      // Create a modified version that doesn't clear the form data
+      const handleCourseTypeChangeForEdit = async (courseTypeId) => {
+        setFormData(prev => ({
+          ...prev,
+          courseType: { id: courseTypeId },
+          course: { id: '' },
+          class: { id: '' },
+          exam: { id: '' },
+          subjectId: '',
+          topicId: '',
+          moduleId: ''
+          // Don't clear name, description, displayOrder, isActive, youtubeLinks, etc.
+        }));
+        setFormFilteredCourses([]);
+        setFormFilteredClasses([]);
+        setFormFilteredExams([]);
+        setFormFilteredSubjects([]);
+        setFormFilteredTopics([]);
+        setFormFilteredModules([]);
+        
+        if (courseTypeId) {
+          try {
+            setLoadingStates(prev => ({ ...prev, courses: true }));
+            
+            // Fetch courses for this course type
+            const coursesData = await getCourses(token, courseTypeId, 0, 100, 'createdAt', 'desc');
+            
+            // Handle different response formats for courses
+            let coursesArray = [];
+            if (Array.isArray(coursesData)) {
+              coursesArray = coursesData;
+            } else if (coursesData && Array.isArray(coursesData.content)) {
+              coursesArray = coursesData.content;
+            } else if (coursesData && Array.isArray(coursesData.data)) {
+              coursesArray = coursesData.data;
+            } else if (coursesData && coursesData.courses && Array.isArray(coursesData.courses)) {
+              coursesArray = coursesData.courses;
+            } else {
+              console.warn('Unexpected courses data format (handleCourseTypeChangeForEdit):', coursesData);
+              coursesArray = [];
+            }
+            
+            // Keep only active courses
+            let normalizedCourses = coursesArray.filter(c => !!c.isActive);
+            normalizedCourses.sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0) || a.name.localeCompare(b.name));
+
+            setFormFilteredCourses(normalizedCourses);
+            
+          } catch (error) {
+            console.error('Error fetching courses:', error);
+            addNotification({
+              type: 'error',
+              message: `Failed to fetch courses: ${error.message}`,
+              duration: 5000
+            });
+            setFormFilteredCourses([]);
+          } finally {
+            setLoadingStates(prev => ({ ...prev, courses: false }));
+          }
+        }
+      };
+      
+      await handleCourseTypeChangeForEdit(courseTypeId);
+      
+      // Restore the original values after course type change
+      setFormData(prev => ({
+        ...prev,
+        ...originalValues
+      }));
+      
+      // Trigger course change to populate class/exam/subject/topic/module dropdowns
+      if (courseId) {
+        // Create a modified version of handleCourseChange that doesn't clear the form
+        const handleCourseChangeForEdit = async (courseId) => {
+          setFormData(prev => ({
+            ...prev,
+            course: { id: courseId },
+            class: { id: '' },
+            exam: { id: '' },
+            subjectId: '',
+            topicId: '',
+            moduleId: ''
+            // Don't clear name, description, displayOrder, isActive, youtubeLinks, etc.
+          }));
+          setFormFilteredClasses([]);
+          setFormFilteredExams([]);
+          setFormFilteredSubjects([]);
+          setFormFilteredTopics([]);
+          setFormFilteredModules([]);
+          
+          if (courseId) {
+            try {
+              setLoadingStates(prev => ({ ...prev, classes: true, exams: true, subjects: true }));
+              
+              // Fetch classes, exams, and subjects
+              const [classesData, examsData, subjectsData] = await Promise.all([
+                getClassesByCourse(token, courseId, 0, 100, 'createdAt', 'desc'),
+                getExamsByCourse(token, courseId, 0, 100, 'createdAt', 'desc'),
+                fetchSubjectLinkages(courseTypeId, courseId, null, null)
+              ]);
+              
+              // Handle different response formats for classes
+              let classesArray = [];
+              if (Array.isArray(classesData)) {
+                classesArray = classesData;
+              } else if (classesData && Array.isArray(classesData.content)) {
+                classesArray = classesData.content;
+              } else if (classesData && Array.isArray(classesData.data)) {
+                classesArray = classesData.data;
+              } else if (classesData && classesData.classes && Array.isArray(classesData.classes)) {
+                classesArray = classesData.classes;
+              } else {
+                console.warn('Unexpected classes data format (handleCourseChangeForEdit):', classesData);
+                classesArray = [];
+              }
+              
+              let normalizedClasses = classesArray.filter(cl => !!cl.isActive);
+              normalizedClasses.sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0) || a.name.localeCompare(b.name));
+
+              // Handle different response formats for exams
+              let examsArray = [];
+              if (Array.isArray(examsData)) {
+                examsArray = examsData;
+              } else if (examsData && Array.isArray(examsData.content)) {
+                examsArray = examsData.content;
+              } else if (examsData && Array.isArray(examsData.data)) {
+                examsArray = examsData.data;
+              } else if (examsData && examsData.exams && Array.isArray(examsData.exams)) {
+                examsArray = examsData.exams;
+              } else {
+                console.warn('Unexpected exams data format (handleCourseChangeForEdit):', examsData);
+                examsArray = [];
+              }
+              
+              let normalizedExams = examsArray.filter(ex => !!ex.isActive);
+              normalizedExams.sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0) || a.name.localeCompare(b.name));
+
+              // Handle subjects data
+              let subjectsArray = [];
+              if (Array.isArray(subjectsData)) {
+                subjectsArray = subjectsData;
+              } else if (subjectsData && Array.isArray(subjectsData.content)) {
+                subjectsArray = subjectsData.content;
+              } else if (subjectsData && Array.isArray(subjectsData.data)) {
+                subjectsArray = subjectsData.data;
+              } else {
+                console.warn('Unexpected subjects data format (handleCourseChangeForEdit):', subjectsData);
+                subjectsArray = [];
+              }
+              
+              setFormFilteredClasses(normalizedClasses);
+              setFormFilteredExams(normalizedExams);
+              setFormFilteredSubjects(subjectsArray);
+              
+              // Fetch topics for the selected subject
+              if (subjectId) {
+                try {
+                  setLoadingStates(prev => ({ ...prev, topics: true }));
+                  const topicsData = await getTopicsByLinkage(token, courseTypeId, subjectId);
+                  let topicsArray = [];
+                  if (Array.isArray(topicsData)) {
+                    topicsArray = topicsData;
+                  } else if (topicsData && Array.isArray(topicsData.content)) {
+                    topicsArray = topicsData.content;
+                  } else if (topicsData && Array.isArray(topicsData.data)) {
+                    topicsArray = topicsData.data;
+                  } else {
+                    console.warn('Unexpected topics data format (handleCourseChangeForEdit):', topicsData);
+                    topicsArray = [];
+                  }
+                  setFormFilteredTopics(topicsArray);
+                  
+                  // Fetch modules for the selected topic
+                  if (topicId) {
+                    try {
+                      setLoadingStates(prev => ({ ...prev, modules: true }));
+                      const modulesData = await getModulesByTopic(token, topicId, true);
+                      let modulesArray = [];
+                      if (Array.isArray(modulesData)) {
+                        modulesArray = modulesData;
+                      } else if (modulesData && Array.isArray(modulesData.content)) {
+                        modulesArray = modulesData.content;
+                      } else if (modulesData && Array.isArray(modulesData.data)) {
+                        modulesArray = modulesData.data;
+                      } else {
+                        console.warn('Unexpected modules data format (handleCourseChangeForEdit):', modulesData);
+                        modulesArray = [];
+                      }
+                      setFormFilteredModules(modulesArray);
+                    } catch (error) {
+                      console.error('Error fetching modules:', error);
+                      setFormFilteredModules([]);
+                    } finally {
+                      setLoadingStates(prev => ({ ...prev, modules: false }));
+                    }
+                  }
+                } catch (error) {
+                  console.error('Error fetching topics:', error);
+                  setFormFilteredTopics([]);
+                  setFormFilteredModules([]);
+                } finally {
+                  setLoadingStates(prev => ({ ...prev, topics: false }));
+                }
+              }
+              
+            } catch (error) {
+              console.error('Error in handleCourseChangeForEdit:', error);
+              addNotification({
+                type: 'error',
+                message: 'Failed to fetch classes, exams, and subjects',
+                duration: 5000
+              });
+              setFormFilteredClasses([]);
+              setFormFilteredExams([]);
+              setFormFilteredSubjects([]);
+              setFormFilteredTopics([]);
+              setFormFilteredModules([]);
+            } finally {
+              setLoadingStates(prev => ({ ...prev, classes: false, exams: false, subjects: false }));
+            }
+          }
+        };
+        
+        await handleCourseChangeForEdit(courseId);
+        
+        // Restore the original values after course change
+        setFormData(prev => ({
+          ...prev,
+          ...originalValues
+        }));
+      }
+    }
   };
 
   const handleDelete = useCallback(async (id) => {
@@ -1369,7 +1621,12 @@ const ChapterManagement = () => {
       {showForm && (
         <div className="form-section">
           <div className="form-header">
-            <h3>{editingId ? 'Edit Chapter' : 'Add New Chapter'}</h3>
+            <h3>
+              {editingId ? 'Edit Chapter (Read-Only)' : 'Add New Chapter'}
+              {editingId && (
+                <span className="badge badge-warning ml-2">Review Mode</span>
+              )}
+            </h3>
             <button 
               className="btn btn-outline btn-sm"
               onClick={resetForm}
@@ -1791,9 +2048,10 @@ const ChapterManagement = () => {
               <button 
                 type="submit" 
                 className="btn btn-primary"
-                disabled={loading}
+                disabled={loading || editingId}
+                title={editingId ? 'Edit functionality temporarily disabled - pending team decision' : ''}
               >
-                {loading ? 'Saving...' : (editingId ? 'Update Chapter' : 'Create Chapter')}
+                {loading ? 'Saving...' : (editingId ? 'Update Chapter (Disabled)' : 'Create Chapter')}
               </button>
               <button 
                 type="button" 
@@ -1803,6 +2061,13 @@ const ChapterManagement = () => {
               >
                 Cancel
               </button>
+              {editingId && (
+                <div className="form-warning">
+                  <small className="text-warning">
+                    ⚠️ Edit functionality is temporarily disabled. All values are populated for review, but changes cannot be saved until the team decides on the proper strategy.
+                  </small>
+                </div>
+              )}
             </div>
           </form>
         </div>
