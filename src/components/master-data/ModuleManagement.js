@@ -733,6 +733,12 @@ const ModuleManagement = () => {
   useEffect(() => {
     console.log('🔄 Form effect triggered - courseTypeId:', formData.courseType?.id);
     
+    // Skip this effect during edit mode to prevent clearing form data
+    if (editingId) {
+      console.log('🔄 Skipping form effect during edit mode');
+      return;
+    }
+    
     if (formData.courseType?.id) {
       console.log('🔄 Course type selected in form, fetching courses and master subjects');
       const courseTypeId = parseInt(formData.courseType.id);
@@ -753,10 +759,16 @@ const ModuleManagement = () => {
       setExams([]);
       setMasterSubjects([]);
     }
-  }, [formData.courseType?.id]);
+  }, [formData.courseType?.id, editingId]);
 
   useEffect(() => {
     console.log('🔄 Form effect - courseId:', formData.course?.id);
+    
+    // Skip this effect during edit mode to prevent clearing form data
+    if (editingId) {
+      console.log('🔄 Skipping form effect during edit mode');
+      return;
+    }
     
     if (formData.course?.id && formData.courseType?.id) {
       console.log('🔄 Course selected in form, fetching classes and exams');
@@ -783,13 +795,19 @@ const ModuleManagement = () => {
       setClasses([]);
       setExams([]);
     }
-  }, [formData.course?.id, formData.courseType?.id]);
+  }, [formData.course?.id, formData.courseType?.id, editingId]);
 
   useEffect(() => {
     console.log('🔄 Form effect - class/exam change triggered');
     console.log('🔄 Current formData.class?.id:', formData.class?.id);
     console.log('🔄 Current formData.exam?.id:', formData.exam?.id);
     console.log('🔄 Current formData.courseType?.id:', formData.courseType?.id);
+    
+    // Skip this effect during edit mode to prevent clearing form data
+    if (editingId) {
+      console.log('🔄 Skipping form effect during edit mode');
+      return;
+    }
     
     const courseTypeId = formData.courseType?.id;
     const isProfessionalCourse = courseTypeId === '3'; // Professional course type
@@ -827,7 +845,7 @@ const ModuleManagement = () => {
       console.log('🔄 No class, exam, or professional course selected, clearing subjects');
       setSubjectLinkages([]);
     }
-  }, [formData.class?.id, formData.exam?.id, formData.courseType?.id]);
+  }, [formData.class?.id, formData.exam?.id, formData.courseType?.id, editingId]);
 
 
   const resetForm = () => {
@@ -971,21 +989,193 @@ const ModuleManagement = () => {
     }
   };
 
-  const handleEdit = (module) => {
-    setFormData({
+  const handleEdit = async (module) => {
+    console.log('Editing module:', module);
+    
+    // Extract values from module data with proper fallbacks
+    const courseTypeId = module.topic?.subject?.course?.courseType?.id || '';
+    const courseId = module.topic?.subject?.course?.id || '';
+    const classId = module.topic?.subject?.class?.id || '';
+    const examId = module.topic?.subject?.exam?.id || '';
+    const subjectId = module.topic?.subject?.linkageId || module.topic?.subject?.id || '';
+    const topicId = module.topic?.id || '';
+    
+    console.log('Extracted values:', { courseTypeId, courseId, classId, examId, subjectId, topicId });
+    
+    // Set editing ID first
+    setEditingId(module.id);
+    setShowForm(true);
+    
+    // Set form data with all values immediately
+    const formData = {
       name: module.name,
       description: module.description || '',
       displayOrder: module.displayOrder || '',
-      isActive: module.isActive,
-      courseType: { id: module.topic?.subject?.course?.courseType?.id || '' },
-      course: { id: module.topic?.subject?.course?.id || '' },
-      class: { id: '' },
-      exam: { id: '' },
-      subjectId: module.topic?.subject?.linkageId || module.topic?.subject?.id || '',
-      topicId: module.topic?.id || ''
-    });
-    setEditingId(module.id);
-    setShowForm(true);
+      isActive: module.isActive !== undefined ? module.isActive : true,
+      courseType: { id: courseTypeId },
+      course: { id: courseId },
+      class: { id: classId },
+      exam: { id: examId },
+      subjectId: subjectId,
+      topicId: topicId
+    };
+    
+    console.log('Setting form data:', formData);
+    setFormData(formData);
+    
+    // Populate dropdowns without clearing form data
+    if (courseTypeId) {
+      try {
+        setLoadingStates(prev => ({ ...prev, courses: true }));
+        
+        // Fetch courses for this course type
+        const coursesData = await getCourses(token, courseTypeId, 0, 100, 'createdAt', 'desc');
+        
+        // Handle different response formats for courses
+        let coursesArray = [];
+        if (Array.isArray(coursesData)) {
+          coursesArray = coursesData;
+        } else if (coursesData && Array.isArray(coursesData.content)) {
+          coursesArray = coursesData.content;
+        } else if (coursesData && Array.isArray(coursesData.data)) {
+          coursesArray = coursesData.data;
+        } else if (coursesData && coursesData.courses && Array.isArray(coursesData.courses)) {
+          coursesArray = coursesData.courses;
+        } else {
+          console.warn('Unexpected courses data format:', coursesData);
+          coursesArray = [];
+        }
+        
+        // Keep only active courses
+        let normalizedCourses = coursesArray.filter(c => !!c.isActive);
+        normalizedCourses.sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0) || a.name.localeCompare(b.name));
+
+        setFilteredCourses(normalizedCourses);
+        setCourses(normalizedCourses);
+        
+        // If we have a courseId, fetch classes, exams, and subjects
+        if (courseId) {
+          try {
+            setLoadingStates(prev => ({ ...prev, classes: true, exams: true, subjects: true }));
+            
+            // Fetch classes, exams, and subjects
+            const [classesData, examsData, subjectsData] = await Promise.all([
+              getClassesByCourse(token, courseId, 0, 100, 'createdAt', 'desc'),
+              getExamsByCourse(token, courseId, 0, 100, 'createdAt', 'desc'),
+              fetchSubjectLinkages(courseTypeId, courseId, null, null)
+            ]);
+            
+            // Handle different response formats for classes
+            let classesArray = [];
+            if (Array.isArray(classesData)) {
+              classesArray = classesData;
+            } else if (classesData && Array.isArray(classesData.content)) {
+              classesArray = classesData.content;
+            } else if (classesData && Array.isArray(classesData.data)) {
+              classesArray = classesData.data;
+            } else if (classesData && classesData.classes && Array.isArray(classesData.classes)) {
+              classesArray = classesData.classes;
+            } else {
+              console.warn('Unexpected classes data format:', classesData);
+              classesArray = [];
+            }
+            
+            let normalizedClasses = classesArray.filter(cl => !!cl.isActive);
+            normalizedClasses.sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0) || a.name.localeCompare(b.name));
+
+            // Handle different response formats for exams
+            let examsArray = [];
+            if (Array.isArray(examsData)) {
+              examsArray = examsData;
+            } else if (examsData && Array.isArray(examsData.content)) {
+              examsArray = examsData.content;
+            } else if (examsData && Array.isArray(examsData.data)) {
+              examsArray = examsData.data;
+            } else if (examsData && examsData.exams && Array.isArray(examsData.exams)) {
+              examsArray = examsData.exams;
+            } else {
+              console.warn('Unexpected exams data format:', examsData);
+              examsArray = [];
+            }
+            
+            let normalizedExams = examsArray.filter(ex => !!ex.isActive);
+            normalizedExams.sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0) || a.name.localeCompare(b.name));
+
+            // Handle subjects data
+            let subjectsArray = [];
+            if (Array.isArray(subjectsData)) {
+              subjectsArray = subjectsData;
+            } else if (subjectsData && Array.isArray(subjectsData.content)) {
+              subjectsArray = subjectsData.content;
+            } else if (subjectsData && Array.isArray(subjectsData.data)) {
+              subjectsArray = subjectsData.data;
+            } else {
+              console.warn('Unexpected subjects data format:', subjectsData);
+              subjectsArray = [];
+            }
+            
+            setFilteredClasses(normalizedClasses);
+            setFilteredExams(normalizedExams);
+            setSubjectLinkages(subjectsArray);
+            setClasses(normalizedClasses);
+            setExams(normalizedExams);
+            
+            // If we have a subjectId, fetch topics
+            if (subjectId) {
+              try {
+                setLoadingStates(prev => ({ ...prev, topics: true }));
+                const topicsData = await getTopicsByLinkage(token, courseTypeId, subjectId);
+                let topicsArray = [];
+                if (Array.isArray(topicsData)) {
+                  topicsArray = topicsData;
+                } else if (topicsData && Array.isArray(topicsData.content)) {
+                  topicsArray = topicsData.content;
+                } else if (topicsData && Array.isArray(topicsData.data)) {
+                  topicsArray = topicsData.data;
+                } else {
+                  console.warn('Unexpected topics data format:', topicsData);
+                  topicsArray = [];
+                }
+                setTopics(topicsArray);
+              } catch (error) {
+                console.error('Error fetching topics:', error);
+                setTopics([]);
+              } finally {
+                setLoadingStates(prev => ({ ...prev, topics: false }));
+              }
+            }
+            
+          } catch (error) {
+            console.error('Error fetching classes, exams, and subjects:', error);
+            addNotification({
+              type: 'error',
+              message: 'Failed to fetch classes, exams, and subjects',
+              duration: 5000
+            });
+            setFilteredClasses([]);
+            setFilteredExams([]);
+            setSubjectLinkages([]);
+            setTopics([]);
+            setClasses([]);
+            setExams([]);
+          } finally {
+            setLoadingStates(prev => ({ ...prev, classes: false, exams: false, subjects: false }));
+          }
+        }
+        
+      } catch (error) {
+        console.error('Error fetching courses:', error);
+        addNotification({
+          type: 'error',
+          message: `Failed to fetch courses: ${error.message}`,
+          duration: 5000
+        });
+        setFilteredCourses([]);
+        setCourses([]);
+      } finally {
+        setLoadingStates(prev => ({ ...prev, courses: false }));
+      }
+    }
   };
 
 
@@ -1097,13 +1287,16 @@ const ModuleManagement = () => {
       const subjectLinkageId = parseInt(formData.subjectId);
       fetchTopicsBySubject(courseTypeId, subjectLinkageId);
       
-      // Clear topic selection when subject changes
-      setFormData(prev => ({
-        ...prev,
-        topicId: ''
-      }));
+      // Skip clearing topic selection during edit mode
+      if (!editingId) {
+        // Clear topic selection when subject changes
+        setFormData(prev => ({
+          ...prev,
+          topicId: ''
+        }));
+      }
     }
-  }, [formData.subjectId, formData.courseType?.id]);
+  }, [formData.subjectId, formData.courseType?.id, editingId]);
 
 
   return (
@@ -1144,7 +1337,12 @@ const ModuleManagement = () => {
       {showForm && (
         <div className="form-section">
           <div className="form-header">
-            <h3>{editingId ? 'Edit Module' : 'Add New Module'}</h3>
+            <h3>
+              {editingId ? 'Edit Module (Read-Only)' : 'Add New Module'}
+              {editingId && (
+                <span className="badge badge-warning ml-2">Review Mode</span>
+              )}
+            </h3>
             <button className="btn btn-outline btn-sm" onClick={resetForm}>
               Cancel
             </button>
@@ -1370,12 +1568,24 @@ const ModuleManagement = () => {
             </div>
             
             <div className="form-actions">
-              <button type="submit" className="btn btn-primary" disabled={loading}>
-                {loading ? 'Saving...' : (editingId ? 'Update Module' : 'Create Module')}
+              <button 
+                type="submit" 
+                className="btn btn-primary" 
+                disabled={loading || editingId}
+                title={editingId ? 'Edit functionality temporarily disabled - pending team decision' : ''}
+              >
+                {loading ? 'Saving...' : (editingId ? 'Update Module (Disabled)' : 'Create Module')}
               </button>
               <button type="button" className="btn btn-outline" onClick={resetForm}>
                 Cancel
               </button>
+              {editingId && (
+                <div className="form-warning">
+                  <small className="text-warning">
+                    ⚠️ Edit functionality is temporarily disabled. All values are populated for review, but changes cannot be saved until the team decides on the proper strategy.
+                  </small>
+                </div>
+              )}
             </div>
           </form>
         </div>
