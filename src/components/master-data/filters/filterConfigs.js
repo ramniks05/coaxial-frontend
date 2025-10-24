@@ -117,6 +117,94 @@ export const getSubjectFilterConfig = (masterData = {}) => [
 ];
 
 /**
+ * Get filter configuration for ChapterManagement
+ */
+export const getChapterFilterConfig = (masterData = {}) => [
+  {
+    field: 'courseTypeId',
+    type: 'select',
+    label: 'Course Type',
+    placeholder: 'All Course Types',
+    options: masterData.courseTypes?.map(ct => ({
+      value: ct.id,
+      label: ct.name
+    })) || []
+  },
+  {
+    field: 'courseId',
+    type: 'select',
+    label: 'Course',
+    placeholder: 'All Courses',
+    options: masterData.courses?.map(c => ({
+      value: c.id,
+      label: c.name
+    })) || []
+  },
+  {
+    field: 'classId',
+    type: 'select',
+    label: 'Class',
+    placeholder: 'All Classes',
+    options: masterData.classes?.map(cl => ({
+      value: cl.id,
+      label: cl.name
+    })) || [],
+    condition: (filters) => {
+      const courseTypeId = filters.courseTypeId;
+      if (!courseTypeId) return false;
+      const courseType = masterData.courseTypes?.find(ct => ct.id === parseInt(courseTypeId));
+      return courseType && courseType.name && courseType.name.toLowerCase().includes('academic');
+    }
+  },
+  {
+    field: 'examId',
+    type: 'select',
+    label: 'Exam',
+    placeholder: 'All Exams',
+    options: masterData.exams?.map(e => ({
+      value: e.id,
+      label: e.name
+    })) || [],
+    condition: (filters) => {
+      const courseTypeId = filters.courseTypeId;
+      if (!courseTypeId) return false;
+      const courseType = masterData.courseTypes?.find(ct => ct.id === parseInt(courseTypeId));
+      return courseType && courseType.name && courseType.name.toLowerCase().includes('competitive');
+    }
+  },
+  {
+    field: 'subjectId',
+    type: 'select',
+    label: 'Subject',
+    placeholder: 'All Subjects',
+    options: masterData.subjects?.map(s => ({
+      value: s.linkageId || s.id,
+      label: s.subjectName || s.name
+    })) || []
+  },
+  {
+    field: 'topicId',
+    type: 'select',
+    label: 'Topic',
+    placeholder: 'All Topics',
+    options: masterData.topics?.map(t => ({
+      value: t.id,
+      label: t.name
+    })) || []
+  },
+  {
+    field: 'moduleId',
+    type: 'select',
+    label: 'Module',
+    placeholder: 'All Modules',
+    options: masterData.modules?.map(m => ({
+      value: m.id,
+      label: m.name
+    })) || []
+  }
+];
+
+/**
  * Get filter configuration for TopicManagement
  */
 export const getTopicFilterConfig = (masterData = {}) => [
@@ -262,93 +350,6 @@ export const getModuleFilterConfig = (masterData = {}) => [
   }
 ];
 
-/**
- * Get filter configuration for ChapterManagement
- */
-export const getChapterFilterConfig = (masterData = {}) => [
-  {
-    field: 'courseTypeId',
-    type: 'select',
-    label: 'Course Type',
-    placeholder: 'All Course Types',
-    options: masterData.courseTypes?.map(ct => ({
-      value: ct.id,
-      label: ct.name
-    })) || []
-  },
-  {
-    field: 'courseId',
-    type: 'select',
-    label: 'Course',
-    placeholder: 'All Courses',
-    options: masterData.courses?.map(c => ({
-      value: c.id,
-      label: c.name
-    })) || []
-  },
-  {
-    field: 'classId',
-    type: 'select',
-    label: 'Class',
-    placeholder: 'All Classes',
-    options: masterData.classes?.map(c => ({
-      value: c.id,
-      label: c.name
-    })) || [],
-    condition: (filters) => {
-      const courseTypeId = filters.courseTypeId;
-      if (!courseTypeId) return false;
-      const courseType = masterData.courseTypes?.find(ct => ct.id === parseInt(courseTypeId));
-      return courseType && courseType.name && courseType.name.toLowerCase().includes('academic');
-    }
-  },
-  {
-    field: 'examId',
-    type: 'select',
-    label: 'Exam',
-    placeholder: 'All Exams',
-    options: masterData.exams?.map(e => ({
-      value: e.id,
-      label: e.name
-    })) || [],
-    condition: (filters) => {
-      const courseTypeId = filters.courseTypeId;
-      if (!courseTypeId) return false;
-      const courseType = masterData.courseTypes?.find(ct => ct.id === parseInt(courseTypeId));
-      return courseType && courseType.name && courseType.name.toLowerCase().includes('competitive');
-    }
-  },
-  {
-    field: 'subjectId',
-    type: 'select',
-    label: 'Subject',
-    placeholder: 'All Subjects',
-    options: masterData.subjects?.map(s => ({
-      value: s.linkageId || s.id,
-      label: s.subjectName || s.name
-    })) || []
-  },
-  {
-    field: 'topicId',
-    type: 'select',
-    label: 'Topic',
-    placeholder: 'All Topics',
-    options: masterData.topics?.map(t => ({
-      value: t.id,
-      label: t.name
-    })) || []
-  },
-  {
-    field: 'moduleId',
-    type: 'select',
-    label: 'Module',
-    placeholder: 'All Modules',
-    options: masterData.modules?.map(m => ({
-      value: m.id,
-      label: m.name
-    })) || []
-  }
-];
 
 /**
  * Get initial filter state for a component

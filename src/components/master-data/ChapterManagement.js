@@ -106,15 +106,16 @@ const ChapterManagement = () => {
   const [editingId, setEditingId] = useState(null);
   const [loading, setLoading] = useState(false);
   
+  
+  
+  
   // Fetch data function for filters
   const fetchDataWithFilters = useCallback(async (filters) => {
     if (!token) {
-      console.log('🔄 No token available');
       return [];
     }
     
     try {
-      console.log('🔄 fetchDataWithFilters called with:', filters);
       const apiParams = {
         courseTypeId: filters.courseTypeId || '',
         courseId: filters.courseId || '',
@@ -124,10 +125,8 @@ const ChapterManagement = () => {
         topicId: filters.topicId || '',
         moduleId: filters.moduleId || ''
       };
-      console.log('🔄 API params:', apiParams);
       
       const data = await getChaptersCombinedFilter(token, apiParams);
-      console.log('🔄 Raw API response:', data);
       
       // Handle different response structures
       let filteredData = [];
@@ -144,7 +143,6 @@ const ChapterManagement = () => {
         filteredData = [];
       }
       
-      console.log('🔄 Processed filtered data:', filteredData);
       
       return filteredData;
     } catch (error) {
@@ -162,21 +160,16 @@ const ChapterManagement = () => {
 
   // Direct filter application function
   const applyFiltersDirect = useCallback(async (filtersToApply) => {
-    console.log('🔄 applyFiltersDirect called with:', filtersToApply);
     
     if (fetchingChaptersRef.current) {
-      console.log('🔄 Already fetching chapters, skipping...');
       return;
     }
 
     try {
       fetchingChaptersRef.current = true;
       setLoadingStates(prev => ({ ...prev, chapters: true }));
-      console.log('🔄 Calling fetchDataWithFilters...');
       const filteredData = await fetchDataWithFilters(filtersToApply);
-      console.log('🔄 Filtered data received:', filteredData);
       setCombinedChapters(filteredData || []);
-      console.log('🔄 Combined chapters updated with:', filteredData?.length || 0, 'items');
       return filteredData;
     } catch (error) {
       console.error('Error applying filters directly:', error);
@@ -196,29 +189,20 @@ const ChapterManagement = () => {
   const [filteredTopics, setFilteredTopics] = useState([]);
   const [filteredModules, setFilteredModules] = useState([]);
 
-  // Filter state and handlers
-  const initialFilters = getInitialFilters('chapter');
-  const filterConfig = getChapterFilterConfig({ 
-    courseTypes, 
-    courses: filteredCourses, 
-    classes: filteredClasses, 
+  // Filter configuration
+  const filterConfig = getChapterFilterConfig({
+    courseTypes,
+    courses: filteredCourses,
+    classes: filteredClasses,
     exams: filteredExams,
     subjects: subjectLinkages,
     topics,
-    modules 
+    modules
   });
+
+  // Filter state and handlers
+  const initialFilters = getInitialFilters('chapter');
   
-  console.log('🔄 ChapterManagement Debug:', {
-    filterConfig: filterConfig,
-    filterConfigLength: filterConfig?.length,
-    courseTypes: courseTypes?.length,
-    filteredCourses: filteredCourses?.length,
-    filteredClasses: filteredClasses?.length,
-    filteredExams: filteredExams?.length,
-    subjectLinkages: subjectLinkages?.length,
-    topics: topics?.length,
-    modules: modules?.length
-  });
 
   // Filter management
   const {
@@ -245,13 +229,7 @@ const ChapterManagement = () => {
   const fetchChaptersInProgressRef = useRef(false);
   const chaptersAbortRef = useRef(null);
   const courseTypesAbortRef = useRef(null);
-  const courseTypesCacheRef = useRef(null);
-  const didMountCourseType = useRef(false);
-  const didMountCourse = useRef(false);
   const initialLoadDoneRef = useRef(false);
-  const didMountClass = useRef(false);
-  const didMountExam = useRef(false);
-  const didMountActive = useRef(false);
 
   // File upload states
   const [youtubeLinkInput, setYoutubeLinkInput] = useState('');
@@ -269,49 +247,6 @@ const ChapterManagement = () => {
   const [fileInputError, setFileInputError] = useState('');
   const [uploadedFileObjects, setUploadedFileObjects] = useState({});
 
-  // Load initial chapters data with filters
-  useEffect(() => {
-    const loadInitialChapters = async () => {
-      if (token) {
-        try {
-          console.log('🔄 Loading initial chapters with filters:', initialFilters);
-          setLoadingStates(prev => ({ ...prev, chapters: true }));
-          const initialData = await fetchDataWithFilters(initialFilters);
-          console.log('🔄 Initial chapters data received:', initialData);
-          
-          // If no data from filters, try loading all chapters as fallback
-          if (!initialData || initialData.length === 0) {
-            console.log('🔄 No data from filters, trying fallback...');
-            try {
-              const fallbackData = await getChaptersCombinedFilter(token, { active: true });
-              console.log('🔄 Fallback data:', fallbackData);
-              let fallbackChapters = [];
-              if (Array.isArray(fallbackData)) {
-                fallbackChapters = fallbackData;
-              } else if (fallbackData && Array.isArray(fallbackData.content)) {
-                fallbackChapters = fallbackData.content;
-              } else if (fallbackData && Array.isArray(fallbackData.data)) {
-                fallbackChapters = fallbackData.data;
-              }
-              setCombinedChapters(fallbackChapters);
-            } catch (fallbackError) {
-              console.error('Fallback also failed:', fallbackError);
-              setCombinedChapters([]);
-            }
-          } else {
-            setCombinedChapters(initialData);
-          }
-        } catch (error) {
-          console.error('Error loading initial chapters:', error);
-          setCombinedChapters([]);
-        } finally {
-          setLoadingStates(prev => ({ ...prev, chapters: false }));
-        }
-      }
-    };
-
-    loadInitialChapters();
-  }, [token, fetchDataWithFilters]);
 
   // Track previous course type to detect actual changes
   const prevCourseTypeRef = useRef(null);
@@ -373,15 +308,33 @@ const ChapterManagement = () => {
     }
   }, [filters.courseId, handleFilterChange]);
 
+  // Define fetchCoursesByCourseType before using it
+  const fetchCoursesByCourseType = useCallback(async (courseTypeId) => {
+    if (!courseTypeId) {
+      setFilteredCourses([]);
+      return;
+    }
+
+    try {
+      const data = await getCourses(token, courseTypeId, 0, 100, 'name', 'asc');
+
+      const courses = Array.isArray(data) ? data : (data?.content || data?.data || []);
+      setFilteredCourses(courses);
+    } catch (error) {
+      console.error('Error fetching courses by course type:', error);
+      setFilteredCourses([]);
+      addNotification({
+        type: 'error',
+        message: 'Failed to load courses',
+        duration: 3000
+      });
+    }
+  }, [token, addNotification]);
+
   // Handle course type changes - fetch courses
   useEffect(() => {
-    console.log('🔄 Course type effect triggered:', {
-      courseTypeId: filters.courseTypeId,
-      fetchingCoursesRef: fetchingCoursesRef.current
-    });
     
     if (filters.courseTypeId && !fetchingCoursesRef.current) {
-      console.log('🔄 Fetching courses for course type:', filters.courseTypeId);
       fetchingCoursesRef.current = true;
       fetchCoursesByCourseType(filters.courseTypeId).finally(() => {
         fetchingCoursesRef.current = false;
@@ -430,56 +383,7 @@ const ChapterManagement = () => {
   }, [filters.topicId]);
 
   // API fetch functions
-  const fetchData = useCallback(async () => {
-    try {
-      const data = await getCourseTypesCached(token);
-      setCourseTypes(Array.isArray(data) ? data : (data?.content || data?.data || []));
-    } catch (error) {
-      console.error('Error fetching course types:', error);
-      addNotification({
-        type: 'error',
-        message: 'Failed to load course types',
-        duration: 3000
-      });
-    }
-  }, [token, addNotification]);
 
-  // Load initial data on component mount
-  useEffect(() => {
-    if (token) {
-      fetchData();
-    }
-  }, [token, fetchData]);
-
-  const fetchCoursesByCourseType = useCallback(async (courseTypeId) => {
-    if (!courseTypeId) {
-      console.log('🔄 No courseTypeId provided, clearing courses');
-      setFilteredCourses([]);
-      return;
-    }
-
-    try {
-      console.log('🔄 Fetching courses for courseTypeId:', courseTypeId);
-      const data = await getCourses(token, {
-        courseTypeId,
-        page: 0,
-        size: 100,
-        sortBy: 'name',
-        sortDir: 'asc'
-      });
-      console.log('🔄 Courses data received:', data);
-      const coursesArray = Array.isArray(data) ? data : (data?.content || data?.data || []);
-      console.log('🔄 Processed courses array:', coursesArray);
-      setFilteredCourses(coursesArray);
-    } catch (error) {
-      console.error('Error fetching courses:', error);
-      addNotification({
-        type: 'error',
-        message: 'Failed to load courses',
-        duration: 3000
-      });
-    }
-  }, [token, addNotification]);
 
   // Missing function definitions
   const fetchClasses = useCallback(async (courseTypeId, courseId) => {
@@ -490,13 +394,7 @@ const ChapterManagement = () => {
 
     try {
       if (isAcademicCourseType(courseTypeId)) {
-        const classesData = await getClassesByCourse(token, {
-          courseId,
-          page: 0,
-          size: 100,
-          sortBy: 'name',
-          sortDir: 'asc'
-        });
+        const classesData = await getClassesByCourse(token, courseId, 0, 100, 'name', 'asc');
         setFilteredClasses(Array.isArray(classesData) ? classesData : (classesData?.content || classesData?.data || []));
       }
     } catch (error) {
@@ -513,13 +411,7 @@ const ChapterManagement = () => {
 
     try {
       if (isCompetitiveCourseType(courseTypeId)) {
-        const examsData = await getExamsByCourse(token, {
-          courseId,
-          page: 0,
-          size: 100,
-          sortBy: 'name',
-          sortDir: 'asc'
-        });
+        const examsData = await getExamsByCourse(token, courseId, 0, 100, 'name', 'asc');
         setFilteredExams(Array.isArray(examsData) ? examsData : (examsData?.content || examsData?.data || []));
       }
     } catch (error) {
@@ -610,24 +502,12 @@ const ChapterManagement = () => {
 
     try {
       if (isAcademicCourseType(courseTypeId)) {
-        const classesData = await getClassesByCourse(token, {
-          courseId,
-          page: 0,
-          size: 100,
-          sortBy: 'name',
-          sortDir: 'asc'
-        });
+        const classesData = await getClassesByCourse(token, courseId, 0, 100, 'name', 'asc');
         setFilteredClasses(Array.isArray(classesData) ? classesData : (classesData?.content || classesData?.data || []));
       }
 
       if (isCompetitiveCourseType(courseTypeId)) {
-        const examsData = await getExamsByCourse(token, {
-          courseId,
-          page: 0,
-          size: 100,
-          sortBy: 'name',
-          sortDir: 'asc'
-        });
+        const examsData = await getExamsByCourse(token, courseId, 0, 100, 'name', 'asc');
         setFilteredExams(Array.isArray(examsData) ? examsData : (examsData?.content || examsData?.data || []));
       }
     } catch (error) {
@@ -661,7 +541,7 @@ const ChapterManagement = () => {
 
   const fetchSubjectLinkages = useCallback(async (courseTypeId, courseId, classId, examId) => {
     if (!courseTypeId || !courseId) {
-      setFilteredSubjects([]);
+      setSubjectLinkages([]);
       return;
     }
 
@@ -678,7 +558,7 @@ const ChapterManagement = () => {
       };
 
       const data = await getAllSubjectLinkages(token, params);
-      setFilteredSubjects(Array.isArray(data) ? data : (data?.content || data?.data || []));
+      setSubjectLinkages(Array.isArray(data) ? data : (data?.content || data?.data || []));
     } catch (error) {
       console.error('Error fetching subject linkages:', error);
       addNotification({
@@ -691,14 +571,14 @@ const ChapterManagement = () => {
 
   const fetchTopicsBySubject = useCallback(async (subjectId, courseTypeId) => {
     if (!subjectId || !courseTypeId) {
-      setFilteredTopics([]);
+      setTopics([]);
       return;
     }
 
     try {
       const relationshipId = parseInt(subjectId);
       const data = await getTopicsByLinkage(token, courseTypeId, relationshipId);
-      setFilteredTopics(Array.isArray(data) ? data : (data?.content || data?.data || []));
+      setTopics(Array.isArray(data) ? data : (data?.content || data?.data || []));
     } catch (error) {
       console.error('Error fetching topics:', error);
       addNotification({
@@ -711,13 +591,13 @@ const ChapterManagement = () => {
 
   const fetchModulesByTopic = useCallback(async (topicId) => {
     if (!topicId) {
-      setFilteredModules([]);
+      setModules([]);
       return;
     }
 
     try {
       const data = await getModulesByTopic(token, topicId, true);
-      setFilteredModules(Array.isArray(data) ? data : (data?.content || data?.data || []));
+      setModules(Array.isArray(data) ? data : (data?.content || data?.data || []));
     } catch (error) {
       console.error('Error fetching modules:', error);
       addNotification({
@@ -741,33 +621,24 @@ const ChapterManagement = () => {
   // Initial load effect
   useEffect(() => {
     if (initialLoadDoneRef.current) {
-      console.log('Initial load already done, skipping...');
       return;
     }
-    
-    console.log('=== INITIAL LOAD START ===');
-    console.log('Component mounted, starting initial data fetch...');
     
     const initializeData = async () => {
       try {
         initialLoadDoneRef.current = true;
         
         // Fetch course types
-        console.log('Step 1: Fetching course types...');
         const courseTypesData = await getCourseTypesCached(token);
         const courseTypesList = Array.isArray(courseTypesData) ? courseTypesData : (courseTypesData?.content || courseTypesData?.data || []);
         setCourseTypes(courseTypesList);
-        console.log('Course types loaded:', courseTypesList.length, 'items');
+        
+        // Fetch initial courses for filter dropdown
+        const coursesData = await getCourses(token, null, 0, 100, 'name', 'asc');
+        const coursesList = Array.isArray(coursesData) ? coursesData : (coursesData?.content || coursesData?.data || []);
+        setCourses(coursesList);
         
         // Fetch chapters with initial filters (no filters = load all)
-        console.log('Step 2: Fetching chapters on initial load...');
-        console.log('Calling getChaptersCombinedFilter with params:', {
-          active: true, 
-          page: 0, 
-          size: 100,
-          sortBy: 'createdAt',
-          sortDir: 'desc'
-        });
         
         const chaptersData = await getChaptersCombinedFilter(token, { 
           active: true, 
@@ -777,13 +648,9 @@ const ChapterManagement = () => {
           sortDir: 'desc'
         });
         
-        console.log('Raw chapters API response:', chaptersData);
         const chaptersList = Array.isArray(chaptersData) ? chaptersData : (chaptersData?.content || chaptersData?.data || []);
-        console.log('Initial chapters loaded:', chaptersList.length, 'items');
-        console.log('Chapters data:', chaptersList);
         setCombinedChapters(chaptersList || []);
         
-        console.log('=== INITIAL LOAD COMPLETE ===');
       } catch (error) {
         console.error('Error in initial load:', error);
         addNotification({
@@ -1458,7 +1325,6 @@ const ChapterManagement = () => {
   };
 
   const handlePreviewDocumentFromList = (documentData) => {
-    console.log('ChapterManagement - Document preview data received:', documentData);
     setSelectedDocumentData(documentData);
     setDocumentPreviewModal(true);
   };
@@ -2014,12 +1880,6 @@ const ChapterManagement = () => {
             {(() => {
               const displayChapters = combinedChapters.length > 0 ? combinedChapters : chapters;
               
-              console.log('🔄 Rendering chapters:', {
-                combinedChapters: combinedChapters.length,
-                chapters: chapters.length,
-                displayChapters: displayChapters.length,
-                displayChaptersData: displayChapters
-              });
               
               // Group chapters by course type
               const academicChapters = displayChapters.filter(chapter => {
@@ -2037,11 +1897,6 @@ const ChapterManagement = () => {
                 return courseTypeId === 3 || courseTypeId === '3';
               });
               
-              console.log('🔄 Grouped chapters:', {
-                academic: academicChapters.length,
-                competitive: competitiveChapters.length,
-                professional: professionalChapters.length
-              });
 
               const renderChapterCard = (chapter) => (
                 <ChapterListCard
