@@ -27,7 +27,7 @@ const FilterPresets = ({
 
   const handleDeletePreset = (presetId) => {
     // This would need to be implemented in the parent component
-    console.log('Delete preset:', presetId);
+    
   };
 
   const hasActiveFilters = () => {

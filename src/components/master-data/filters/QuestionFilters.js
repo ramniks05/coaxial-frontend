@@ -234,7 +234,7 @@ const QuestionFilters = ({ onBackToDashboard, onViewDetails }) => {
         }
       });
 
-      console.log('Applying filters:', requestPayload);
+      
 
       // Make API call to advanced filter endpoint via API utils (hits 8080)
       const response = await apiPost('/api/admin/master-data/questions/filter', requestPayload, token);
@@ -357,7 +357,7 @@ const QuestionFilters = ({ onBackToDashboard, onViewDetails }) => {
             onPageSizeChange={(size) => {
               handleFilterChange('searchDate', { size, page: 0 });
             }}
-            onViewDetails={onViewDetails || ((q) => console.log('View details clicked:', q))}
+            onViewDetails={onViewDetails}
             displayMode="table"
           />
         </div>

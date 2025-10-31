@@ -130,14 +130,7 @@ const FilterPanel = ({
 
   const activeFilterCount = getActiveFilterCount();
 
-  console.log('🔄 FilterPanel Debug:', {
-    filters: filters,
-    filterConfig: filterConfig,
-    filterConfigLength: filterConfig?.length,
-    masterData: masterData,
-    hasChanges: hasChanges,
-    loading: loading
-  });
+  
 
   return (
     <div className="filter-panel">

@@ -235,9 +235,7 @@ const AcademicLevelFilters = ({ filters, onFilterChange, isLoading }) => {
 
   // Debug logging
   useEffect(() => {
-    console.log('AcademicLevelFilters - courseTypes:', courseTypes);
-    console.log('AcademicLevelFilters - loadingStates:', loadingStates);
-    console.log('AcademicLevelFilters - filters:', filters);
+    
   }, [courseTypes, loadingStates, filters]);
 
   // Clear dependent dropdowns when parent changes

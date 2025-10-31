@@ -38,7 +38,7 @@ const QuestionResults = ({
 
   // Handle bulk actions
   const handleBulkAction = (action) => {
-    console.log(`Bulk action: ${action}`, selectedQuestions);
+    
     // Implementation would depend on the specific action
   };
 
@@ -191,7 +191,7 @@ const QuestionResults = ({
                 className="btn btn-primary"
                 onClick={() => {
                   // Reset all filters
-                  console.log('Reset filters');
+                  
                 }}
               >
                 Clear All Filters

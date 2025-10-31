@@ -279,7 +279,7 @@ export const getClasses = async (token, courseTypeId = null, courseId = null, ab
   
   const endpoint = `${API_BASE}/api/admin/master-data/classes?${params}`;
   
-  console.log('Fetching classes from:', endpoint);
+  
   
   const response = await fetch(endpoint, {
     headers: { 
@@ -288,7 +288,7 @@ export const getClasses = async (token, courseTypeId = null, courseId = null, ab
     signal: abortSignal
   });
   
-  console.log('Get classes response status:', response.status);
+  
   
   if (!response.ok) {
     const errorText = await response.text();
@@ -297,7 +297,6 @@ export const getClasses = async (token, courseTypeId = null, courseId = null, ab
   }
   
   const data = await response.json();
-  console.log('Classes data:', data);
   return data;
 };
 
@@ -416,12 +415,11 @@ export const getAllSubjectLinkages = async (token, {
   
   // Use the subject linkages filter endpoint
   const endpoint = `/api/admin/subjects/subject-linkages/filter${params.toString() ? `?${params.toString()}` : ''}`;
-  console.log('Fetching subjects from:', endpoint);
+  
   
   try {
     const response = await apiGet(endpoint, token);
     const data = await response.json();
-    console.log('Subjects data:', data);
     return data;
   } catch (error) {
     console.error('Error fetching subjects:', error);
@@ -934,8 +932,7 @@ export const getTopics = async (token, classSubjectId = null, examSubjectId = nu
   
   const url = `${API_BASE}/api/admin/master-data/topics?${params}`;
   
-  console.log('Fetching topics from URL:', url);
-  console.log('Filters - ClassSubject:', classSubjectId, 'ExamSubject:', examSubjectId, 'CourseSubject:', courseSubjectId, 'IsActive:', isActive);
+  
     
   const response = await fetch(url, {
     headers: { 
@@ -943,7 +940,7 @@ export const getTopics = async (token, classSubjectId = null, examSubjectId = nu
     }
   });
   
-  console.log('Topics response status:', response.status);
+  
   
   if (!response.ok) {
     const errorText = await response.text();
@@ -952,7 +949,6 @@ export const getTopics = async (token, classSubjectId = null, examSubjectId = nu
   }
   
   const data = await response.json();
-  console.log('Topics data:', data);
   return data;
 };
 
@@ -1053,8 +1049,7 @@ export const getTopicsByLinkage = async (token, courseTypeId, relationshipId, ac
   
   const url = `${API_BASE}/api/admin/master-data/topics/by-linkage?${params}`;
   
-  console.log('Fetching topics by linkage from URL:', url);
-  console.log('Filters - CourseType:', courseTypeId, 'RelationshipId:', relationshipId, 'Active:', active);
+  
     
   const response = await fetch(url, {
     headers: { 
@@ -1062,7 +1057,7 @@ export const getTopicsByLinkage = async (token, courseTypeId, relationshipId, ac
     }
   });
   
-  console.log('Topics by linkage response status:', response.status);
+  
   
   if (!response.ok) {
     const errorText = await response.text();
@@ -1071,7 +1066,6 @@ export const getTopicsByLinkage = async (token, courseTypeId, relationshipId, ac
   }
   
   const data = await response.json();
-  console.log('Topics by linkage data:', data);
   return data;
 };
 
@@ -1119,9 +1113,7 @@ export const getTopicsCombinedFilter = async (token, filters = {}, usePublicEndp
     
   const endpoint = `${baseEndpoint}${queryParams.toString() ? '?' + queryParams.toString() : ''}`;
   
-  console.log('Fetching topics with combined filter at endpoint:', endpoint);
-  console.log('Filter parameters:', filters);
-  console.log('Using public endpoint:', usePublicEndpoint);
+  
   
   // Prepare headers - public endpoint doesn't require authentication
   const headers = {};
@@ -1135,7 +1127,7 @@ export const getTopicsCombinedFilter = async (token, filters = {}, usePublicEndp
     headers: headers
   });
   
-  console.log('Combined filter topics response status:', response.status);
+  
   
   if (!response.ok) {
     const errorText = await response.text();
@@ -1144,7 +1136,6 @@ export const getTopicsCombinedFilter = async (token, filters = {}, usePublicEndp
   }
   
   const data = await response.json();
-  console.log('Combined filter topics data:', data);
   
   // Handle different response structures
   if (Array.isArray(data)) {

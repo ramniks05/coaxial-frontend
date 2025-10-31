@@ -230,6 +230,33 @@ const ChapterManagement = () => {
   const chaptersAbortRef = useRef(null);
   const courseTypesAbortRef = useRef(null);
   const initialLoadDoneRef = useRef(false);
+  const lastFilterSubjectsKeyRef = useRef('');
+  const lastFormClassesExamsKeyRef = useRef('');
+
+  // Local helper to fetch filter subjects (declared early to avoid TDZ issues)
+  const doFetchFilterSubjects = useCallback(async (courseTypeId, courseId, classId, examId) => {
+    if (!courseTypeId || !courseId) {
+      setSubjectLinkages([]);
+      return;
+    }
+    try {
+      const params = {
+        courseTypeId,
+        courseId,
+        classId: classId || null,
+        examId: examId || null,
+        page: 0,
+        size: 100,
+        sortBy: 'subjectName',
+        sortDir: 'asc'
+      };
+      const data = await getAllSubjectLinkages(token, params);
+      setSubjectLinkages(Array.isArray(data) ? data : (data?.content || data?.data || []));
+    } catch (error) {
+      console.error('Error fetching subject linkages:', error);
+      addNotification({ type: 'error', message: 'Failed to load subjects', duration: 3000 });
+    }
+  }, [token, addNotification]);
 
   // File upload states
   const [youtubeLinkInput, setYoutubeLinkInput] = useState('');
@@ -255,9 +282,11 @@ const ChapterManagement = () => {
   // Track API calls to prevent duplicates
   const fetchingCoursesRef = useRef(false);
   const fetchingClassesExamsRef = useRef(false);
+  const lastFilterClassesExamsKeyRef = useRef('');
   const fetchingSubjectsRef = useRef(false);
   const fetchingTopicsRef = useRef(false);
   const fetchingModulesRef = useRef(false);
+  const lastFilterCoursesKeyRef = useRef('');
 
   // Clear dependent filters when course type actually changes
   useEffect(() => {
@@ -331,10 +360,93 @@ const ChapterManagement = () => {
     }
   }, [token, addNotification]);
 
-  // Handle course type changes - fetch courses
+  // Fetch courses specifically for the data entry form
+  const fetchCoursesForForm = useCallback(async (courseTypeId) => {
+    if (!courseTypeId) {
+      setFormFilteredCourses([]);
+      return;
+    }
+
+    try {
+      const ctId = typeof courseTypeId === 'string' ? parseInt(courseTypeId) : courseTypeId;
+      const data = await getCourses(token, ctId, 0, 100, 'name', 'asc');
+      const courses = Array.isArray(data) ? data : (data?.content || data?.data || []);
+      setFormFilteredCourses(courses);
+    } catch (_) {
+      setFormFilteredCourses([]);
+    }
+  }, [token]);
+
+  // Early-declared helper to fetch classes/exams for filters to avoid TDZ
+  const doFetchFilterClassesExams = useCallback(async (courseTypeId, courseId) => {
+    if (!courseTypeId || !courseId) {
+      setFilteredClasses([]);
+      setFilteredExams([]);
+      return;
+    }
+    try {
+      if (isAcademicCourseType(courseTypeId)) {
+        const classesData = await getClassesByCourse(token, courseId, 0, 100, 'name', 'asc');
+        setFilteredClasses(Array.isArray(classesData) ? classesData : (classesData?.content || classesData?.data || []));
+      } else {
+        setFilteredClasses([]);
+      }
+      if (isCompetitiveCourseType(courseTypeId)) {
+        const examsData = await getExamsByCourse(token, courseId, 0, 100, 'name', 'asc');
+        setFilteredExams(Array.isArray(examsData) ? examsData : (examsData?.content || examsData?.data || []));
+      } else {
+        setFilteredExams([]);
+      }
+    } catch (error) {
+      console.error('Error fetching classes/exams:', error);
+      addNotification({ type: 'error', message: 'Failed to load classes/exams', duration: 3000 });
+    }
+  }, [token, addNotification]);
+
+  // Form-specific fetchers
+  const fetchClassesForForm = useCallback(async (courseId) => {
+    if (!courseId) {
+      setFormFilteredClasses([]);
+      return;
+    }
+    try {
+      const id = typeof courseId === 'string' ? parseInt(courseId) : courseId;
+      const classesData = await getClassesByCourse(token, id, 0, 100, 'name', 'asc');
+      const list = Array.isArray(classesData) ? classesData : (classesData?.content || classesData?.data || []);
+      setFormFilteredClasses(list);
+    } catch (_) {
+      setFormFilteredClasses([]);
+    }
+  }, [token]);
+
+  const fetchExamsForForm = useCallback(async (courseId) => {
+    if (!courseId) {
+      setFormFilteredExams([]);
+      return;
+    }
+    try {
+      const id = typeof courseId === 'string' ? parseInt(courseId) : courseId;
+      const examsData = await getExamsByCourse(token, id, 0, 100, 'name', 'asc');
+      const list = Array.isArray(examsData) ? examsData : (examsData?.content || examsData?.data || []);
+      setFormFilteredExams(list);
+    } catch (_) {
+      setFormFilteredExams([]);
+    }
+  }, [token]);
+
+  // Handle course type changes - fetch courses (dedup)
   useEffect(() => {
-    
-    if (filters.courseTypeId && !fetchingCoursesRef.current) {
+    if (!filters.courseTypeId) {
+      lastFilterCoursesKeyRef.current = '';
+      setFilteredCourses([]);
+      return;
+    }
+    const key = String(filters.courseTypeId);
+    if (lastFilterCoursesKeyRef.current === key) {
+      return;
+    }
+    lastFilterCoursesKeyRef.current = key;
+    if (!fetchingCoursesRef.current) {
       fetchingCoursesRef.current = true;
       fetchCoursesByCourseType(filters.courseTypeId).finally(() => {
         fetchingCoursesRef.current = false;
@@ -342,25 +454,38 @@ const ChapterManagement = () => {
     }
   }, [filters.courseTypeId, fetchCoursesByCourseType]);
 
-  // Handle course changes - fetch classes and exams
+  // Handle course changes - fetch classes and exams (dedup by courseTypeId|courseId)
   useEffect(() => {
-    if (filters.courseId && filters.courseTypeId && !fetchingClassesExamsRef.current) {
+    if (!filters.courseId || !filters.courseTypeId) {
+      lastFilterClassesExamsKeyRef.current = '';
+      return;
+    }
+    const key = `${filters.courseTypeId}|${filters.courseId}`;
+    if (lastFilterClassesExamsKeyRef.current === key) {
+      return;
+    }
+    lastFilterClassesExamsKeyRef.current = key;
+    if (!fetchingClassesExamsRef.current) {
       fetchingClassesExamsRef.current = true;
-      fetchClassesAndExamsByCourse(filters.courseTypeId, filters.courseId).finally(() => {
+      doFetchFilterClassesExams(filters.courseTypeId, filters.courseId).finally(() => {
         fetchingClassesExamsRef.current = false;
       });
     }
-  }, [filters.courseId, filters.courseTypeId]);
+  }, [filters.courseId, filters.courseTypeId, doFetchFilterClassesExams]);
 
-  // Handle class/exam changes - fetch subjects
+  // Handle class/exam changes - fetch subjects (dedup by key)
   useEffect(() => {
-    if ((filters.classId || filters.examId) && filters.courseTypeId && filters.courseId && !fetchingSubjectsRef.current) {
-      fetchingSubjectsRef.current = true;
-      fetchSubjectLinkages(filters.courseTypeId, filters.courseId, filters.classId, filters.examId).finally(() => {
-        fetchingSubjectsRef.current = false;
-      });
+    if (!filters.courseTypeId || !filters.courseId || (!filters.classId && !filters.examId)) {
+      lastFilterSubjectsKeyRef.current = '';
+      return;
     }
-  }, [filters.classId, filters.examId, filters.courseTypeId, filters.courseId]);
+    const key = `${filters.courseTypeId}|${filters.courseId}|${filters.classId || ''}|${filters.examId || ''}`;
+    if (lastFilterSubjectsKeyRef.current === key) {
+      return;
+    }
+    lastFilterSubjectsKeyRef.current = key;
+    doFetchFilterSubjects(filters.courseTypeId, filters.courseId, filters.classId, filters.examId);
+  }, [filters.classId, filters.examId, filters.courseTypeId, filters.courseId, doFetchFilterSubjects]);
 
   // Handle subject changes - fetch topics
   useEffect(() => {
@@ -680,39 +805,37 @@ const ChapterManagement = () => {
 
   // Form effects - separated for data entry form
   useEffect(() => {
-    if (formData.courseType?.id) {
-      fetchCoursesByCourseType(formData.courseType.id).then(setFormFilteredCourses);
+    if (formData.courseTypeId) {
+      fetchCoursesForForm(formData.courseTypeId);
     } else {
       setFormFilteredCourses([]);
     }
-  }, [formData.courseType?.id]);
+  }, [formData.courseTypeId, fetchCoursesForForm]);
 
-  // Form effect for course change - fetch classes and exams based on course type
+  // Form effect for course change - fetch classes/exams based on course type (dedup)
   useEffect(() => {
-    if (formData.courseId && formData.courseTypeId) {
-      if (isAcademicCourseType(formData.courseTypeId)) {
-        // Academic course - fetch classes and exams
-        Promise.all([
-          fetchClasses(formData.courseTypeId, formData.courseId),
-          fetchExams(formData.courseTypeId, formData.courseId)
-        ]).then(([classesData, examsData]) => {
-          setFormFilteredClasses(classesData);
-          setFormFilteredExams(examsData);
-        });
-      } else if (isCompetitiveCourseType(formData.courseTypeId)) {
-        // Competitive course - only fetch exams
-        fetchExams(formData.courseTypeId, formData.courseId).then(setFormFilteredExams);
-        setFormFilteredClasses([]); // Clear classes for competitive courses
-      } else if (isProfessionalCourseType(formData.courseTypeId)) {
-        // Professional course - no classes or exams needed
-        setFormFilteredClasses([]);
-        setFormFilteredExams([]);
-      }
+    if (!formData.courseId || !formData.courseTypeId) {
+      lastFormClassesExamsKeyRef.current = '';
+      setFormFilteredClasses([]);
+      setFormFilteredExams([]);
+      return;
+    }
+    const key = `${formData.courseTypeId}|${formData.courseId}`;
+    if (lastFormClassesExamsKeyRef.current === key) {
+      return;
+    }
+    lastFormClassesExamsKeyRef.current = key;
+    if (isAcademicCourseType(formData.courseTypeId)) {
+      fetchClassesForForm(formData.courseId);
+      setFormFilteredExams([]);
+    } else if (isCompetitiveCourseType(formData.courseTypeId)) {
+      fetchExamsForForm(formData.courseId);
+      setFormFilteredClasses([]);
     } else {
       setFormFilteredClasses([]);
       setFormFilteredExams([]);
     }
-  }, [formData.courseId, formData.courseTypeId, isAcademicCourseType, isCompetitiveCourseType, isProfessionalCourseType, fetchClasses, fetchExams]);
+  }, [formData.courseId, formData.courseTypeId, isAcademicCourseType, isCompetitiveCourseType, fetchClassesForForm, fetchExamsForForm]);
 
   // Consolidated form subject fetching effect to prevent multiple API calls
   useEffect(() => {
@@ -721,19 +844,21 @@ const ChapterManagement = () => {
       return;
     }
 
+    const isAcademic = formData.courseTypeId === 1 || formData.courseTypeId === '1';
+    const isCompetitive = formData.courseTypeId === 2 || formData.courseTypeId === '2';
+    const isProfessional = formData.courseTypeId === 3 || formData.courseTypeId === '3';
+
     const fetchSubjectsForForm = async () => {
       try {
-        let subjectsData = [];
-        
-        if (isAcademicCourseType(formData.courseTypeId) && formData.classId) {
-          subjectsData = await fetchSubjects(formData.courseTypeId, formData.courseId, formData.classId, null, true);
-        } else if (isCompetitiveCourseType(formData.courseTypeId) && formData.examId) {
-          subjectsData = await fetchSubjects(formData.courseTypeId, formData.courseId, null, formData.examId, true);
-        } else if (isProfessionalCourseType(formData.courseTypeId)) {
-          subjectsData = await fetchSubjects(formData.courseTypeId, formData.courseId, null, null, true);
+        if (isAcademic && formData.classId) {
+          await fetchSubjects(formData.courseTypeId, formData.courseId, formData.classId, null, true);
+        } else if (isCompetitive && formData.examId) {
+          await fetchSubjects(formData.courseTypeId, formData.courseId, null, formData.examId, true);
+        } else if (isProfessional) {
+          await fetchSubjects(formData.courseTypeId, formData.courseId, null, null, true);
+        } else {
+          setFormFilteredSubjects([]);
         }
-        
-        setFormFilteredSubjects(subjectsData || []);
       } catch (error) {
         console.error('Error fetching subjects for form:', error);
         setFormFilteredSubjects([]);
@@ -741,7 +866,7 @@ const ChapterManagement = () => {
     };
 
     fetchSubjectsForForm();
-  }, [formData.courseTypeId, formData.courseId, formData.classId, formData.examId, isAcademicCourseType, isCompetitiveCourseType, isProfessionalCourseType, fetchSubjects]);
+  }, [formData.courseTypeId, formData.courseId, formData.classId, formData.examId, fetchSubjects]);
 
   // Form effect for subject change - fetch topics by linkage (with de-dup)
   useEffect(() => {
@@ -758,10 +883,7 @@ const ChapterManagement = () => {
     }
     if (formTopicsLoadingRef.current) return;
     formTopicsLoadingRef.current = true;
-    getTopicsByLinkage(token, {
-      courseTypeId: courseTypeIdNum,
-      relationshipId: relationshipIdNum
-    })
+    getTopicsByLinkage(token, courseTypeIdNum, relationshipIdNum, true)
       .then((data) => {
         const list = Array.isArray(data) ? data : (data?.content || data?.data || []);
         setFormFilteredTopics(list || []);
@@ -774,14 +896,17 @@ const ChapterManagement = () => {
 
   // Form effect for topic change - fetch modules by topic
   useEffect(() => {
-    if (formData.topicId) {
-      fetchModulesByTopic(formData.topicId, true).then((modulesData) => {
-            setFormFilteredModules(modulesData);
-      });
-          } else {
-            setFormFilteredModules([]);
-          }
-  }, [formData.topicId, fetchModulesByTopic]);
+    if (!formData.topicId) {
+      setFormFilteredModules([]);
+      return;
+    }
+    getModulesByTopic(token, formData.topicId, true)
+      .then((data) => {
+        const list = Array.isArray(data) ? data : (data?.content || data?.data || []);
+        setFormFilteredModules(list || []);
+      })
+      .catch(() => setFormFilteredModules([]));
+  }, [formData.topicId, token]);
 
   // Helper function for displaying subject names with context
   const getSubjectDisplayText = useCallback((subject, courseTypeId) => {
@@ -804,10 +929,11 @@ const ChapterManagement = () => {
     }));
     
     // Clear dependent fields when parent changes
-    if (field === 'courseType') {
+    if (field === 'courseType' || field === 'courseTypeId') {
       setFormData(prev => ({
         ...prev,
         courseType: { id: value },
+        courseTypeId: value,
         course: { id: '' },
         class: { id: '' },
         exam: { id: '' },
@@ -819,6 +945,7 @@ const ChapterManagement = () => {
       setFormData(prev => ({
         ...prev,
         course: { id: value },
+        courseId: value,
         class: { id: '' },
         exam: { id: '' },
         subjectId: '',
@@ -829,6 +956,22 @@ const ChapterManagement = () => {
       setFormData(prev => ({
         ...prev,
         [field]: { id: value },
+        subjectId: '',
+        topicId: '',
+        moduleId: ''
+      }));
+    } else if (field === 'classId') {
+      setFormData(prev => ({
+        ...prev,
+        classId: value,
+        subjectId: '',
+        topicId: '',
+        moduleId: ''
+      }));
+    } else if (field === 'examId') {
+      setFormData(prev => ({
+        ...prev,
+        examId: value,
         subjectId: '',
         topicId: '',
         moduleId: ''
@@ -924,42 +1067,17 @@ const ChapterManagement = () => {
     try {
       setLoading(true);
       
-      // Prepare videos array
-      const videos = [];
-      if (formData.youtubeLinks && formData.youtubeLinks.length > 0) {
-        formData.youtubeLinks.forEach((link, index) => {
-          if (link && link.trim()) {
-            videos.push({
-              youtubeLink: link.trim(),
-              videoTitle: formData.youtubeTitles?.[index] || `Video ${index + 1}`,
-              displayOrder: index + 1
-            });
-          }
-        });
-      }
-
-      // Prepare documents array
-      const documents = [];
-      if (formData.uploadedFiles && formData.uploadedFiles.length > 0) {
-        formData.uploadedFiles.forEach((fileName, index) => {
-          if (fileName && fileName.trim()) {
-            documents.push({
-              fileName: fileName.trim(),
-              documentTitle: formData.uploadedFileTitles?.[index] || fileName.replace(/\.[^/.]+$/, ""),
-              displayOrder: index + 1
-            });
-          }
-        });
-      }
-
       const submitData = {
         name: formData.name,
         description: formData.description,
         moduleId: parseInt(formData.moduleId),
         displayOrder: parseInt(formData.displayOrder) || 0,
         isActive: formData.isActive,
-        videos: videos,
-        documents: documents
+        // Pass through arrays expected by API service (multipart builder)
+        youtubeLinks: Array.isArray(formData.youtubeLinks) ? formData.youtubeLinks : [],
+        youtubeTitles: Array.isArray(formData.youtubeTitles) ? formData.youtubeTitles : [],
+        uploadedFiles: Array.isArray(formData.uploadedFiles) ? formData.uploadedFiles : [],
+        uploadedFileTitles: Array.isArray(formData.uploadedFileTitles) ? formData.uploadedFileTitles : []
       };
 
       // Include file objects for multipart upload

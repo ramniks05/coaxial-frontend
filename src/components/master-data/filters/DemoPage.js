@@ -5,7 +5,7 @@ import './QuestionFilters.css';
 const DemoPage = () => {
   const handleBackToDashboard = () => {
     // In a real app, this would navigate back to the dashboard
-    console.log('Navigate back to dashboard');
+    
   };
 
   return (
