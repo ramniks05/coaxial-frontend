@@ -4,7 +4,7 @@ import { useFormFocus } from '../../hooks/useFormFocus';
 import { getCourseTypesCached } from '../../services/globalApiCache';
 import { createSubjectWithAutoLink, deleteSubject, getAllSubjectLinkages, getClassesByCourse, getCourses, getExamsByCourse, getMasterSubjectsByCourseType, updateSubject } from '../../services/masterDataService';
 import AdminPageHeader from '../common/AdminPageHeader';
-import { getInitialFilters, getSubjectFilterConfig } from './filters/filterConfigs';
+import { getInitialFilters } from './filters/filterConfigs';
 import FilterPanel from './filters/FilterPanel';
 import './MasterDataComponent.css';
 
@@ -962,19 +962,232 @@ const SubjectManagement = () => {
     }
   };
 
-  const handleEdit = (subject) => {
-    setFormData({
-      name: subject.name,
-      description: subject.description || '',
-      courseType: { id: subject.courseType?.id || '' },
-      course: { id: '' },
-      class: { id: '' },
-      exam: { id: '' },
-      displayOrder: subject.displayOrder || '',
-      isActive: subject.isActive
-    });
-    setEditingId(subject.id);
+  const handleEdit = async (subject) => {
+    console.log('Editing subject:', subject);
+    
+    // Extract values from subject data (handles both direct and nested structures)
+    const courseTypeId = subject.courseTypeId || subject.courseType?.id || '';
+    const courseId = subject.courseId || subject.course?.id || '';
+    const classId = subject.classId || subject.class?.id || '';
+    const examId = subject.examId || subject.exam?.id || '';
+    const masterSubjectId = subject.subjectId || subject.masterSubjectId || '';
+    const subjectName = subject.subjectName || subject.name || '';
+    
+    // Set editing ID first
+    setEditingId(masterSubjectId);
     setShowForm(true);
+    
+    // Store the original values to restore after dropdowns are populated
+    const originalValues = {
+      name: subjectName,
+      description: subject.description || '',
+      masterSubjectId: masterSubjectId,
+      courseType: { id: courseTypeId },
+      course: { id: courseId },
+      class: { id: classId },
+      exam: { id: examId },
+      displayOrder: subject.displayOrder || '',
+      isActive: subject.isActive !== undefined ? subject.isActive : true
+    };
+    
+    // Initially set form data with available values
+    setFormData(originalValues);
+    
+    // Trigger course type change to populate related dropdowns
+    if (courseTypeId) {
+      // Temporarily override the handleCourseTypeChange to not clear the form
+      const originalHandleCourseTypeChange = handleCourseTypeChange;
+      
+      // Create a modified version that doesn't clear the form data
+      const handleCourseTypeChangeForEdit = async (courseTypeId) => {
+        setFormData(prev => ({
+          ...prev,
+          courseType: { id: courseTypeId },
+          course: { id: '' },
+          class: { id: '' },
+          exam: { id: '' }
+          // Don't clear name, description, masterSubjectId
+        }));
+        setCourses([]);
+        setClasses([]);
+        setExams([]);
+        
+        if (courseTypeId) {
+          try {
+            setLoadingStates(prev => ({ ...prev, courses: true, masterSubjects: true }));
+            
+            // Fetch courses and master subjects for this course type
+            const [coursesData, subjectsData] = await Promise.all([
+              getCourses(token, courseTypeId, 0, 100, 'createdAt', 'desc'),
+              getMasterSubjectsByCourseType(token, courseTypeId, { 
+                active: true
+              })
+            ]);
+            
+            // Handle different response formats for courses
+            let coursesArray = [];
+            if (Array.isArray(coursesData)) {
+              coursesArray = coursesData;
+            } else if (coursesData && Array.isArray(coursesData.content)) {
+              coursesArray = coursesData.content;
+            } else if (coursesData && Array.isArray(coursesData.data)) {
+              coursesArray = coursesData.data;
+            } else if (coursesData && coursesData.courses && Array.isArray(coursesData.courses)) {
+              coursesArray = coursesData.courses;
+            } else {
+              console.warn('Unexpected courses data format (handleCourseTypeChangeForEdit):', coursesData);
+              coursesArray = [];
+            }
+            
+            // Keep only active courses
+            let normalizedCourses = coursesArray.filter(c => !!c.isActive);
+            normalizedCourses.sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0) || a.name.localeCompare(b.name));
+
+            // Handle different response formats for master subjects
+            let subjectsArray = [];
+            if (Array.isArray(subjectsData)) {
+              subjectsArray = subjectsData;
+            } else if (subjectsData && Array.isArray(subjectsData.content)) {
+              subjectsArray = subjectsData.content;
+            } else if (subjectsData && Array.isArray(subjectsData.data)) {
+              subjectsArray = subjectsData.data;
+            } else if (subjectsData && subjectsData.subjects && Array.isArray(subjectsData.subjects)) {
+              subjectsArray = subjectsData.subjects;
+            } else {
+              console.warn('Unexpected master subjects data format (handleCourseTypeChangeForEdit):', subjectsData);
+              subjectsArray = [];
+            }
+            
+            // Normalize subjects for dropdown as {id,label,description}
+            let normalizedMasterSubjects = subjectsArray
+              .filter(s => !!s.isActive)
+              .map(s => ({ id: s.id, label: s.name || '', description: s.description || '' }));
+            normalizedMasterSubjects.sort((a, b) => a.label.localeCompare(b.label));
+
+            setCourses(normalizedCourses);
+            setMasterSubjects(normalizedMasterSubjects);
+            
+          } catch (error) {
+            console.error('Error fetching courses and master subjects:', error);
+            addNotification({
+              type: 'error',
+              message: `Failed to fetch courses and master subjects: ${error.message}`,
+              duration: 5000
+            });
+            setCourses([]);
+            setMasterSubjects([]);
+          } finally {
+            setLoadingStates(prev => ({ ...prev, courses: false, masterSubjects: false }));
+          }
+        } else {
+          setMasterSubjects([]);
+        }
+      };
+      
+      await handleCourseTypeChangeForEdit(courseTypeId);
+      
+      // Restore the original values after course type change
+      setFormData(prev => ({
+        ...prev,
+        ...originalValues
+      }));
+      
+      // Trigger course change to populate class/exam dropdowns
+      if (courseId) {
+        // Create a modified version of handleCourseChange that doesn't clear the form
+        const handleCourseChangeForEdit = async (courseId) => {
+          console.log('handleCourseChangeForEdit called with courseId:', courseId, 'courseTypeId:', courseTypeId);
+          
+          setFormData(prev => ({
+            ...prev,
+            course: { id: courseId },
+            class: { id: '' },
+            exam: { id: '' }
+            // Don't clear name, description, masterSubjectId
+          }));
+          setClasses([]);
+          setExams([]);
+          
+          if (courseId && courseTypeId) {
+            const courseTypeIdInt = parseInt(courseTypeId);
+            console.log('Fetching classes and exams for courseId:', courseId, 'courseTypeId:', courseTypeIdInt);
+            
+            try {
+              setLoadingStates(prev => ({ ...prev, classes: true, exams: true }));
+              
+              // Fetch both classes and exams using course-specific endpoints with pagination
+              const [classesData, examsData] = await Promise.all([
+                getClassesByCourse(token, courseId, 0, 100, 'createdAt', 'desc'),
+                getExamsByCourse(token, courseId, 0, 100, 'createdAt', 'desc')
+              ]);
+              
+              // Handle different response formats for classes
+              let classesArray = [];
+              if (Array.isArray(classesData)) {
+                classesArray = classesData;
+              } else if (classesData && Array.isArray(classesData.content)) {
+                classesArray = classesData.content;
+              } else if (classesData && Array.isArray(classesData.data)) {
+                classesArray = classesData.data;
+              } else if (classesData && classesData.classes && Array.isArray(classesData.classes)) {
+                classesArray = classesData.classes;
+              } else {
+                console.warn('Unexpected classes data format (handleCourseChangeForEdit):', classesData);
+                classesArray = [];
+              }
+              
+              let normalizedClasses = classesArray.filter(cl => !!cl.isActive);
+              normalizedClasses.sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0) || a.name.localeCompare(b.name));
+
+              // Handle different response formats for exams
+              let examsArray = [];
+              if (Array.isArray(examsData)) {
+                examsArray = examsData;
+              } else if (examsData && Array.isArray(examsData.content)) {
+                examsArray = examsData.content;
+              } else if (examsData && Array.isArray(examsData.data)) {
+                examsArray = examsData.data;
+              } else if (examsData && examsData.exams && Array.isArray(examsData.exams)) {
+                examsArray = examsData.exams;
+              } else {
+                console.warn('Unexpected exams data format (handleCourseChangeForEdit):', examsData);
+                examsArray = [];
+              }
+              
+              let normalizedExams = examsArray.filter(ex => !!ex.isActive);
+              normalizedExams.sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0) || a.name.localeCompare(b.name));
+              
+              console.log('Setting classes in handleCourseChangeForEdit:', normalizedClasses);
+              console.log('Setting exams in handleCourseChangeForEdit:', normalizedExams);
+              
+              setClasses(normalizedClasses);
+              setExams(normalizedExams);
+              
+            } catch (error) {
+              console.error('Error in handleCourseChangeForEdit:', error);
+              addNotification({
+                type: 'error',
+                message: 'Failed to fetch classes and exams',
+                duration: 5000
+              });
+              setClasses([]);
+              setExams([]);
+            } finally {
+              setLoadingStates(prev => ({ ...prev, classes: false, exams: false }));
+            }
+          }
+        };
+        
+        await handleCourseChangeForEdit(courseId);
+        
+        // Restore the original values after course change
+        console.log('Restoring original values after course change:', originalValues);
+        setFormData(prev => ({
+          ...prev,
+          ...originalValues
+        }));
+      }
+    }
   };
 
   const handleDelete = async (id) => {
@@ -1253,7 +1466,12 @@ const SubjectManagement = () => {
       {showForm && (
         <div className="form-section" ref={formRef}>
           <div className="form-header">
-            <h3>{editingId ? 'Edit Subject' : 'Add New Subject'}</h3>
+            <h3>
+              {editingId ? 'Edit Subject (Read-Only)' : 'Add New Subject'}
+              {editingId && (
+                <span className="badge badge-warning ml-2">Review Mode</span>
+              )}
+            </h3>
             <button className="btn btn-outline btn-sm" onClick={resetForm}>
               Cancel
             </button>
@@ -1270,7 +1488,8 @@ const SubjectManagement = () => {
                   name="courseType"
                   value={formData.courseType.id}
                   onChange={(e) => handleCourseTypeChange(e.target.value)}
-                  className="form-input"
+                  className={`form-input ${editingId ? 'readonly-field' : ''}`}
+                  disabled={editingId}
                   required
                 >
                   <option value="">Select Course Type</option>
@@ -1376,17 +1595,19 @@ const SubjectManagement = () => {
                   name="masterSubject"
                   value={formData.name}
                   onChange={(e) => {
-                    const selectedSubjectLabel = e.target.value;
-                    const selectedMasterSubject = masterSubjects.find(ms => ms.label === selectedSubjectLabel);
-                    setFormData({ 
-                      ...formData, 
-                      name: selectedSubjectLabel,
-                      description: selectedMasterSubject?.description || '',
-                      masterSubjectId: selectedMasterSubject?.id || ''
-                    });
+                    if (!editingId) {
+                      const selectedSubjectLabel = e.target.value;
+                      const selectedMasterSubject = masterSubjects.find(ms => ms.label === selectedSubjectLabel);
+                      setFormData({ 
+                        ...formData, 
+                        name: selectedSubjectLabel,
+                        description: selectedMasterSubject?.description || '',
+                        masterSubjectId: selectedMasterSubject?.id || ''
+                      });
+                    }
                   }}
-                  className="form-input"
-                  disabled={!formData.courseType.id || loadingStates.masterSubjects}
+                  className={`form-input ${editingId ? 'readonly-field' : ''}`}
+                  disabled={editingId || !formData.courseType.id || loadingStates.masterSubjects}
                   required
                 >
                   <option value="">
@@ -1471,9 +1692,21 @@ const SubjectManagement = () => {
               <button type="button" className="btn btn-outline" onClick={resetForm}>
                 Cancel
               </button>
-              <button type="submit" className="btn btn-primary" disabled={loading}>
-                {loading ? 'Saving...' : (editingId ? 'Update Subject' : 'Create Subject')}
+              <button 
+                type="submit" 
+                className="btn btn-primary" 
+                disabled={loading || editingId}
+                title={editingId ? 'Edit functionality temporarily disabled - pending team decision' : ''}
+              >
+                {loading ? 'Saving...' : (editingId ? 'Update Subject (Disabled)' : 'Create Subject')}
               </button>
+              {editingId && (
+                <div className="form-warning">
+                  <small className="text-warning">
+                    ⚠️ Edit functionality is temporarily disabled. All values are populated for review, but changes cannot be saved until the team decides on the proper strategy.
+                  </small>
+                </div>
+              )}
             </div>
           </form>
         </div>
@@ -1558,7 +1791,7 @@ const SubjectManagement = () => {
                   key={`${subject.linkageId}-${subject.subjectId}`}
                   item={subject}
                   itemType="subject"
-                  onEdit={(item) => handleEdit({ id: item.subjectId, name: item.subjectName })}
+                  onEdit={(item) => handleEdit(item)}
                   onDelete={() => handleDelete(subject.subjectId)}
                   fields={subjectFields}
                 />
