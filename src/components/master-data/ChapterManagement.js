@@ -39,6 +39,7 @@ import './MasterDataComponent.css';
 import './VideoPreviewCard.css';
 import VideoPreviewModal from './VideoPreviewModal';
 import './VideoPreviewModal.css';
+import { cloneArray, fetchWithCache } from '../../utils/cacheUtils';
 
 const ChapterManagement = () => {
   const { token, addNotification } = useApp();
@@ -287,7 +288,181 @@ const ChapterManagement = () => {
   const fetchingTopicsRef = useRef(false);
   const fetchingModulesRef = useRef(false);
   const lastFilterCoursesKeyRef = useRef('');
+  const coursesCacheRef = useRef(new Map());
+  const classesExamsCacheRef = useRef(new Map());
+  const masterSubjectsCacheRef = useRef(new Map());
+  const subjectLinkagesCacheRef = useRef(new Map());
+  const topicsCacheRef = useRef(new Map());
+  const modulesCacheRef = useRef(new Map());
 
+  const clearDropdownCaches = useCallback(() => {
+    coursesCacheRef.current.clear();
+    classesExamsCacheRef.current.clear();
+    masterSubjectsCacheRef.current.clear();
+    subjectLinkagesCacheRef.current.clear();
+    topicsCacheRef.current.clear();
+    modulesCacheRef.current.clear();
+  }, []);
+
+  const loadCoursesData = useCallback(async (courseTypeId, options = {}) => {
+    if (!courseTypeId || !token) {
+      return [];
+    }
+
+    const cacheKey = String(courseTypeId);
+
+    try {
+      const courses = await fetchWithCache(coursesCacheRef, cacheKey, async () => {
+        const data = await getCourses(token, courseTypeId, 0, 100, 'name', 'asc');
+        return Array.isArray(data) ? data : (data?.content || data?.data || []);
+      }, options);
+
+      return cloneArray(courses);
+    } catch (error) {
+      console.error('Error loading courses data:', error);
+      if (options.forceRefresh) {
+        coursesCacheRef.current.delete(cacheKey);
+      }
+      throw error;
+    }
+  }, [token]);
+
+  const loadClassesExamsData = useCallback(async (courseTypeId, courseId, options = {}) => {
+    if (!courseTypeId || !courseId || !token) {
+      return { classes: [], exams: [] };
+    }
+
+    const cacheKey = `${courseTypeId}|${courseId}`;
+
+    try {
+      const payload = await fetchWithCache(classesExamsCacheRef, cacheKey, async () => {
+        const [classesData, examsData] = await Promise.all([
+          getClassesByCourse(token, courseId, 0, 100, 'name', 'asc'),
+          getExamsByCourse(token, courseId, 0, 100, 'name', 'asc')
+        ]);
+
+        const classes = Array.isArray(classesData) ? classesData : (classesData?.content || classesData?.data || []);
+        const exams = Array.isArray(examsData) ? examsData : (examsData?.content || examsData?.data || []);
+
+        return { classes, exams };
+      }, options);
+
+      return {
+        classes: cloneArray(payload.classes),
+        exams: cloneArray(payload.exams)
+      };
+    } catch (error) {
+      console.error('Error loading classes/exams data:', error);
+      if (options.forceRefresh) {
+        classesExamsCacheRef.current.delete(cacheKey);
+      }
+      throw error;
+    }
+  }, [token]);
+
+  const loadMasterSubjectsData = useCallback(async (courseTypeId, options = {}) => {
+    if (!courseTypeId || !token) {
+      return [];
+    }
+
+    const cacheKey = String(courseTypeId);
+
+    try {
+      const subjects = await fetchWithCache(masterSubjectsCacheRef, cacheKey, async () => {
+        const data = await getMasterSubjectsByCourseType(token, courseTypeId);
+        return Array.isArray(data) ? data : (data?.content || data?.data || []);
+      }, options);
+
+      return cloneArray(subjects);
+    } catch (error) {
+      console.error('Error loading master subjects data:', error);
+      if (options.forceRefresh) {
+        masterSubjectsCacheRef.current.delete(cacheKey);
+      }
+      throw error;
+    }
+  }, [token]);
+
+  const loadSubjectLinkagesData = useCallback(async (courseTypeId, courseId, classId, examId, options = {}) => {
+    if (!courseTypeId || !courseId || !token) {
+      return [];
+    }
+
+    const cacheKey = [courseTypeId, courseId, classId ?? '∅', examId ?? '∅'].join('|');
+
+    try {
+      const subjects = await fetchWithCache(subjectLinkagesCacheRef, cacheKey, async () => {
+        const params = {
+          courseTypeId,
+          courseId,
+          classId: classId || null,
+          examId: examId || null,
+          page: 0,
+          size: 100,
+          sortBy: 'subjectName',
+          sortDir: 'asc'
+        };
+
+        const data = await getAllSubjectLinkages(token, params);
+        return Array.isArray(data) ? data : (data?.content || data?.data || []);
+      }, options);
+
+      return cloneArray(subjects);
+    } catch (error) {
+      console.error('Error loading subject linkage data:', error);
+      if (options.forceRefresh) {
+        subjectLinkagesCacheRef.current.delete(cacheKey);
+      }
+      throw error;
+    }
+  }, [token]);
+
+  const loadTopicsData = useCallback(async (courseTypeId, subjectId, options = {}) => {
+    if (!courseTypeId || !subjectId || !token) {
+      return [];
+    }
+
+    const cacheKey = `${courseTypeId}|${subjectId}`;
+
+    try {
+      const topics = await fetchWithCache(topicsCacheRef, cacheKey, async () => {
+        const relationshipId = parseInt(subjectId, 10);
+        const data = await getTopicsByLinkage(token, courseTypeId, relationshipId);
+        return Array.isArray(data) ? data : (data?.content || data?.data || []);
+      }, options);
+
+      return cloneArray(topics);
+    } catch (error) {
+      console.error('Error loading topics data:', error);
+      if (options.forceRefresh) {
+        topicsCacheRef.current.delete(cacheKey);
+      }
+      throw error;
+    }
+  }, [token]);
+
+  const loadModulesData = useCallback(async (topicId, options = {}) => {
+    if (!topicId || !token) {
+      return [];
+    }
+
+    const cacheKey = String(topicId);
+
+    try {
+      const modules = await fetchWithCache(modulesCacheRef, cacheKey, async () => {
+        const data = await getModulesByTopic(token, topicId, true);
+        return Array.isArray(data) ? data : (data?.content || data?.data || []);
+      }, options);
+
+      return cloneArray(modules);
+    } catch (error) {
+      console.error('Error loading modules data:', error);
+      if (options.forceRefresh) {
+        modulesCacheRef.current.delete(cacheKey);
+      }
+      throw error;
+    }
+  }, [token]);
   // Clear dependent filters when course type actually changes
   useEffect(() => {
     if (filters.courseTypeId && prevCourseTypeRef.current !== filters.courseTypeId) {
@@ -345,12 +520,9 @@ const ChapterManagement = () => {
     }
 
     try {
-      const data = await getCourses(token, courseTypeId, 0, 100, 'name', 'asc');
-
-      const courses = Array.isArray(data) ? data : (data?.content || data?.data || []);
+      const courses = await loadCoursesData(courseTypeId);
       setFilteredCourses(courses);
     } catch (error) {
-      console.error('Error fetching courses by course type:', error);
       setFilteredCourses([]);
       addNotification({
         type: 'error',
@@ -358,7 +530,7 @@ const ChapterManagement = () => {
         duration: 3000
       });
     }
-  }, [token, addNotification]);
+  }, [loadCoursesData, addNotification]);
 
   // Fetch courses specifically for the data entry form
   const fetchCoursesForForm = useCallback(async (courseTypeId) => {
@@ -368,14 +540,13 @@ const ChapterManagement = () => {
     }
 
     try {
-      const ctId = typeof courseTypeId === 'string' ? parseInt(courseTypeId) : courseTypeId;
-      const data = await getCourses(token, ctId, 0, 100, 'name', 'asc');
-      const courses = Array.isArray(data) ? data : (data?.content || data?.data || []);
+      const courses = await loadCoursesData(courseTypeId);
       setFormFilteredCourses(courses);
-    } catch (_) {
+    } catch (error) {
+      console.error('Error fetching form courses:', error);
       setFormFilteredCourses([]);
     }
-  }, [token]);
+  }, [loadCoursesData]);
 
   // Early-declared helper to fetch classes/exams for filters to avoid TDZ
   const doFetchFilterClassesExams = useCallback(async (courseTypeId, courseId) => {
@@ -384,55 +555,56 @@ const ChapterManagement = () => {
       setFilteredExams([]);
       return;
     }
+
     try {
+      const { classes, exams } = await loadClassesExamsData(courseTypeId, courseId);
+
       if (isAcademicCourseType(courseTypeId)) {
-        const classesData = await getClassesByCourse(token, courseId, 0, 100, 'name', 'asc');
-        setFilteredClasses(Array.isArray(classesData) ? classesData : (classesData?.content || classesData?.data || []));
+        setFilteredClasses(classes);
       } else {
         setFilteredClasses([]);
       }
+
       if (isCompetitiveCourseType(courseTypeId)) {
-        const examsData = await getExamsByCourse(token, courseId, 0, 100, 'name', 'asc');
-        setFilteredExams(Array.isArray(examsData) ? examsData : (examsData?.content || examsData?.data || []));
+        setFilteredExams(exams);
       } else {
         setFilteredExams([]);
       }
     } catch (error) {
-      console.error('Error fetching classes/exams:', error);
       addNotification({ type: 'error', message: 'Failed to load classes/exams', duration: 3000 });
     }
-  }, [token, addNotification]);
+  }, [loadClassesExamsData, isAcademicCourseType, isCompetitiveCourseType, addNotification]);
 
   // Form-specific fetchers
-  const fetchClassesForForm = useCallback(async (courseId) => {
-    if (!courseId) {
+  const fetchClassesForForm = useCallback(async (courseTypeId, courseId) => {
+    if (!courseTypeId || !courseId) {
       setFormFilteredClasses([]);
       return;
     }
-    try {
-      const id = typeof courseId === 'string' ? parseInt(courseId) : courseId;
-      const classesData = await getClassesByCourse(token, id, 0, 100, 'name', 'asc');
-      const list = Array.isArray(classesData) ? classesData : (classesData?.content || classesData?.data || []);
-      setFormFilteredClasses(list);
-    } catch (_) {
-      setFormFilteredClasses([]);
-    }
-  }, [token]);
 
-  const fetchExamsForForm = useCallback(async (courseId) => {
-    if (!courseId) {
+    try {
+      const { classes } = await loadClassesExamsData(courseTypeId, courseId);
+      setFormFilteredClasses(classes);
+    } catch (error) {
+      console.error('Error fetching form classes:', error);
+      setFormFilteredClasses([]);
+    }
+  }, [loadClassesExamsData]);
+
+  const fetchExamsForForm = useCallback(async (courseTypeId, courseId) => {
+    if (!courseTypeId || !courseId) {
       setFormFilteredExams([]);
       return;
     }
+
     try {
-      const id = typeof courseId === 'string' ? parseInt(courseId) : courseId;
-      const examsData = await getExamsByCourse(token, id, 0, 100, 'name', 'asc');
-      const list = Array.isArray(examsData) ? examsData : (examsData?.content || examsData?.data || []);
-      setFormFilteredExams(list);
-    } catch (_) {
+      const { exams } = await loadClassesExamsData(courseTypeId, courseId);
+      setFormFilteredExams(exams);
+    } catch (error) {
+      console.error('Error fetching form exams:', error);
       setFormFilteredExams([]);
     }
-  }, [token]);
+  }, [loadClassesExamsData]);
 
   // Handle course type changes - fetch courses (dedup)
   useEffect(() => {
@@ -519,14 +691,16 @@ const ChapterManagement = () => {
 
     try {
       if (isAcademicCourseType(courseTypeId)) {
-        const classesData = await getClassesByCourse(token, courseId, 0, 100, 'name', 'asc');
-        setFilteredClasses(Array.isArray(classesData) ? classesData : (classesData?.content || classesData?.data || []));
+        const { classes } = await loadClassesExamsData(courseTypeId, courseId);
+        setFilteredClasses(classes);
+      } else {
+        setFilteredClasses([]);
       }
     } catch (error) {
       console.error('Error fetching classes:', error);
       setFilteredClasses([]);
     }
-  }, [token]);
+  }, [loadClassesExamsData, isAcademicCourseType]);
 
   const fetchExams = useCallback(async (courseTypeId, courseId) => {
     if (!courseTypeId || !courseId) {
@@ -536,14 +710,16 @@ const ChapterManagement = () => {
 
     try {
       if (isCompetitiveCourseType(courseTypeId)) {
-        const examsData = await getExamsByCourse(token, courseId, 0, 100, 'name', 'asc');
-        setFilteredExams(Array.isArray(examsData) ? examsData : (examsData?.content || examsData?.data || []));
+        const { exams } = await loadClassesExamsData(courseTypeId, courseId);
+        setFilteredExams(exams);
+      } else {
+        setFilteredExams([]);
       }
     } catch (error) {
       console.error('Error fetching exams:', error);
       setFilteredExams([]);
     }
-  }, [token]);
+  }, [loadClassesExamsData, isCompetitiveCourseType]);
 
   const fetchSubjects = useCallback(async (courseTypeId, courseId, classId, examId, isForm = false) => {
     if (!courseTypeId || !courseId) {
@@ -556,15 +732,8 @@ const ChapterManagement = () => {
     }
 
     try {
-      const data = await getAllSubjectLinkages(token, {
-        courseTypeId,
-        courseId,
-        classId,
-        examId
-      });
-      
-      const subjectsArray = Array.isArray(data) ? data : (data?.content || data?.data || []);
-      
+      const subjectsArray = await loadSubjectLinkagesData(courseTypeId, courseId, classId, examId);
+
       if (isForm) {
         setFormFilteredSubjects(subjectsArray);
       } else {
@@ -578,7 +747,7 @@ const ChapterManagement = () => {
         setFilteredSubjects([]);
       }
     }
-  }, [token]);
+  }, [loadSubjectLinkagesData]);
 
   const fetchChapters = useCallback(async () => {
     // This function can be used for manual chapter refresh
@@ -626,14 +795,18 @@ const ChapterManagement = () => {
     }
 
     try {
+      const { classes, exams } = await loadClassesExamsData(courseTypeId, courseId);
+
       if (isAcademicCourseType(courseTypeId)) {
-        const classesData = await getClassesByCourse(token, courseId, 0, 100, 'name', 'asc');
-        setFilteredClasses(Array.isArray(classesData) ? classesData : (classesData?.content || classesData?.data || []));
+        setFilteredClasses(classes);
+      } else {
+        setFilteredClasses([]);
       }
 
       if (isCompetitiveCourseType(courseTypeId)) {
-        const examsData = await getExamsByCourse(token, courseId, 0, 100, 'name', 'asc');
-        setFilteredExams(Array.isArray(examsData) ? examsData : (examsData?.content || examsData?.data || []));
+        setFilteredExams(exams);
+      } else {
+        setFilteredExams([]);
       }
     } catch (error) {
       console.error('Error fetching classes/exams:', error);
@@ -643,7 +816,7 @@ const ChapterManagement = () => {
         duration: 3000
       });
     }
-  }, [token, addNotification]);
+  }, [loadClassesExamsData, isAcademicCourseType, isCompetitiveCourseType, addNotification]);
 
   const fetchMasterSubjectsByCourseType = async (courseTypeId) => {
     if (!courseTypeId) {
@@ -652,10 +825,9 @@ const ChapterManagement = () => {
     }
 
     try {
-      const data = await getMasterSubjectsByCourseType(token, courseTypeId);
-      setMasterSubjects(Array.isArray(data) ? data : (data?.content || data?.data || []));
+      const subjects = await loadMasterSubjectsData(courseTypeId);
+      setMasterSubjects(subjects);
     } catch (error) {
-      console.error('Error fetching master subjects:', error);
       addNotification({
         type: 'error',
         message: 'Failed to load subjects',
@@ -671,28 +843,16 @@ const ChapterManagement = () => {
     }
 
     try {
-      const params = {
-        courseTypeId,
-        courseId,
-        classId: classId || null,
-        examId: examId || null,
-        page: 0,
-        size: 100,
-        sortBy: 'subjectName',
-        sortDir: 'asc'
-      };
-
-      const data = await getAllSubjectLinkages(token, params);
-      setSubjectLinkages(Array.isArray(data) ? data : (data?.content || data?.data || []));
+      const subjects = await loadSubjectLinkagesData(courseTypeId, courseId, classId, examId);
+      setSubjectLinkages(subjects);
     } catch (error) {
-      console.error('Error fetching subject linkages:', error);
       addNotification({
         type: 'error',
         message: 'Failed to load subjects',
         duration: 3000
       });
     }
-  }, [token, addNotification]);
+  }, [loadSubjectLinkagesData, addNotification]);
 
   const fetchTopicsBySubject = useCallback(async (subjectId, courseTypeId) => {
     if (!subjectId || !courseTypeId) {
@@ -701,18 +861,16 @@ const ChapterManagement = () => {
     }
 
     try {
-      const relationshipId = parseInt(subjectId);
-      const data = await getTopicsByLinkage(token, courseTypeId, relationshipId);
-      setTopics(Array.isArray(data) ? data : (data?.content || data?.data || []));
+      const topics = await loadTopicsData(courseTypeId, subjectId);
+      setTopics(topics);
     } catch (error) {
-      console.error('Error fetching topics:', error);
       addNotification({
         type: 'error',
         message: 'Failed to load topics',
         duration: 3000
       });
     }
-  }, [token, addNotification]);
+  }, [loadTopicsData, addNotification]);
 
   const fetchModulesByTopic = useCallback(async (topicId) => {
     if (!topicId) {
@@ -721,17 +879,16 @@ const ChapterManagement = () => {
     }
 
     try {
-      const data = await getModulesByTopic(token, topicId, true);
-      setModules(Array.isArray(data) ? data : (data?.content || data?.data || []));
+      const modules = await loadModulesData(topicId);
+      setModules(modules);
     } catch (error) {
-      console.error('Error fetching modules:', error);
       addNotification({
         type: 'error',
         message: 'Failed to load modules',
         duration: 3000
       });
     }
-  }, [token, addNotification]);
+  }, [loadModulesData, addNotification]);
 
   // Old fetchChaptersData function removed - now using new filter system
   
@@ -826,10 +983,10 @@ const ChapterManagement = () => {
     }
     lastFormClassesExamsKeyRef.current = key;
     if (isAcademicCourseType(formData.courseTypeId)) {
-      fetchClassesForForm(formData.courseId);
+      fetchClassesForForm(formData.courseTypeId, formData.courseId);
       setFormFilteredExams([]);
     } else if (isCompetitiveCourseType(formData.courseTypeId)) {
-      fetchExamsForForm(formData.courseId);
+      fetchExamsForForm(formData.courseTypeId, formData.courseId);
       setFormFilteredClasses([]);
     } else {
       setFormFilteredClasses([]);
@@ -1092,6 +1249,7 @@ const ChapterManagement = () => {
           message: 'Chapter updated successfully',
           duration: 3000
         });
+        clearDropdownCaches();
       } else {
         await executeApiCall(createChapter, token, submitData);
         addNotification({
@@ -1099,6 +1257,7 @@ const ChapterManagement = () => {
           message: 'Chapter created successfully',
           duration: 3000
         });
+        clearDropdownCaches();
       }
       
       resetForm();
@@ -1275,62 +1434,19 @@ const ChapterManagement = () => {
             try {
               setLoadingStates(prev => ({ ...prev, classes: true, exams: true, subjects: true }));
               
-              // Fetch classes, exams, and subjects
-              const [classesData, examsData, subjectsData] = await Promise.all([
-                getClassesByCourse(token, courseId, 0, 100, 'createdAt', 'desc'),
-                getExamsByCourse(token, courseId, 0, 100, 'createdAt', 'desc'),
-                fetchSubjectLinkages(courseTypeId, courseId, null, null)
+              const [classesExamsPayload, subjectsArrayRaw] = await Promise.all([
+                loadClassesExamsData(courseTypeId, courseId),
+                loadSubjectLinkagesData(courseTypeId, courseId, null, null)
               ]);
-              
-              // Handle different response formats for classes
-              let classesArray = [];
-              if (Array.isArray(classesData)) {
-                classesArray = classesData;
-              } else if (classesData && Array.isArray(classesData.content)) {
-                classesArray = classesData.content;
-              } else if (classesData && Array.isArray(classesData.data)) {
-                classesArray = classesData.data;
-              } else if (classesData && classesData.classes && Array.isArray(classesData.classes)) {
-                classesArray = classesData.classes;
-              } else {
-                console.warn('Unexpected classes data format (handleCourseChangeForEdit):', classesData);
-                classesArray = [];
-              }
-              
-              let normalizedClasses = classesArray.filter(cl => !!cl.isActive);
+
+              let normalizedClasses = (classesExamsPayload?.classes || []).filter(cl => !!cl.isActive);
               normalizedClasses.sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0) || a.name.localeCompare(b.name));
 
-              // Handle different response formats for exams
-              let examsArray = [];
-              if (Array.isArray(examsData)) {
-                examsArray = examsData;
-              } else if (examsData && Array.isArray(examsData.content)) {
-                examsArray = examsData.content;
-              } else if (examsData && Array.isArray(examsData.data)) {
-                examsArray = examsData.data;
-              } else if (examsData && examsData.exams && Array.isArray(examsData.exams)) {
-                examsArray = examsData.exams;
-              } else {
-                console.warn('Unexpected exams data format (handleCourseChangeForEdit):', examsData);
-                examsArray = [];
-              }
-              
-              let normalizedExams = examsArray.filter(ex => !!ex.isActive);
+              let normalizedExams = (classesExamsPayload?.exams || []).filter(ex => !!ex.isActive);
               normalizedExams.sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0) || a.name.localeCompare(b.name));
 
-              // Handle subjects data
-              let subjectsArray = [];
-              if (Array.isArray(subjectsData)) {
-                subjectsArray = subjectsData;
-              } else if (subjectsData && Array.isArray(subjectsData.content)) {
-                subjectsArray = subjectsData.content;
-              } else if (subjectsData && Array.isArray(subjectsData.data)) {
-                subjectsArray = subjectsData.data;
-              } else {
-                console.warn('Unexpected subjects data format (handleCourseChangeForEdit):', subjectsData);
-                subjectsArray = [];
-              }
-              
+              const subjectsArray = Array.isArray(subjectsArrayRaw) ? subjectsArrayRaw : [];
+
               setFormFilteredClasses(normalizedClasses);
               setFormFilteredExams(normalizedExams);
               setFormFilteredSubjects(subjectsArray);
@@ -1339,36 +1455,14 @@ const ChapterManagement = () => {
               if (subjectId) {
                 try {
                   setLoadingStates(prev => ({ ...prev, topics: true }));
-                  const topicsData = await getTopicsByLinkage(token, courseTypeId, subjectId);
-                  let topicsArray = [];
-                  if (Array.isArray(topicsData)) {
-                    topicsArray = topicsData;
-                  } else if (topicsData && Array.isArray(topicsData.content)) {
-                    topicsArray = topicsData.content;
-                  } else if (topicsData && Array.isArray(topicsData.data)) {
-                    topicsArray = topicsData.data;
-                  } else {
-                    console.warn('Unexpected topics data format (handleCourseChangeForEdit):', topicsData);
-                    topicsArray = [];
-                  }
+                  const topicsArray = await loadTopicsData(courseTypeId, subjectId);
                   setFormFilteredTopics(topicsArray);
                   
                   // Fetch modules for the selected topic
                   if (topicId) {
                     try {
                       setLoadingStates(prev => ({ ...prev, modules: true }));
-                      const modulesData = await getModulesByTopic(token, topicId, true);
-                      let modulesArray = [];
-                      if (Array.isArray(modulesData)) {
-                        modulesArray = modulesData;
-                      } else if (modulesData && Array.isArray(modulesData.content)) {
-                        modulesArray = modulesData.content;
-                      } else if (modulesData && Array.isArray(modulesData.data)) {
-                        modulesArray = modulesData.data;
-                      } else {
-                        console.warn('Unexpected modules data format (handleCourseChangeForEdit):', modulesData);
-                        modulesArray = [];
-                      }
+                      const modulesArray = await loadModulesData(topicId);
                       setFormFilteredModules(modulesArray);
                     } catch (error) {
                       console.error('Error fetching modules:', error);
@@ -1428,6 +1522,7 @@ const ChapterManagement = () => {
         message: 'Chapter deleted successfully',
         duration: 3000
       });
+      clearDropdownCaches();
       
       // Refresh chapters using new filter system
       // Old module-based refresh removed
@@ -1442,7 +1537,7 @@ const ChapterManagement = () => {
     } finally {
       setLoading(false);
     }
-  }, [executeApiCall, addNotification, token]);
+  }, [executeApiCall, addNotification, token, clearDropdownCaches]);
 
 
   // YouTube link management
@@ -1682,6 +1777,7 @@ const ChapterManagement = () => {
           message: 'Chapter deleted successfully',
           duration: 3000
         });
+        clearDropdownCaches();
         // Refresh chapters using new filter system
       }
     } catch (error) {
