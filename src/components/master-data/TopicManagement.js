@@ -416,19 +416,56 @@ const TopicManagement = () => {
 
 
   // Helper functions for course type logic
+  // Uses courseTypes array if available, falls back to ID-based check (1=Academic, 2=Competitive, 3=Professional)
   const isAcademicCourseType = (courseTypeId) => {
-    const courseType = courseTypes.find(ct => ct.id === parseInt(courseTypeId));
-    return courseType && courseType.name && courseType.name.toLowerCase().includes('academic');
+    if (!courseTypeId) return false;
+    const parsedId = parseInt(courseTypeId);
+    
+    // Fallback: Direct ID check (1 = Academic)
+    if (parsedId === 1) return true;
+    
+    // Primary: Check courseTypes array if available
+    if (courseTypes && courseTypes.length > 0) {
+      const courseType = courseTypes.find(ct => ct.id === parsedId);
+      return courseType && courseType.name && courseType.name.toLowerCase().includes('academic');
+    }
+    
+    // If courseTypes not loaded yet, return false (will update when courseTypes load)
+    return false;
   };
 
   const isCompetitiveCourseType = (courseTypeId) => {
-    const courseType = courseTypes.find(ct => ct.id === parseInt(courseTypeId));
-    return courseType && courseType.name && courseType.name.toLowerCase().includes('competitive');
+    if (!courseTypeId) return false;
+    const parsedId = parseInt(courseTypeId);
+    
+    // Fallback: Direct ID check (2 = Competitive)
+    if (parsedId === 2) return true;
+    
+    // Primary: Check courseTypes array if available
+    if (courseTypes && courseTypes.length > 0) {
+      const courseType = courseTypes.find(ct => ct.id === parsedId);
+      return courseType && courseType.name && courseType.name.toLowerCase().includes('competitive');
+    }
+    
+    // If courseTypes not loaded yet, return false (will update when courseTypes load)
+    return false;
   };
 
   const isProfessionalCourseType = (courseTypeId) => {
-    const courseType = courseTypes.find(ct => ct.id === parseInt(courseTypeId));
-    return courseType && courseType.name && courseType.name.toLowerCase().includes('professional');
+    if (!courseTypeId) return false;
+    const parsedId = parseInt(courseTypeId);
+    
+    // Fallback: Direct ID check (3 = Professional)
+    if (parsedId === 3) return true;
+    
+    // Primary: Check courseTypes array if available
+    if (courseTypes && courseTypes.length > 0) {
+      const courseType = courseTypes.find(ct => ct.id === parsedId);
+      return courseType && courseType.name && courseType.name.toLowerCase().includes('professional');
+    }
+    
+    // If courseTypes not loaded yet, return false (will update when courseTypes load)
+    return false;
   };
 
   // Fetch initial data
@@ -1291,7 +1328,26 @@ const TopicManagement = () => {
             </div>
 
             {/* Class/Exam Selection - Conditional based on Course Type */}
-            {(isAcademicCourseType(formData.courseType?.id) || isCompetitiveCourseType(formData.courseType?.id)) && (
+            {(() => {
+              const isAcademic = isAcademicCourseType(formData.courseType?.id);
+              const isCompetitive = isCompetitiveCourseType(formData.courseType?.id);
+              const shouldShow = isAcademic || isCompetitive;
+              
+              // Debug logging for troubleshooting on different systems
+              if (formData.courseType?.id) {
+                console.log('🔍 Class/Exam visibility check:', {
+                  courseTypeId: formData.courseType?.id,
+                  courseTypesLoaded: courseTypes?.length > 0,
+                  courseTypesCount: courseTypes?.length || 0,
+                  isAcademic,
+                  isCompetitive,
+                  shouldShow,
+                  courseType: courseTypes?.find(ct => ct.id === parseInt(formData.courseType?.id))
+                });
+              }
+              
+              return shouldShow;
+            })() ? (
               <div className="form-row">
                 {/* Class Selection - Only for Academic Course Types */}
                 {isAcademicCourseType(formData.courseType?.id) && (
@@ -1347,7 +1403,7 @@ const TopicManagement = () => {
                   </div>
                 )}
               </div>
-            )}
+            ) : null}
 
             <div className="form-row">
               <div className="form-group">
