@@ -4,21 +4,21 @@ import { useFilterSubmit } from '../../hooks/useFilterSubmit';
 import { useFormFocus } from '../../hooks/useFormFocus';
 import { getCourseTypesCached } from '../../services/globalApiCache';
 import {
-    createTopic,
-    deleteTopic,
-    getAllSubjectLinkages,
-    getClassesByCourse,
-    getCourses,
-    getExamsByCourse,
-    getMasterSubjectsByCourseType,
-    getTopicsCombinedFilter,
-    updateTopic
+  createTopic,
+  deleteTopic,
+  getAllSubjectLinkages,
+  getClassesByCourse,
+  getCourses,
+  getExamsByCourse,
+  getMasterSubjectsByCourseType,
+  getTopicsCombinedFilter,
+  updateTopic
 } from '../../services/masterDataService';
+import { cloneArray, fetchWithCache } from '../../utils/cacheUtils';
 import AdminPageHeader from '../common/AdminPageHeader';
 import { getInitialFilters, getTopicFilterConfig } from './filters/filterConfigs';
 import FilterPanel from './filters/FilterPanel';
 import './MasterDataComponent.css';
-import { cloneArray, fetchWithCache } from '../../utils/cacheUtils';
 
 // Reusable DataCard Component
 const DataCard = ({ 
@@ -751,19 +751,28 @@ const TopicManagement = () => {
   }, [formData.courseType?.id]);
 
   useEffect(() => {
-    console.log('🔄 Form effect - courseId:', formData.course?.id);
+    console.log('🔄 Form effect - courseId:', formData.course?.id, 'courseTypeId:', formData.courseType?.id);
     
     if (formData.course?.id && formData.courseType?.id) {
       console.log('🔄 Course selected in form, fetching classes and exams');
       const courseId = parseInt(formData.course.id);
       const courseTypeId = parseInt(formData.courseType.id);
       
+      // Clear dependent fields first
+      setFormData(prev => ({
+        ...prev,
+        class: { id: '' },
+        exam: { id: '' },
+        subjectId: ''
+      }));
+      
       // For professional courses, fetch subjects directly
-      if (formData.courseType?.id === '3') {
+      if (formData.courseType?.id === '3' || formData.courseType?.id === 3 || courseTypeId === 3) {
         console.log('🔄 Professional course selected, fetching subjects by courseId only');
         fetchSubjectLinkages(courseTypeId, courseId, null, null);
       } else {
         // For academic/competitive courses, fetch classes and exams
+        console.log('🔄 Academic/Competitive course selected, fetching classes and exams');
         fetchClassesAndExamsByCourse(courseTypeId, courseId);
       }
     } else {
@@ -1243,7 +1252,7 @@ const TopicManagement = () => {
                   id="courseType"
                   name="courseType"
                   value={formData.courseType?.id || ''}
-                  onChange={(e) => setFormData({ ...formData, courseType: { id: e.target.value } })}
+                  onChange={(e) => setFormData(prev => ({ ...prev, courseType: { id: e.target.value } }))}
                   className="form-input"
                   required
                 >
@@ -1262,7 +1271,7 @@ const TopicManagement = () => {
                   id="course"
                   name="course"
                   value={formData.course?.id || ''}
-                  onChange={(e) => setFormData({ ...formData, course: { id: e.target.value } })}
+                  onChange={(e) => setFormData(prev => ({ ...prev, course: { id: e.target.value } }))}
                   className="form-input"
                   required
                   disabled={!formData.courseType?.id}
@@ -1292,7 +1301,7 @@ const TopicManagement = () => {
                       id="class"
                       name="class"
                       value={formData.class?.id || ''}
-                      onChange={(e) => setFormData({ ...formData, class: { id: e.target.value } })}
+                      onChange={(e) => setFormData(prev => ({ ...prev, class: { id: e.target.value } }))}
                       className="form-input"
                       required
                       disabled={!formData.course?.id || loadingStates.classes}
@@ -1319,7 +1328,7 @@ const TopicManagement = () => {
                       id="exam"
                       name="exam"
                       value={formData.exam?.id || ''}
-                      onChange={(e) => setFormData({ ...formData, exam: { id: e.target.value } })}
+                      onChange={(e) => setFormData(prev => ({ ...prev, exam: { id: e.target.value } }))}
                       className="form-input"
                       required
                       disabled={!formData.course?.id || loadingStates.exams}
